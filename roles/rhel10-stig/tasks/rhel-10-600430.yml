@@ -1,0 +1,96 @@
+---
+# =============================================================================
+# STIG ID  : RHEL-10-600430
+# Rule ID  : SV-281198r1166546_rule
+# Severity : medium
+# CCI      : CCI-000044
+# Title    : RHEL 10 must ensure account lockouts persist.
+#
+# Description:
+#   Having lockouts persist across reboots ensures that an account is
+#   unlocked only by an administrator. If the lockouts did not persist across
+#   reboots, an attacker could reboot the system to continue brute force
+#   attacks against the accounts on the system. Satisfies:
+#   SRG-OS-000021-GPOS-00005, SRG-OS-000329-GPOS-00128
+#
+# Check Text:
+#   Verify RHEL 10 is configured so that the "/etc/security/faillock.conf"
+#   file uses a nondefault "faillock" directory to ensure contents persist
+#   after reboot with the following command:
+#
+#   $ sudo grep -w dir /etc/security/faillock.conf
+#   dir = /var/log/faillock
+#
+#   If the "dir" option is not set to a nondefault documented tally log
+#   directory, is commented out, or is missing, this is a finding.
+#
+# Fix Text:
+#   Configure RHEL 10 to maintain the contents of the "faillock" directory
+#   after a reboot.
+#
+#   Add/modify the "/etc/security/faillock.conf" file to match the following
+#   line:
+#
+#   dir = /var/log/faillock
+# =============================================================================
+
+- name: "RHEL-10-600430 | RHEL 10 must ensure account lockouts persist."
+  when: rhel_10_600430 | bool
+  tags:
+    - RHEL-10-600430
+    - medium
+    - CCI-000044
+  block:
+    - name: "RHEL-10-600430 | Check dir setting in /etc/security/faillock.conf"
+      ansible.builtin.command:
+        cmd: grep -w "dir" /etc/security/faillock.conf
+      register: rhel_10_600430_check
+      changed_when: false
+      failed_when: false
+
+    - name: "RHEL-10-600430 | Backup /etc/security/faillock.conf before modification"
+      ansible.builtin.copy:
+        src: /etc/security/faillock.conf
+        dest: "/etc/security/faillock.conf.bak.{{ ansible_date_time.epoch }}"
+        remote_src: true
+        mode: preserve
+      when: >
+        rhel_10_600430_check.rc != 0 or
+        rhel_10_600430_check.stdout | regex_search('dir\s*=\s*/var/log/faillock') is none
+
+    - name: "RHEL-10-600430 | Set dir = /var/log/faillock in /etc/security/faillock.conf"
+      ansible.builtin.lineinfile:
+        path: /etc/security/faillock.conf
+        regexp: '^#?\s*dir\s*='
+        line: 'dir = /var/log/faillock'
+        state: present
+      when: >
+        rhel_10_600430_check.rc != 0 or
+        rhel_10_600430_check.stdout | regex_search('dir\s*=\s*/var/log/faillock') is none
+
+    - name: "RHEL-10-600430 | Ensure /var/log/faillock directory exists"
+      ansible.builtin.file:
+        path: /var/log/faillock
+        state: directory
+        owner: root
+        group: root
+        mode: '0755'
+
+    - name: "RHEL-10-600430 | Re-check dir setting"
+      ansible.builtin.command:
+        cmd: grep -w "dir" /etc/security/faillock.conf
+      register: rhel_10_600430_verify
+      changed_when: false
+      failed_when: false
+
+    - name: "RHEL-10-600430 | Assert dir is set to a non-default persistent path"
+      ansible.builtin.assert:
+        that:
+          - rhel_10_600430_verify.rc == 0
+          - rhel_10_600430_verify.stdout | regex_search('dir\s*=\s*/var/log/faillock') is not none
+        fail_msg: "result=FAIL stig_id=RHEL-10-600430 detail=dir is not set to /var/log/faillock in /etc/security/faillock.conf (current={{ rhel_10_600430_verify.stdout | trim }})."
+        success_msg: "result=PASS stig_id=RHEL-10-600430 detail=dir is set to /var/log/faillock in /etc/security/faillock.conf (lockouts persist across reboots)."
+  rescue:
+    - name: "RHEL-10-600430 | RESCUE - record failure and continue"
+      ansible.builtin.debug:
+        msg: "result=ERROR stig_id=RHEL-10-600430 detail=Task failed unexpectedly — see prior error for details."

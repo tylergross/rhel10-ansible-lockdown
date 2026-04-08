@@ -1,0 +1,69 @@
+---
+# =============================================================================
+# STIG ID  : RHEL-10-200730
+# Rule ID  : SV-281005r1195395_rule
+# Severity : medium
+# CCI      : CCI-000765
+# Title    : RHEL 10 must have the "pkcs11-provider" package installed.
+#
+# Description:
+#   Without the use of multifactor authentication, the ease of access to
+#   privileged functions is greatly increased. Multifactor authentication
+#   requires using two or more factors to achieve authentication. A
+#   privileged account is defined as an information system account with
+#   authorizations of a privileged user. The DOD common access card (CAC)
+#   with DOD-approved PKI is an example of multifactor authentication.
+#   Satisfies: SRG-OS-000105-GPOS-00052, SRG-OS-000375-GPOS-00160,
+#   SRG-OS-000377-GPOS-00162
+#
+# Check Text:
+#   Note: If the system administrator demonstrates the use of an approved
+#   alternate multifactor authentication method, this requirement is not
+#   applicable.
+#
+#   Verify RHEL 10 has the "openssl-pkcs11" package installed with the
+#   following command:
+#
+#   $ sudo dnf list --installed pkcs11-provider
+#   Installed Packages
+#   pkcs11-provider.x86_64 1.0-3.el10_0 @rhel-10-for-x86_64-baseos-rpms
+#
+#   If the "openssl-pkcs11" package is not installed, this is a finding.
+#
+# Fix Text:
+#   Configure RHEL 10 to have the "openssl-pkcs11" package installed with the
+#   following command:
+#
+#   $ sudo dnf -y install pkcs11-provider
+# =============================================================================
+
+- name: "RHEL-10-200730 | RHEL 10 must have the pkcs11-provider package installed."
+  when: rhel_10_200730 | bool
+  tags:
+    - RHEL-10-200730
+    - medium
+    - CCI-000765
+  block:
+    - name: "RHEL-10-200730 | Ensure pkcs11-provider is installed"
+      ansible.builtin.package:
+        name: pkcs11-provider
+        state: present
+
+    - name: "RHEL-10-200730 | Verify pkcs11-provider is installed"
+      ansible.builtin.command: rpm -q pkcs11-provider
+      register: rhel_10_200730_check
+      changed_when: false
+      failed_when: false
+
+    - name: "RHEL-10-200730 | Assert pkcs11-provider is installed"
+      ansible.builtin.assert:
+        that: rhel_10_200730_check.rc == 0
+        fail_msg: >-
+          result=FAIL stig_id=RHEL-10-200730
+          detail=Package pkcs11-provider is not installed.
+          Install with: dnf -y install pkcs11-provider
+        success_msg: "result=PASS stig_id=RHEL-10-200730 detail=Package pkcs11-provider is installed."
+  rescue:
+    - name: "RHEL-10-200730 | RESCUE - record failure and continue"
+      ansible.builtin.debug:
+        msg: "result=ERROR stig_id=RHEL-10-200730 detail=Task failed unexpectedly — see prior error for details."

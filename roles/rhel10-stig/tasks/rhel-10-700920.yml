@@ -1,0 +1,80 @@
+---
+# =============================================================================
+# STIG ID  : RHEL-10-700920
+# Rule ID  : SV-281295r1166837_rule
+# Severity : medium
+# CCI      : CCI-001133
+# Title    : RHEL 10 must automatically exit interactive command shell user sessions after 15 minutes of inactivity.
+#
+# Description:
+#   Terminating an idle interactive command shell user session within a short
+#   time period reduces the window of opportunity for unauthorized personnel
+#   to take control of it when left unattended in a virtual terminal or
+#   physical console. Satisfies: SRG-OS-000163-GPOS-00072,
+#   SRG-OS-000029-GPOS-00010
+#
+# Check Text:
+#   Verify RHEL 10 is configured to exit interactive command shell user
+#   sessions after 10 minutes of inactivity or less with the following
+#   command:
+#
+#   $ sudo grep -i tmout /etc/profile /etc/profile.d/*.sh
+#   /etc/profile.d/tmout.sh:declare -xr TMOUT=600
+#
+#   If "TMOUT" is not set to "600" or less in a script located in the
+#   "/etc/'profile.d/" directory, is missing, or is commented out, this is a
+#   finding.
+#
+# Fix Text:
+#   Configure RHEL 10 to exit interactive command shell user sessions after
+#   15 minutes of inactivity.
+#
+#   Add or edit the following line in "/etc/profile.d/tmout.sh":
+#
+#   #!/bin/bash
+#
+#   declare -xr TMOUT=600
+# =============================================================================
+
+- name: "RHEL-10-700920 | RHEL 10 must automatically exit interactive command shell user sessions after 15 minutes of inactivity."
+  when: rhel_10_700920 | bool
+  tags:
+    - RHEL-10-700920
+    - medium
+    - CCI-001133
+  block:
+    - name: "RHEL-10-700920 | Check TMOUT in /etc/profile.d/*.sh"
+      ansible.builtin.command:
+        cmd: grep -i TMOUT /etc/profile.d/tmout.sh
+      register: rhel_10_700920_check
+      changed_when: false
+      failed_when: false
+
+    - name: "RHEL-10-700920 | Write /etc/profile.d/tmout.sh with TMOUT=600"
+      ansible.builtin.copy:
+        dest: /etc/profile.d/tmout.sh
+        content: |
+          #!/bin/bash
+          declare -xr TMOUT=600
+        mode: '0644'
+        owner: root
+        group: root
+      when: rhel_10_700920_check.rc != 0 or 'declare -xr TMOUT=600' not in rhel_10_700920_check.stdout
+
+    - name: "RHEL-10-700920 | Re-check TMOUT in /etc/profile.d/tmout.sh"
+      ansible.builtin.command:
+        cmd: grep -i TMOUT /etc/profile.d/tmout.sh
+      register: rhel_10_700920_verify
+      changed_when: false
+      failed_when: false
+
+    - name: "RHEL-10-700920 | Assert TMOUT is set to 600 in /etc/profile.d/tmout.sh"
+      ansible.builtin.assert:
+        that: "'TMOUT=600' in rhel_10_700920_verify.stdout | upper"
+        fail_msg: "result=FAIL stig_id=RHEL-10-700920 detail=TMOUT is not set to 600 in /etc/profile.d/tmout.sh."
+        success_msg: "result=PASS stig_id=RHEL-10-700920 detail=TMOUT is set to 600 in /etc/profile.d/tmout.sh."
+
+  rescue:
+    - name: "RHEL-10-700920 | RESCUE - record failure and continue"
+      ansible.builtin.debug:
+        msg: "result=ERROR stig_id=RHEL-10-700920 detail=Task failed unexpectedly — see prior error for details."

@@ -1,0 +1,95 @@
+---
+# =============================================================================
+# STIG ID  : RHEL-10-600310
+# Rule ID  : SV-281190r1195445_rule
+# Severity : medium
+# CCI      : CCI-004066
+# Title    : RHEL 10 must enforce password complexity by requiring that at least one numeric character be used.
+#
+# Description:
+#   Use of a complex password helps to increase the time and resources
+#   required to compromise the password. Password complexity, or strength, is
+#   a measure of the effectiveness of a password in resisting attempts at
+#   guessing and brute-force attacks. Password complexity is one factor of
+#   several that determines how long it takes to crack a password. The more
+#   complex the password is, the greater the number of possible combinations
+#   that must be tested before the password is compromised. Requiring digits
+#   makes password guessing attacks more difficult by ensuring a larger
+#   search space.
+#
+# Check Text:
+#   Verify RHEL 10 enforces password complexity by requiring that at least
+#   one numeric character be used.
+#
+#   Check the value for "dcredit" with the following command:
+#
+#   $ sudo grep -s dcredit /etc/security/pwquality.conf
+#   /etc/security/pwquality.conf.d/*.conf
+#   /etc/security/pwquality.conf:dcredit = -1
+#
+#   If the value of "dcredit" is a positive number or is commented out, this
+#   is a finding.
+#
+# Fix Text:
+#   Configure RHEL 10 to enforce password complexity by requiring that at
+#   least one numeric character be used by setting the "dcredit" option.
+#
+#   Add or update the following line in the "/etc/security/pwquality.conf"
+#   file or a configuration file in the "/etc/security/pwquality.conf.d/"
+#   directory to contain the "dcredit" parameter:
+#
+#   dcredit = -1
+# =============================================================================
+
+- name: "RHEL-10-600310 | RHEL 10 must enforce password complexity by requiring that at least one numeric character be used."
+  when: rhel_10_600310 | bool
+  tags:
+    - RHEL-10-600310
+    - medium
+    - CCI-004066
+  block:
+    - name: "RHEL-10-600310 | Check dcredit in /etc/security/pwquality.conf"
+      ansible.builtin.command:
+        cmd: grep -s "^dcredit" /etc/security/pwquality.conf
+      register: rhel_10_600310_check
+      changed_when: false
+      failed_when: false
+
+    - name: "RHEL-10-600310 | Backup /etc/security/pwquality.conf before modification"
+      ansible.builtin.copy:
+        src: /etc/security/pwquality.conf
+        dest: "/etc/security/pwquality.conf.bak.{{ ansible_date_time.epoch }}"
+        remote_src: true
+        mode: preserve
+      when: >
+        rhel_10_600310_check.rc != 0 or
+        (rhel_10_600310_check.stdout | regex_search('dcredit\s*=\s*(-?\d+)', '\1') | first | int) >= 0
+
+    - name: "RHEL-10-600310 | Set dcredit = -1 in /etc/security/pwquality.conf"
+      ansible.builtin.lineinfile:
+        path: /etc/security/pwquality.conf
+        regexp: '^#?\s*dcredit\s*='
+        line: 'dcredit = -1'
+        state: present
+      when: >
+        rhel_10_600310_check.rc != 0 or
+        (rhel_10_600310_check.stdout | regex_search('dcredit\s*=\s*(-?\d+)', '\1') | first | int) >= 0
+
+    - name: "RHEL-10-600310 | Re-check dcredit"
+      ansible.builtin.command:
+        cmd: grep -s "^dcredit" /etc/security/pwquality.conf
+      register: rhel_10_600310_verify
+      changed_when: false
+      failed_when: false
+
+    - name: "RHEL-10-600310 | Assert dcredit is a negative number"
+      ansible.builtin.assert:
+        that:
+          - rhel_10_600310_verify.rc == 0
+          - (rhel_10_600310_verify.stdout | regex_search('dcredit\s*=\s*(-?\d+)', '\1') | first | int) < 0
+        fail_msg: "result=FAIL stig_id=RHEL-10-600310 detail=dcredit is not set to a negative value in /etc/security/pwquality.conf (current={{ rhel_10_600310_verify.stdout | trim }})."
+        success_msg: "result=PASS stig_id=RHEL-10-600310 detail=dcredit is set to a negative value in /etc/security/pwquality.conf ({{ rhel_10_600310_verify.stdout | trim }})."
+  rescue:
+    - name: "RHEL-10-600310 | RESCUE - record failure and continue"
+      ansible.builtin.debug:
+        msg: "result=ERROR stig_id=RHEL-10-600310 detail=Task failed unexpectedly — see prior error for details."

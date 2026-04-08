@@ -1,0 +1,73 @@
+---
+# =============================================================================
+# STIG ID  : RHEL-10-700690
+# Rule ID  : SV-281272r1166768_rule
+# Severity : medium
+# CCI      : CCI-000213
+# Title    : RHEL 10 must not have any ".shosts" files on the system.
+#
+# Description:
+#   The ".shosts" files are used to configure host-based authentication for
+#   individual users or the system via Secure Shell (SSH). Host-based
+#   authentication is not sufficient for preventing unauthorized access to
+#   the system, as it does not require interactive identification and
+#   authentication of a connection request, or for the use of two-factor
+#   authentication.
+#
+# Check Text:
+#   Verify RHEL 10 does not have any ".shosts" files on the system with the
+#   following command:
+#
+#   $ sudo find / -name .shosts
+#
+#   If a ".shosts" file is found, this is a finding.
+#
+# Fix Text:
+#   Configure RHEL 10 to not have any ".shosts" files on the system.
+#
+#   Remove any found ".shosts" files from the system with the following
+#   command:
+#
+#   $ sudo rm /[path]/[to]/[file]/.shosts
+# =============================================================================
+
+- name: "RHEL-10-700690 | RHEL 10 must not have any .shosts files on the system."
+  when: rhel_10_700690 | bool
+  tags:
+    - RHEL-10-700690
+    - medium
+    - CCI-000213
+  block:
+    - name: "RHEL-10-700690 | Find .shosts files on the system"
+      ansible.builtin.find:
+        paths: /
+        patterns: '.shosts'
+        recurse: true
+        hidden: true
+      register: rhel_10_700690_found
+
+    - name: "RHEL-10-700690 | Remove found .shosts files"
+      ansible.builtin.file:
+        path: "{{ item.path }}"
+        state: absent
+      loop: "{{ rhel_10_700690_found.files }}"
+      when: rhel_10_700690_found.files | length > 0
+
+    - name: "RHEL-10-700690 | Re-check for .shosts files"
+      ansible.builtin.find:
+        paths: /
+        patterns: '.shosts'
+        recurse: true
+        hidden: true
+      register: rhel_10_700690_verify
+
+    - name: "RHEL-10-700690 | Assert no .shosts files exist"
+      ansible.builtin.assert:
+        that: rhel_10_700690_verify.files | length == 0
+        fail_msg: "result=FAIL stig_id=RHEL-10-700690 detail=.shosts file(s) found on the system (count={{ rhel_10_700690_verify.files | length }})."
+        success_msg: "result=PASS stig_id=RHEL-10-700690 detail=No .shosts files found on the system."
+
+  rescue:
+    - name: "RHEL-10-700690 | RESCUE - record failure and continue"
+      ansible.builtin.debug:
+        msg: "result=ERROR stig_id=RHEL-10-700690 detail=Task failed unexpectedly — see prior error for details."

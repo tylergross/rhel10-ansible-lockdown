@@ -1,0 +1,70 @@
+---
+# =============================================================================
+# STIG ID  : RHEL-10-600270
+# Rule ID  : SV-281186r1184622_rule
+# Severity : medium
+# CCI      : CCI-004066
+# Title    : RHEL 10 must enforce that passwords have a 24 hours/1 day minimum lifetime restriction in "/etc/shadow".
+#
+# Description:
+#   Enforcing a minimum password lifetime helps to prevent repeated password
+#   changes to defeat the password reuse or history enforcement requirement.
+#   If users are allowed to immediately and continually change their
+#   password, the password could be repeatedly changed in a short period of
+#   time to defeat the organization's policy for password reuse.
+#
+# Check Text:
+#   Verify the minimum time period between password changes for each user
+#   account is one day or greater with the following command:
+#
+#   $ sudo awk -F: '$4 < 1 {printf "%s %d\n", $1, $4}' /etc/shadow
+#
+#   If any results are returned that are not associated with a system
+#   account, this is a finding.
+#
+# Fix Text:
+#   Configure RHEL 10 so that noncompliant accounts enforce a 24 hours/1 day
+#   minimum password lifetime:
+#
+#   $ sudo passwd -n 1 [user]
+# =============================================================================
+
+- name: "RHEL-10-600270 | RHEL 10 must enforce that passwords have a 24 hours/1 day minimum lifetime restriction in /etc/shadow."
+  when: rhel_10_600270 | bool
+  tags:
+    - RHEL-10-600270
+    - medium
+    - CCI-004066
+  block:
+    - name: "RHEL-10-600270 | Find interactive users with PASS_MIN_DAYS < 1"
+      ansible.builtin.shell:
+        cmd: >
+          awk -F: '($3 >= 1000 && $3 != 65534) && ($4 < 1) {print $1}' /etc/shadow
+      register: rhel_10_600270_check
+      changed_when: false
+      failed_when: false
+
+    - name: "RHEL-10-600270 | Set PASS_MIN_DAYS to 1 for non-compliant interactive users"
+      ansible.builtin.command:
+        cmd: passwd -n 1 {{ item }}
+      loop: "{{ rhel_10_600270_check.stdout_lines }}"
+      when: rhel_10_600270_check.stdout_lines | length > 0
+
+    - name: "RHEL-10-600270 | Re-check interactive users with PASS_MIN_DAYS < 1"
+      ansible.builtin.shell:
+        cmd: >
+          awk -F: '($3 >= 1000 && $3 != 65534) && ($4 < 1) {print $1}' /etc/shadow
+      register: rhel_10_600270_verify
+      changed_when: false
+      failed_when: false
+
+    - name: "RHEL-10-600270 | Assert all interactive users have PASS_MIN_DAYS >= 1"
+      ansible.builtin.assert:
+        that:
+          - rhel_10_600270_verify.stdout_lines | length == 0
+        fail_msg: "result=FAIL stig_id=RHEL-10-600270 detail=Interactive user(s) still have PASS_MIN_DAYS < 1 in /etc/shadow ({{ rhel_10_600270_verify.stdout | trim }})."
+        success_msg: "result=PASS stig_id=RHEL-10-600270 detail=All interactive users have a 24-hour minimum password lifetime restriction in /etc/shadow."
+  rescue:
+    - name: "RHEL-10-600270 | RESCUE - record failure and continue"
+      ansible.builtin.debug:
+        msg: "result=ERROR stig_id=RHEL-10-600270 detail=Task failed unexpectedly — see prior error for details."

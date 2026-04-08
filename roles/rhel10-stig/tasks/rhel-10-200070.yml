@@ -1,0 +1,64 @@
+---
+# =============================================================================
+# STIG ID  : RHEL-10-200070
+# Rule ID  : SV-280949r1195338_rule
+# Severity : high
+# CCI      : CCI-000197
+# Title    : RHEL 10 must not have the "tftp" package installed.
+#
+# Description:
+#   It is detrimental for operating systems to provide, or install by
+#   default, functionality exceeding requirements or mission objectives.
+#   These unnecessary capabilities are often overlooked and therefore, may
+#   remain unsecure. They increase the risk to the platform by providing
+#   additional attack vectors. If Trivial File Transfer Protocol (TFTP) is
+#   required for operational support (such as transmission of router
+#   configurations), its use must be documented with the information system
+#   security manager, restricted to only authorized personnel, and have
+#   access control rules established.
+#
+# Check Text:
+#   Verify RHEL 10 does not have the "tftp" package installed with the
+#   following command:
+#
+#   $ sudo dnf list --installed tftp
+#   Error: No matching Packages to list
+#
+#   If the "tftp" package is installed, this is a finding.
+#
+# Fix Text:
+#   Configure RHEL 10 to not have the "tftp" package installed with the
+#   following command:
+#
+#   $ sudo dnf -y remove tftp
+# =============================================================================
+
+- name: "RHEL-10-200070 | RHEL 10 must not have the tftp package installed."
+  when: rhel_10_200070 | bool
+  tags:
+    - RHEL-10-200070
+    - high
+    - CCI-000197
+  block:
+    - name: "RHEL-10-200070 | Remove tftp client if installed"
+      ansible.builtin.package:
+        name: tftp
+        state: absent
+
+    - name: "RHEL-10-200070 | Verify tftp is not installed"
+      ansible.builtin.command: rpm -q tftp
+      register: rhel_10_200070_check
+      changed_when: false
+      failed_when: false
+
+    - name: "RHEL-10-200070 | Assert tftp is not installed"
+      ansible.builtin.assert:
+        that: rhel_10_200070_check.rc != 0
+        fail_msg: >-
+          result=FAIL stig_id=RHEL-10-200070
+          detail=Package tftp is still installed. Remove with: dnf -y remove tftp
+        success_msg: "result=PASS stig_id=RHEL-10-200070 detail=Package tftp is not installed."
+  rescue:
+    - name: "RHEL-10-200070 | RESCUE - record failure and continue"
+      ansible.builtin.debug:
+        msg: "result=ERROR stig_id=RHEL-10-200070 detail=Task failed unexpectedly — see prior error for details."

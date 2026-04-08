@@ -1,0 +1,86 @@
+---
+# =============================================================================
+# STIG ID  : RHEL-10-200646
+# Rule ID  : SV-280989r1197222_rule
+# Severity : medium
+# CCI      : CCI-001851
+# Title    : RHEL 10 must encrypt, via the gtls driver, the transfer of audit records off-loaded onto a different system or media from the system being audited via rsyslog.
+#
+# Description:
+#   Information stored in one location is vulnerable to accidental or
+#   incidental deletion or alteration. Off-loading is a common process in
+#   information systems with limited audit storage capacity. RHEL 10
+#   installation media provides "rsyslogd", a system utility providing
+#   support for message logging. Support for both internet and Unix domain
+#   sockets enables this utility to support both local and remote logging.
+#   Coupling this utility with "gnutls" (a secure communications library
+#   implementing the Secure Sockets Layer [SSL], Transport Layer Security
+#   [TLS], and Datagram TLS [DTLS] protocols) creates a method to securely
+#   encrypt and off-load auditing. When this utility is coupled with the
+#   omfwd module, it can use the ossl network stream driver, which leverages
+#   the OpenSSL library for Transport Layer Security (TLS) to securely
+#   encrypt and off-load auditing. Satisfies: SRG-OS-000342-GPOS-00133,
+#   SRG-OS-000479-GPOS-00224
+#
+# Check Text:
+#   Verify RHEL 10 explicitly defines a TLS driver (gtls or ossl) for
+#   encrypted rsyslog off-loading.
+#
+#   Search for an explicitly defined stream driver within "omfwd" action
+#   blocks with the following command:
+#
+#   $ sudo grep -rE 'StreamDriver\s*=\s*"(gtls|ossl)"' /etc/rsyslog.conf
+#   /etc/rsyslog.d/
+#
+#   If TLS-based "omfwd" forwarding is configured, but the command above
+#   returns no active configuration lines specifying either "gtls" or "ossl"
+#   within the action block, this is a finding.
+#
+# Fix Text:
+#   Configure RHEL 10 to explicitly define a TLS driver for rsyslog to use
+#   for encrypting off-loaded audit records. The "ossl" driver is required
+#   for environments operating in FIPS mode.
+#
+#   Add the "streamdriver" parameter to the "omfwd" action rule in its
+#   configuration file (e.g., /etc/rsyslog.d/99-forwarding.conf).
+#
+#   Example:
+#   action(
+#   type="omfwd"
+#   streamdriver="ossl"
+#   target="logserver.example.com"
+#   protocol="tcp"
+#   port="6514"
+#   tls="on"
+#   )
+#
+#   After applying the configuration, restart the rsyslog service:
+#   $ sudo systemctl restart rsyslog
+# =============================================================================
+
+- name: "RHEL-10-200646 | RHEL 10 must encrypt, via the gtls driver, the transfer of audit records off-loaded onto a different system or media from the system being audited via rsyslog."
+  when: rhel_10_200646 | bool
+  tags:
+    - RHEL-10-200646
+    - medium
+    - CCI-001851
+  block:
+    - name: "RHEL-10-200646 | Check rsyslog StreamDriver (gtls or ossl) configuration"
+      ansible.builtin.shell: >-
+        grep -rE 'StreamDriver\s*=\s*"(gtls|ossl)"' /etc/rsyslog.conf /etc/rsyslog.d/ 2>/dev/null || true
+      register: rhel_10_200646_check
+      changed_when: false
+      failed_when: false
+
+    - name: "RHEL-10-200646 | Assert rsyslog uses gtls or ossl StreamDriver"
+      ansible.builtin.assert:
+        that: rhel_10_200646_check.stdout | trim != ''
+        fail_msg: >-
+          result=FAIL stig_id=RHEL-10-200646
+          detail=rsyslog StreamDriver is not set to gtls or ossl.
+          Configure StreamDriver="ossl" (or "gtls") in the omfwd action for {{ rhel_10_rsyslog_remote_server }}.
+        success_msg: "result=PASS stig_id=RHEL-10-200646 detail=rsyslog is configured with gtls or ossl StreamDriver."
+  rescue:
+    - name: "RHEL-10-200646 | RESCUE - record failure and continue"
+      ansible.builtin.debug:
+        msg: "result=ERROR stig_id=RHEL-10-200646 detail=Task failed unexpectedly — see prior error for details."

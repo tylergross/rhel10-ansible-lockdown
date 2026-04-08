@@ -1,0 +1,85 @@
+---
+# =============================================================================
+# STIG ID  : RHEL-10-600415
+# Rule ID  : SV-281195r1166537_rule
+# Severity : medium
+# CCI      : CCI-002238
+# Title    : RHEL 10 must automatically lock the root account until the root account is released by an administrator when three unsuccessful login attempts occur during a 15-minute time period.
+#
+# Description:
+#   By limiting the number of failed login attempts, the risk of unauthorized
+#   system access via user password guessing, also known as brute-forcing, is
+#   reduced. Limits are imposed by locking the account. Satisfies:
+#   SRG-OS-000329-GPOS-00128, SRG-OS-000021-GPOS-00005
+#
+# Check Text:
+#   Verify RHEL 10 is configured to lock the root account after three
+#   unsuccessful login attempts with the following command:
+#
+#   $ sudo grep even_deny_root /etc/security/faillock.conf
+#   even_deny_root
+#
+#   If the "even_deny_root" option is not set or is missing or commented out,
+#   this is a finding.
+#
+# Fix Text:
+#   Configure RHEL 10 to lock out the "root" account after a number of
+#   incorrect login attempts using "pam_faillock.so".
+#
+#   Enable the feature using the following command:
+#
+#   $ sudo authselect enable-feature with-faillock
+#
+#   Edit the "/etc/security/faillock.conf" by uncommenting or adding the
+#   following line:
+#
+#   even_deny_root
+# =============================================================================
+
+- name: "RHEL-10-600415 | RHEL 10 must automatically lock the root account until the root account is released by an administrator when three unsuccessful login attempts occur during a 15-minute time period."
+  when: rhel_10_600415 | bool
+  tags:
+    - RHEL-10-600415
+    - medium
+    - CCI-002238
+  block:
+    - name: "RHEL-10-600415 | Check even_deny_root in /etc/security/faillock.conf"
+      ansible.builtin.command:
+        cmd: grep "even_deny_root" /etc/security/faillock.conf
+      register: rhel_10_600415_check
+      changed_when: false
+      failed_when: false
+
+    - name: "RHEL-10-600415 | Backup /etc/security/faillock.conf before modification"
+      ansible.builtin.copy:
+        src: /etc/security/faillock.conf
+        dest: "/etc/security/faillock.conf.bak.{{ ansible_date_time.epoch }}"
+        remote_src: true
+        mode: preserve
+      when: rhel_10_600415_check.rc != 0
+
+    - name: "RHEL-10-600415 | Set even_deny_root in /etc/security/faillock.conf"
+      ansible.builtin.lineinfile:
+        path: /etc/security/faillock.conf
+        regexp: '^#?\s*even_deny_root'
+        line: 'even_deny_root'
+        state: present
+      when: rhel_10_600415_check.rc != 0
+
+    - name: "RHEL-10-600415 | Re-check even_deny_root"
+      ansible.builtin.command:
+        cmd: grep "^even_deny_root" /etc/security/faillock.conf
+      register: rhel_10_600415_verify
+      changed_when: false
+      failed_when: false
+
+    - name: "RHEL-10-600415 | Assert even_deny_root is present"
+      ansible.builtin.assert:
+        that:
+          - rhel_10_600415_verify.rc == 0
+        fail_msg: "result=FAIL stig_id=RHEL-10-600415 detail=even_deny_root is not set in /etc/security/faillock.conf."
+        success_msg: "result=PASS stig_id=RHEL-10-600415 detail=even_deny_root is configured in /etc/security/faillock.conf."
+  rescue:
+    - name: "RHEL-10-600415 | RESCUE - record failure and continue"
+      ansible.builtin.debug:
+        msg: "result=ERROR stig_id=RHEL-10-600415 detail=Task failed unexpectedly — see prior error for details."

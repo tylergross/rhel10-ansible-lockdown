@@ -1,0 +1,76 @@
+---
+# =============================================================================
+# STIG ID  : RHEL-10-400235
+# Rule ID  : SV-281064r1165547_rule
+# Severity : medium
+# CCI      : CCI-000213
+# Title    : RHEL 10 must enforce mode "0740" or less permissive for local initialization files.
+#
+# Description:
+#   Local initialization files are used to configure the user's shell
+#   environment upon login. Malicious modification of these files could
+#   compromise accounts upon login.
+#
+# Check Text:
+#   Verify RHEL 10 is configured so that all local initialization files have
+#   a mode of "0740" or less permissive with the following command:
+#
+#   Note: The example will be for the "disauser" user, who has a home
+#   directory of "/home/disauser".
+#
+#   $ sudo find /home -maxdepth 2 -type f -name ".*" -exec stat -c "%n %a" {}
+#   \; | awk '$2 > 740'
+#   /home/disauser/.bash_profile 770
+#
+#   If any local initialization files are returned, this indicates a mode
+#   more permissive than "0740", and this is a finding.
+#
+# Fix Text:
+#   Configure RHEL 10 so that all local initialization files have a mode of
+#   "0740" or less permissive with the following command:
+#
+#   Note: The example will be for the "disauser" user, who has a home
+#   directory of "/home/disauser".
+#
+#   $ sudo chmod 0740 /home/disauser/.<INIT_FILE>
+# =============================================================================
+
+- name: "RHEL-10-400235 | RHEL 10 must enforce mode 0740 or less permissive for local initialization files."
+  when: rhel_10_400235 | bool
+  tags:
+    - RHEL-10-400235
+    - medium
+    - CCI-000213
+  block:
+    - name: "RHEL-10-400235 | Find local initialization files more permissive than 0740"
+      ansible.builtin.command:
+        cmd: find /home -maxdepth 2 -type f -name ".[^.]*" -perm /037
+      register: rhel_10_400235_check
+      changed_when: false
+      failed_when: false
+
+    - name: "RHEL-10-400235 | Remediate initialization files more permissive than 0740"
+      ansible.builtin.file:
+        path: "{{ item }}"
+        mode: '0740'
+      loop: "{{ rhel_10_400235_check.stdout_lines }}"
+      when: rhel_10_400235_check.stdout_lines | length > 0
+
+    - name: "RHEL-10-400235 | Re-check local initialization files more permissive than 0740"
+      ansible.builtin.command:
+        cmd: find /home -maxdepth 2 -type f -name ".[^.]*" -perm /037
+      register: rhel_10_400235_verify
+      changed_when: false
+      failed_when: false
+
+    - name: "RHEL-10-400235 | Assert all local initialization files have mode 0740 or less permissive"
+      ansible.builtin.assert:
+        that:
+          - rhel_10_400235_verify.stdout_lines | length == 0
+        fail_msg: "result=FAIL stig_id=RHEL-10-400235 detail=Local initialization files with mode more permissive than 0740 found: {{ rhel_10_400235_verify.stdout_lines | join(', ') }}."
+        success_msg: "result=PASS stig_id=RHEL-10-400235 detail=All local initialization files have mode 0740 or less permissive."
+
+  rescue:
+    - name: "RHEL-10-400235 | RESCUE - record failure and continue"
+      ansible.builtin.debug:
+        msg: "result=ERROR stig_id=RHEL-10-400235 detail=Task failed unexpectedly — see prior error for details."

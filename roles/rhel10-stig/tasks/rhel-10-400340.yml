@@ -1,0 +1,74 @@
+---
+# =============================================================================
+# STIG ID  : RHEL-10-400340
+# Rule ID  : SV-281085r1195409_rule
+# Severity : medium
+# CCI      : CCI-000213
+# Title    : RHEL 10 must enforce mode "0600" or less permissive for Secure Shell (SSH) private host key files.
+#
+# Description:
+#   If an unauthorized user obtains the private SSH host key file, the host
+#   could be impersonated.
+#
+# Check Text:
+#   Verify RHEL 10 enforces mode "0600" for SSH private host key files with
+#   the following command:
+#
+#   $ sudo stat -c "%a %n" /etc/ssh/*_key
+#   600 /etc/ssh/ssh_host_ecdsa_key
+#   600 /etc/ssh/ssh_host_ed25519_key
+#   600 /etc/ssh/ssh_host_rsa_key
+#
+#   If any private host key file has a mode more permissive than "0600", this
+#   is a finding.
+#
+# Fix Text:
+#   Configure RHEL 10 to enforce mode "0600" for SSH private host key files
+#   with the following command:
+#
+#   $ sudo chmod 0600 /etc/ssh/ssh_host*key
+#
+#   Restart the SSH daemon for the changes to take effect:
+#
+#   $ sudo systemctl restart sshd.service
+# =============================================================================
+
+- name: "RHEL-10-400340 | RHEL 10 must enforce mode 0600 or less permissive for Secure Shell (SSH) private host key files."
+  when: rhel_10_400340 | bool
+  tags:
+    - RHEL-10-400340
+    - medium
+    - CCI-000213
+  block:
+    - name: "RHEL-10-400340 | Find SSH private host key files more permissive than 0600"
+      ansible.builtin.command:
+        cmd: find /etc/ssh -maxdepth 1 -name '*_key' -perm /177 -type f
+      register: rhel_10_400340_check
+      changed_when: false
+      failed_when: false
+
+    - name: "RHEL-10-400340 | Set mode 0600 on SSH private host key files"
+      ansible.builtin.file:
+        path: "{{ item }}"
+        mode: '0600'
+      loop: "{{ rhel_10_400340_check.stdout_lines }}"
+      when: rhel_10_400340_check.stdout_lines | length > 0
+
+    - name: "RHEL-10-400340 | Re-check SSH private host key files more permissive than 0600"
+      ansible.builtin.command:
+        cmd: find /etc/ssh -maxdepth 1 -name '*_key' -perm /177 -type f
+      register: rhel_10_400340_verify
+      changed_when: false
+      failed_when: false
+
+    - name: "RHEL-10-400340 | Assert all SSH private host key files have mode 0600 or less permissive"
+      ansible.builtin.assert:
+        that:
+          - rhel_10_400340_verify.stdout_lines | length == 0
+        fail_msg: "result=FAIL stig_id=RHEL-10-400340 detail=SSH private host key files with mode more permissive than 0600 found: {{ rhel_10_400340_verify.stdout_lines | join(', ') }}."
+        success_msg: "result=PASS stig_id=RHEL-10-400340 detail=All SSH private host key files have mode 0600 or less permissive."
+
+  rescue:
+    - name: "RHEL-10-400340 | RESCUE - record failure and continue"
+      ansible.builtin.debug:
+        msg: "result=ERROR stig_id=RHEL-10-400340 detail=Task failed unexpectedly — see prior error for details."

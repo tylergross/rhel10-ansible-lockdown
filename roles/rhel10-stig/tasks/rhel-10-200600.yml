@@ -1,0 +1,76 @@
+---
+# =============================================================================
+# STIG ID  : RHEL-10-200600
+# Rule ID  : SV-280969r1195358_rule
+# Severity : medium
+# CCI      : CCI-001774
+# Title    : RHEL 10 must have the "fapolicy" module installed.
+#
+# Description:
+#   The organization must identify authorized software programs and permit
+#   execution of authorized software. The process used to identify software
+#   programs that are authorized to execute on organizational information
+#   systems is commonly referred to as allowlisting. Using an allowlist
+#   provides a configuration management method for allowing the execution of
+#   only authorized software. Using only authorized software decreases risk
+#   by limiting the number of potential vulnerabilities. Verification of
+#   allowlisted software occurs prior to execution or at system startup. User
+#   home directories/folders may contain information of a sensitive nature.
+#   Nonprivileged users should coordinate any sharing of information with a
+#   system administrator through shared resources. RHEL 10 ships with many
+#   optional packages. One such package is a file access policy daemon called
+#   "fapolicyd". This is a userspace daemon that determines access rights to
+#   files based on attributes of the process and file. It can be used to
+#   either blocklist or allowlist processes or file access. Proceed with
+#   caution with enforcing the use of this daemon. Improper configuration may
+#   render the system nonfunctional. The "fapolicyd" API is not namespace
+#   aware and can cause issues when launching or running containers.
+#   Satisfies: SRG-OS-000370-GPOS-00155, SRG-OS-000368-GPOS-00154
+#
+# Check Text:
+#   Verify RHEL 10 has the "fapolicyd" package installed with the following
+#   command:
+#
+#   $ sudo dnf list --installed fapolicyd
+#   Installed Packages
+#   fapolicyd.x86_64 1.3.3-102.el10 @rhel-10-for-x86_64-appstream-rpms
+#
+#   If the "fapolicyd" package is not installed, this is a finding.
+#
+# Fix Text:
+#   Configure RHEL 10 to have the "fapolicyd" package installed with the
+#   following command:
+#
+#   $ sudo dnf -y install fapolicyd
+# =============================================================================
+
+- name: "RHEL-10-200600 | RHEL 10 must have the fapolicy module installed."
+  when: rhel_10_200600 | bool
+  tags:
+    - RHEL-10-200600
+    - medium
+    - CCI-001774
+  block:
+    - name: "RHEL-10-200600 | Ensure fapolicyd is installed"
+      ansible.builtin.package:
+        name: fapolicyd
+        state: present
+
+    - name: "RHEL-10-200600 | Verify fapolicyd is installed"
+      ansible.builtin.command: rpm -q fapolicyd
+      register: rhel_10_200600_check
+      changed_when: false
+      failed_when: false
+
+    - name: "RHEL-10-200600 | Assert fapolicyd is installed"
+      ansible.builtin.assert:
+        that: rhel_10_200600_check.rc == 0
+        fail_msg: >-
+          result=FAIL stig_id=RHEL-10-200600
+          detail=Package fapolicyd is not installed.
+          Install with: dnf -y install fapolicyd
+        success_msg: "result=PASS stig_id=RHEL-10-200600 detail=Package fapolicyd is installed."
+  rescue:
+    - name: "RHEL-10-200600 | RESCUE - record failure and continue"
+      ansible.builtin.debug:
+        msg: "result=ERROR stig_id=RHEL-10-200600 detail=Task failed unexpectedly — see prior error for details."

@@ -1,0 +1,74 @@
+---
+# =============================================================================
+# STIG ID  : RHEL-10-400500
+# Rule ID  : SV-281095r1184678_rule
+# Severity : medium
+# CCI      : CCI-000381
+# Title    : RHEL 10 must prohibit local initialization files from executing world-writable programs.
+#
+# Description:
+#   If user startup files execute world-writable programs, especially in
+#   unprotected directories, they could be maliciously modified to destroy
+#   user files or otherwise compromise the system at the user level. If the
+#   system is compromised at the user level, it is easier to elevate
+#   privileges to eventually compromise the system at the root and network
+#   level.
+#
+# Check Text:
+#   Verify RHEL 10 local initialization files do not execute world-writable
+#   programs with the following command:
+#
+#   Note: The example will be for a system that is configured to create user
+#   home directories in the "/home" directory.
+#
+#   $ sudo find /home -perm -002 -type f -name ".[^.]*" -exec ls -ld {} \;
+#
+#   If any local initialization files are found to reference world-writable
+#   files, this is a finding.
+#
+# Fix Text:
+#   Configure RHEL 10 so that local initialization files do not execute
+#   world-writable programs with the following command:
+#
+#   $ sudo chmod 0755 <file>
+# =============================================================================
+
+- name: "RHEL-10-400500 | RHEL 10 must prohibit local initialization files from executing world-writable programs."
+  when: rhel_10_400500 | bool
+  tags:
+    - RHEL-10-400500
+    - medium
+    - CCI-000381
+  block:
+    - name: "RHEL-10-400500 | Find world-writable local initialization files in /home"
+      ansible.builtin.command:
+        cmd: find /home -perm -002 -type f -name ".[^.]*"
+      register: rhel_10_400500_check
+      changed_when: false
+      failed_when: false
+
+    - name: "RHEL-10-400500 | Remove world-write permission from world-writable initialization files"
+      ansible.builtin.file:
+        path: "{{ item }}"
+        mode: 'o-w'
+      loop: "{{ rhel_10_400500_check.stdout_lines }}"
+      when: rhel_10_400500_check.stdout_lines | length > 0
+
+    - name: "RHEL-10-400500 | Re-check for world-writable local initialization files"
+      ansible.builtin.command:
+        cmd: find /home -perm -002 -type f -name ".[^.]*"
+      register: rhel_10_400500_verify
+      changed_when: false
+      failed_when: false
+
+    - name: "RHEL-10-400500 | Assert no world-writable local initialization files exist"
+      ansible.builtin.assert:
+        that:
+          - rhel_10_400500_verify.stdout_lines | length == 0
+        fail_msg: "result=FAIL stig_id=RHEL-10-400500 detail=World-writable local initialization files found: {{ rhel_10_400500_verify.stdout_lines | join(', ') }}."
+        success_msg: "result=PASS stig_id=RHEL-10-400500 detail=No world-writable local initialization files found in /home."
+
+  rescue:
+    - name: "RHEL-10-400500 | RESCUE - record failure and continue"
+      ansible.builtin.debug:
+        msg: "result=ERROR stig_id=RHEL-10-400500 detail=Task failed unexpectedly — see prior error for details."

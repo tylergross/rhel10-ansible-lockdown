@@ -1,0 +1,75 @@
+---
+# =============================================================================
+# STIG ID  : RHEL-10-400130
+# Rule ID  : SV-281043r1184617_rule
+# Severity : medium
+# CCI      : CCI-002696
+# Title    : RHEL 10 must be configured so that cron configuration file directories are owned by root.
+#
+# Description:
+#   Service configuration files enable or disable features of their
+#   respective services, which if configured incorrectly could lead to
+#   insecure and vulnerable configurations. Therefore, service configuration
+#   files must be owned by the correct group to prevent unauthorized changes.
+#
+# Check Text:
+#   Verify RHEL 10 ownership of all cron configuration files with the
+#   following command:
+#
+#   $ stat -c "%U %n" /etc/cron*
+#   root /etc/cron.d
+#   root /etc/cron.daily
+#   root /etc/cron.deny
+#   root /etc/cron.hourly
+#   root /etc/cron.monthly
+#   root /etc/crontab
+#   root /etc/cron.weekly
+#
+#   If any crontab is not owned by root, this is a finding.
+#
+# Fix Text:
+#   Configure RHEL 10 so that cron configuration file directories are owned
+#   by root with the following command:
+#
+#   $ sudo chown root [cron config file]
+# =============================================================================
+
+- name: "RHEL-10-400130 | RHEL 10 must be configured so that cron configuration file directories are owned by root."
+  when: rhel_10_400130 | bool
+  tags:
+    - RHEL-10-400130
+    - medium
+    - CCI-002696
+  block:
+    - name: "RHEL-10-400130 | Find cron configuration files not owned by root"
+      ansible.builtin.command:
+        cmd: find /etc/cron.d /etc/cron.daily /etc/cron.hourly /etc/cron.monthly /etc/cron.weekly /etc/crontab ! -user root -print
+      register: rhel_10_400130_check
+      changed_when: false
+      failed_when: false
+
+    - name: "RHEL-10-400130 | Set root ownership on cron configuration files"
+      ansible.builtin.file:
+        path: "{{ item }}"
+        owner: root
+      loop: "{{ rhel_10_400130_check.stdout_lines }}"
+      when: rhel_10_400130_check.stdout_lines | length > 0
+
+    - name: "RHEL-10-400130 | Re-check cron configuration files not owned by root"
+      ansible.builtin.command:
+        cmd: find /etc/cron.d /etc/cron.daily /etc/cron.hourly /etc/cron.monthly /etc/cron.weekly /etc/crontab ! -user root -print
+      register: rhel_10_400130_verify
+      changed_when: false
+      failed_when: false
+
+    - name: "RHEL-10-400130 | Assert all cron configuration files are owned by root"
+      ansible.builtin.assert:
+        that:
+          - rhel_10_400130_verify.stdout_lines | length == 0
+        fail_msg: "result=FAIL stig_id=RHEL-10-400130 detail=Cron configuration files not owned by root: {{ rhel_10_400130_verify.stdout_lines | join(', ') }}."
+        success_msg: "result=PASS stig_id=RHEL-10-400130 detail=All cron configuration files are owned by root."
+
+  rescue:
+    - name: "RHEL-10-400130 | RESCUE - record failure and continue"
+      ansible.builtin.debug:
+        msg: "result=ERROR stig_id=RHEL-10-400130 detail=Task failed unexpectedly — see prior error for details."

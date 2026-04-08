@@ -1,0 +1,127 @@
+---
+# =============================================================================
+# STIG ID  : RHEL-10-200631
+# Rule ID  : SV-280978r1165289_rule
+# Severity : high
+# CCI      : CCI-001496
+# Title    : RHEL 10 must use cryptographic mechanisms to protect the integrity of audit tools.
+#
+# Description:
+#   Protecting the integrity of the tools used for auditing purposes is a
+#   critical step toward ensuring the integrity of audit information. Audit
+#   information includes all information (e.g., audit records, audit
+#   settings, and audit reports) needed to successfully audit information
+#   system activity. Audit tools include, but are not limited to,
+#   vendor-provided and open-source audit tools needed to successfully view
+#   and manipulate audit information system activity and records. Audit tools
+#   include custom queries and report generators. It is not uncommon for
+#   attackers to replace the audit tools or inject code into the existing
+#   tools to provide the capability to hide or erase system activity from the
+#   audit logs. To address this risk, audit tools must be cryptographically
+#   signed to provide the capability to identify when the audit tools have
+#   been modified, manipulated, or replaced. An example is a checksum hash of
+#   the file or files.
+#
+# Check Text:
+#   Verify RHEL 10 Advanced Intrusion Detection Environment (AIDE) is
+#   properly configured to protect the integrity of the audit tools.
+#
+#   Verify the explicit rules for the audit tools with the following command:
+#
+#   $ sudo grep /usr/sbin/au /etc/aide.conf
+#   /usr/sbin/auditctl p+i+n+u+g+s+b+acl+xattrs+sha512
+#   /usr/sbin/auditd p+i+n+u+g+s+b+acl+xattrs+sha512
+#   /usr/sbin/ausearch p+i+n+u+g+s+b+acl+xattrs+sha512
+#   /usr/sbin/aureport p+i+n+u+g+s+b+acl+xattrs+sha512
+#   /usr/sbin/augenrules p+i+n+u+g+s+b+acl+xattrs+sha512
+#
+#   If AIDE is not installed, ask the system administrator (SA) how file
+#   integrity checks are performed on the system.
+#
+#   If any of the audit tools listed above do not have a corresponding line,
+#   ask the SA to indicate what cryptographic mechanisms are being used to
+#   protect the integrity of the audit tools.
+#
+#   If there is no evidence of integrity protection, this is a finding.
+#
+# Fix Text:
+#   Configure RHEL 10 to use cryptographic mechanisms to protect the
+#   integrity of audit tools.
+#
+#   Add or update the following lines to "/etc/aide.conf" to protect the
+#   integrity of the audit tools.
+#
+#   /usr/sbin/auditctl p+i+n+u+g+s+b+acl+xattrs+sha512
+#   /usr/sbin/auditd p+i+n+u+g+s+b+acl+xattrs+sha512
+#   /usr/sbin/ausearch p+i+n+u+g+s+b+acl+xattrs+sha512
+#   /usr/sbin/aureport p+i+n+u+g+s+b+acl+xattrs+sha512
+#   /usr/sbin/augenrules p+i+n+u+g+s+b+acl+xattrs+sha512
+# =============================================================================
+
+- name: "RHEL-10-200631 | RHEL 10 must use cryptographic mechanisms to protect the integrity of audit tools."
+  when: rhel_10_200631 | bool
+  tags:
+    - RHEL-10-200631
+    - high
+    - CCI-001496
+  block:
+    - name: "RHEL-10-200631 | Check aide.conf for audit tool integrity entries"
+      ansible.builtin.command: grep /usr/sbin/au /etc/aide.conf
+      register: rhel_10_200631_check
+      changed_when: false
+      failed_when: false
+
+    - name: "RHEL-10-200631 | Backup /etc/aide.conf before modification"
+      ansible.builtin.copy:
+        src: /etc/aide.conf
+        dest: "/etc/aide.conf.{{ ansible_date_time.epoch }}.bak"
+        remote_src: true
+        mode: preserve
+      when: >-
+        rhel_10_200631_check.stdout is not search('/usr/sbin/auditctl.*sha512') or
+        rhel_10_200631_check.stdout is not search('/usr/sbin/auditd.*sha512') or
+        rhel_10_200631_check.stdout is not search('/usr/sbin/ausearch.*sha512') or
+        rhel_10_200631_check.stdout is not search('/usr/sbin/aureport.*sha512') or
+        rhel_10_200631_check.stdout is not search('/usr/sbin/augenrules.*sha512')
+
+    - name: "RHEL-10-200631 | Ensure aide.conf has audit tool integrity entries"
+      ansible.builtin.lineinfile:
+        path: /etc/aide.conf
+        line: "{{ item }}"
+        regexp: "^{{ item.split(' ')[0] }}"
+        state: present
+      loop:
+        - '/usr/sbin/auditctl p+i+n+u+g+s+b+acl+xattrs+sha512'
+        - '/usr/sbin/auditd p+i+n+u+g+s+b+acl+xattrs+sha512'
+        - '/usr/sbin/ausearch p+i+n+u+g+s+b+acl+xattrs+sha512'
+        - '/usr/sbin/aureport p+i+n+u+g+s+b+acl+xattrs+sha512'
+        - '/usr/sbin/augenrules p+i+n+u+g+s+b+acl+xattrs+sha512'
+      when: >-
+        rhel_10_200631_check.stdout is not search('/usr/sbin/auditctl.*sha512') or
+        rhel_10_200631_check.stdout is not search('/usr/sbin/auditd.*sha512') or
+        rhel_10_200631_check.stdout is not search('/usr/sbin/ausearch.*sha512') or
+        rhel_10_200631_check.stdout is not search('/usr/sbin/aureport.*sha512') or
+        rhel_10_200631_check.stdout is not search('/usr/sbin/augenrules.*sha512')
+
+    - name: "RHEL-10-200631 | Re-check aide.conf for audit tool integrity entries"
+      ansible.builtin.command: grep /usr/sbin/au /etc/aide.conf
+      register: rhel_10_200631_recheck
+      changed_when: false
+      failed_when: false
+
+    - name: "RHEL-10-200631 | Assert all audit tool integrity entries present"
+      ansible.builtin.assert:
+        that:
+          - rhel_10_200631_recheck.stdout is search('/usr/sbin/auditctl.*sha512')
+          - rhel_10_200631_recheck.stdout is search('/usr/sbin/auditd.*sha512')
+          - rhel_10_200631_recheck.stdout is search('/usr/sbin/ausearch.*sha512')
+          - rhel_10_200631_recheck.stdout is search('/usr/sbin/aureport.*sha512')
+          - rhel_10_200631_recheck.stdout is search('/usr/sbin/augenrules.*sha512')
+        fail_msg: >-
+          result=FAIL stig_id=RHEL-10-200631
+          detail=One or more audit tools are missing sha512 integrity entries in /etc/aide.conf.
+        success_msg: "result=PASS stig_id=RHEL-10-200631 detail=All audit tools have sha512 integrity entries in /etc/aide.conf."
+  rescue:
+    - name: "RHEL-10-200631 | RESCUE - record failure and continue"
+      ansible.builtin.debug:
+        msg: "result=ERROR stig_id=RHEL-10-200631 detail=Task failed unexpectedly — see prior error for details."

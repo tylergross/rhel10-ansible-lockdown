@@ -1,0 +1,76 @@
+---
+# =============================================================================
+# STIG ID  : RHEL-10-701280
+# Rule ID  : SV-281330r1167140_rule
+# Severity : medium
+# CCI      : CCI-000187
+# Title    : RHEL 10 must map the authenticated identity to the user or group account for public key infrastructure (PKI)-based authentication.
+#
+# Description:
+#   Without mapping the certificate used to authenticate to the user account,
+#   the ability to determine the identity of the individual user or group
+#   will not be available for forensic analysis.
+#
+# Check Text:
+#   Note: If the system administrator (SA) demonstrates the use of an
+#   approved alternate multifactor authentication method, this requirement is
+#   not applicable.
+#
+#   Verify RHEL 10 maps the authenticated identity to the user or group
+#   account for PKI-based authentication.
+#
+#   Verify the certificate of the user or group is mapped to the
+#   corresponding user or group in the "sssd.conf" file with the following
+#   command:
+#
+#   $ sudo find /etc/sssd/sssd.conf /etc/sssd/conf.d/ -type f -exec cat {} \;
+#   [certmap/testing.test/rule_name]
+#   matchrule =<SAN>.*EDIPI@mil
+#   maprule = (userCertificate;binary={cert!bin})
+#   domains = testing.test
+#
+#   If the certmap section does not exist, ask the SA to indicate how
+#   certificates are mapped to accounts.
+#
+#   If there is no evidence of certificate mapping, this is a finding.
+#
+# Fix Text:
+#   Configure RHEL 10 to map the authenticated identity to the user or group
+#   account by adding or modifying the certmap section of the
+#   "/etc/sssd/sssd.conf" file based on the following example:
+#
+#   [certmap/testing.test/rule_name]
+#   matchrule = .*EDIPI@mil
+#   maprule = (userCertificate;binary={cert!bin})
+#   domains = testing.test
+#
+#   Restart the "sssd" service with the following command for the changes to
+#   take effect:
+#
+#   $ sudo systemctl restart sssd.service
+# =============================================================================
+
+- name: "RHEL-10-701280 | RHEL 10 must map the authenticated identity to the user or group account for public key infrastructure (PKI)-based authentication."
+  when: rhel_10_701280 | bool
+  tags:
+    - RHEL-10-701280
+    - medium
+    - CCI-000187
+  block:
+    - name: "RHEL-10-701280 | Check for certmap section in sssd configuration"
+      ansible.builtin.command:
+        cmd: grep -rs '\[certmap/' /etc/sssd/sssd.conf /etc/sssd/conf.d/ 2>/dev/null || true
+      register: rhel_10_701280_check
+      changed_when: false
+      failed_when: false
+
+    - name: "RHEL-10-701280 | Assert certmap section exists in sssd configuration"
+      ansible.builtin.assert:
+        that: rhel_10_701280_check.stdout | trim != ''
+        fail_msg: "result=FAIL stig_id=RHEL-10-701280 detail=No certmap section found in sssd configuration. Manual remediation required — add a [certmap/] section mapping certificates to user accounts."
+        success_msg: "result=PASS stig_id=RHEL-10-701280 detail=certmap section found in sssd configuration."
+
+  rescue:
+    - name: "RHEL-10-701280 | RESCUE - record failure and continue"
+      ansible.builtin.debug:
+        msg: "result=ERROR stig_id=RHEL-10-701280 detail=Task failed unexpectedly — see prior error for details."

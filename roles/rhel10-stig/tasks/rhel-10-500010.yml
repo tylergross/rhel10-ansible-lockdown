@@ -1,0 +1,85 @@
+---
+# =============================================================================
+# STIG ID  : RHEL-10-500010
+# Rule ID  : SV-281098r1165649_rule
+# Severity : medium
+# CCI      : CCI-000169
+# Title    : RHEL 10 must audit local events.
+#
+# Description:
+#   Without establishing what type of events occurred, along with the source,
+#   location, and outcome, it would be difficult to establish, correlate, and
+#   investigate the events leading up to an outage or attack. If option
+#   "local_events" is not set to "yes", only events from the network will be
+#   aggregated.
+#
+# Check Text:
+#   Verify that RHEL 10 generates audit records for local events with the
+#   following command:
+#
+#   $ sudo grep local_events /etc/audit/auditd.conf
+#   local_events = yes
+#
+#   If "local_events" is not set to "yes", the command does not return a
+#   line, or the line is commented out, this is a finding.
+#
+# Fix Text:
+#   Configure RHEL 10 to generate audit records for local events by adding or
+#   updating the following line in "/etc/audit/auditd.conf":
+#
+#   local_events = yes
+#
+#   Restart the audit daemon with the following command for the changes to
+#   take effect:
+#
+#   $ sudo service auditd restart
+# =============================================================================
+
+- name: "RHEL-10-500010 | RHEL 10 must audit local events."
+  when: rhel_10_500010 | bool
+  tags:
+    - RHEL-10-500010
+    - medium
+    - CCI-000169
+  block:
+    - name: "RHEL-10-500010 | Check local_events in /etc/audit/auditd.conf"
+      ansible.builtin.command:
+        cmd: grep -E '^\s*local_events\s*=\s*yes' /etc/audit/auditd.conf
+      register: rhel_10_500010_check
+      changed_when: false
+      failed_when: false
+
+    - name: "RHEL-10-500010 | Backup /etc/audit/auditd.conf before modification"
+      ansible.builtin.copy:
+        src: /etc/audit/auditd.conf
+        dest: "/etc/audit/auditd.conf.bak.{{ ansible_date_time.epoch }}"
+        remote_src: true
+        mode: preserve
+      when: rhel_10_500010_check.rc != 0
+
+    - name: "RHEL-10-500010 | Set local_events = yes in /etc/audit/auditd.conf"
+      ansible.builtin.lineinfile:
+        path: /etc/audit/auditd.conf
+        regexp: '^\s*local_events\s*='
+        line: 'local_events = yes'
+        state: present
+      when: rhel_10_500010_check.rc != 0
+      notify: restart auditd
+
+    - name: "RHEL-10-500010 | Re-check local_events in /etc/audit/auditd.conf"
+      ansible.builtin.command:
+        cmd: grep -E '^\s*local_events\s*=\s*yes' /etc/audit/auditd.conf
+      register: rhel_10_500010_verify
+      changed_when: false
+      failed_when: false
+
+    - name: "RHEL-10-500010 | Assert local_events = yes is configured"
+      ansible.builtin.assert:
+        that: rhel_10_500010_verify.rc == 0
+        fail_msg: "result=FAIL stig_id=RHEL-10-500010 detail=local_events is not set to yes in /etc/audit/auditd.conf."
+        success_msg: "result=PASS stig_id=RHEL-10-500010 detail=local_events = yes is configured in /etc/audit/auditd.conf."
+
+  rescue:
+    - name: "RHEL-10-500010 | RESCUE - record failure and continue"
+      ansible.builtin.debug:
+        msg: "result=ERROR stig_id=RHEL-10-500010 detail=Task failed unexpectedly — see prior error for details."

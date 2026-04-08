@@ -1,0 +1,76 @@
+---
+# =============================================================================
+# STIG ID  : RHEL-10-800030
+# Rule ID  : SV-281335r1167155_rule
+# Severity : medium
+# CCI      : CCI-001082
+# Title    : RHEL 10 must disable access to the network bpf system call from nonprivileged processes.
+#
+# Description:
+#   Loading and accessing the packet filters programs and maps using the
+#   bpf() system call has the potential to reveal sensitive information about
+#   the kernel state.
+#
+# Check Text:
+#   Verify RHEL 10 prevents privilege escalation through the kernel by
+#   disabling access to the bpf system call.
+#
+#   Check the status of the "kernel.unprivileged_bpf_disabled" kernel
+#   parameter with the following command:
+#
+#   $ sysctl kernel.unprivileged_bpf_disabled
+#   kernel.unprivileged_bpf_disabled = 1
+#
+#   If "kernel.unprivileged_bpf_disabled" is not set to "1" or is missing,
+#   this is a finding.
+#
+# Fix Text:
+#   Configure RHEL 10 to prevent privilege escalation through the kernel by
+#   disabling access to the bpf system call.
+#
+#   Create the drop-in file if it does not already exist:
+#
+#   $ sudo vi /etc/sysctl.d/99-kernel_unprivileged_bpf_disabled
+#
+#   Add the following line to the file:
+#
+#   kernel.unprivileged_bpf_disabled = 1
+#
+#   Reload settings from all system configuration files with the following
+#   command:
+#
+#   $ sudo sysctl --system
+# =============================================================================
+
+- name: "RHEL-10-800030 | RHEL 10 must disable access to the network bpf system call from nonprivileged processes."
+  when: rhel_10_800030 | bool
+  tags:
+    - RHEL-10-800030
+    - medium
+    - CCI-001082
+  block:
+    - name: "RHEL-10-800030 | Set sysctl kernel.unprivileged_bpf_disabled = 1"
+      ansible.posix.sysctl:
+        name: kernel.unprivileged_bpf_disabled
+        value: '1'
+        state: present
+        reload: true
+        sysctl_file: /etc/sysctl.d/rhel10-stig.conf
+
+    - name: "RHEL-10-800030 | Verify kernel.unprivileged_bpf_disabled"
+      ansible.builtin.command:
+        cmd: sysctl kernel.unprivileged_bpf_disabled
+      register: rhel_10_800030_sysctl
+      changed_when: false
+      failed_when: false
+
+    - name: "RHEL-10-800030 | Assert kernel.unprivileged_bpf_disabled = 1"
+      ansible.builtin.assert:
+        that: "'= 1' in rhel_10_800030_sysctl.stdout"
+        fail_msg: "result=FAIL stig_id=RHEL-10-800030 detail=kernel.unprivileged_bpf_disabled is not set to 1 (output={{ rhel_10_800030_sysctl.stdout | trim }})."
+        success_msg: "result=PASS stig_id=RHEL-10-800030 detail=kernel.unprivileged_bpf_disabled is set to 1."
+
+  rescue:
+    - name: "RHEL-10-800030 | RESCUE - record failure and continue"
+      ansible.builtin.debug:
+        msg: "result=ERROR stig_id=RHEL-10-800030 detail=Task failed unexpectedly — see prior error for details."

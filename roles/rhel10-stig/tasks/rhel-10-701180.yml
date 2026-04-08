@@ -1,0 +1,88 @@
+---
+# =============================================================================
+# STIG ID  : RHEL-10-701180
+# Rule ID  : SV-281320r1184635_rule
+# Severity : medium
+# CCI      : CCI-002165
+# Title    : RHEL 10 must disable acquiring, saving, and processing core dumps.
+#
+# Description:
+#   A core dump includes a memory image taken at the time the operating
+#   system terminates an application. The memory image could contain
+#   sensitive data and is generally useful only for developers trying to
+#   debug problems.
+#
+# Check Text:
+#   Note: If kernel dumps are disabled in accordance with RHEL-10-701090,
+#   this requirement is not applicable.
+#
+#   Verify RHEL 10 is not configured to acquire, save, or process core dumps
+#   with the following command:
+#
+#   $ sudo systemctl status systemd-coredump.socket
+#   o systemd-coredump.socket
+#   Loaded: masked (Reason: Unit systemd-coredump.socket is masked.)
+#   Active: inactive (dead)
+#   ...
+#
+#   If the "systemd-coredump.socket" is loaded and not masked, and the need
+#   for core dumps is not documented with the information system security
+#   officer as an operational requirement, this is a finding.
+#
+# Fix Text:
+#   Configure RHEL 10 to disable the systemd-coredump.socket with the
+#   following command:
+#
+#   $ sudo systemctl mask --now systemd-coredump.socket
+#   Created symlink /etc/systemd/system/systemd-coredump.socket -> /dev/null
+#
+#   Reload the daemon for this change to take effect.
+#
+#   $ sudo systemctl daemon-reload
+# =============================================================================
+
+- name: "RHEL-10-701180 | RHEL 10 must disable acquiring, saving, and processing core dumps."
+  when: rhel_10_701180 | bool
+  tags:
+    - RHEL-10-701180
+    - medium
+    - CCI-002165
+  block:
+    - name: "RHEL-10-701180 | Check if systemd-coredump.socket is masked"
+      ansible.builtin.command:
+        cmd: systemctl is-enabled systemd-coredump.socket
+      register: rhel_10_701180_check
+      changed_when: false
+      failed_when: false
+
+    - name: "RHEL-10-701180 | Disable and mask systemd-coredump.socket"
+      ansible.builtin.systemd:
+        name: systemd-coredump.socket
+        enabled: false
+        masked: true
+        state: stopped
+      when: rhel_10_701180_check.stdout | trim != 'masked'
+      failed_when: false
+
+    - name: "RHEL-10-701180 | Reload systemd daemon"
+      ansible.builtin.systemd:
+        daemon_reload: true
+      when: rhel_10_701180_check.stdout | trim != 'masked'
+
+    - name: "RHEL-10-701180 | Re-check systemd-coredump.socket is masked"
+      ansible.builtin.command:
+        cmd: systemctl is-enabled systemd-coredump.socket
+      register: rhel_10_701180_verify
+      changed_when: false
+      failed_when: false
+
+    - name: "RHEL-10-701180 | Assert systemd-coredump.socket is masked"
+      ansible.builtin.assert:
+        that: rhel_10_701180_verify.stdout | trim == 'masked'
+        fail_msg: "result=FAIL stig_id=RHEL-10-701180 detail=systemd-coredump.socket is not masked (state={{ rhel_10_701180_verify.stdout | trim }})."
+        success_msg: "result=PASS stig_id=RHEL-10-701180 detail=systemd-coredump.socket is masked."
+
+  rescue:
+    - name: "RHEL-10-701180 | RESCUE - record failure and continue"
+      ansible.builtin.debug:
+        msg: "result=ERROR stig_id=RHEL-10-701180 detail=Task failed unexpectedly — see prior error for details."

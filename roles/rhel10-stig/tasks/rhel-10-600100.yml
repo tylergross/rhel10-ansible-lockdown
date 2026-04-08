@@ -1,0 +1,89 @@
+---
+# =============================================================================
+# STIG ID  : RHEL-10-600100
+# Rule ID  : SV-281169r1166459_rule
+# Severity : medium
+# CCI      : CCI-004066
+# Title    : RHEL 10 must, for new users or password changes, have a 60-day maximum password lifetime restriction for user account passwords in "/etc/login.defs".
+#
+# Description:
+#   Any password, no matter how complex, can eventually be cracked;
+#   therefore, passwords must be changed periodically. If the operating
+#   system does not limit the lifetime of passwords and force users to change
+#   their passwords, there is the risk that the operating system passwords
+#   could be compromised. Setting the password maximum age ensures users are
+#   required to periodically change their passwords. Requiring shorter
+#   password lifetimes increases the risk of users writing down the password
+#   in a convenient location subject to physical compromise.
+#
+# Check Text:
+#   Verify RHEL 10 enforces a 60-day maximum password lifetime for new user
+#   accounts by running the following command:
+#
+#   $ sudo grep -i pass_max_days /etc/login.defs
+#   PASS_MAX_DAYS 60
+#
+#   If the "PASS_MAX_DAYS" parameter value is greater than "60" or is
+#   commented out, this is a finding.
+#
+# Fix Text:
+#   Configure RHEL 10 to enforce a 60-day maximum password lifetime.
+#
+#   Add or modify the following line in the "/etc/login.defs" file:
+#
+#   PASS_MAX_DAYS 60
+# =============================================================================
+
+- name: "RHEL-10-600100 | RHEL 10 must, for new users or password changes, have a 60-day maximum password lifetime restriction for user account passwords in /etc/login.defs."
+  when: rhel_10_600100 | bool
+  tags:
+    - RHEL-10-600100
+    - medium
+    - CCI-004066
+  block:
+    - name: "RHEL-10-600100 | Check PASS_MAX_DAYS in /etc/login.defs"
+      ansible.builtin.command:
+        cmd: grep -i "^PASS_MAX_DAYS" /etc/login.defs
+      register: rhel_10_600100_check
+      changed_when: false
+      failed_when: false
+
+    - name: "RHEL-10-600100 | Backup /etc/login.defs before modification"
+      ansible.builtin.copy:
+        src: /etc/login.defs
+        dest: "/etc/login.defs.bak.{{ ansible_date_time.epoch }}"
+        remote_src: true
+        mode: preserve
+      when: >
+        rhel_10_600100_check.rc != 0 or
+        (rhel_10_600100_check.stdout | regex_search('PASS_MAX_DAYS\s+(\d+)', '\1') | first | int) > 60
+
+    - name: "RHEL-10-600100 | Set PASS_MAX_DAYS to 60 in /etc/login.defs"
+      ansible.builtin.lineinfile:
+        path: /etc/login.defs
+        regexp: '^#?\s*PASS_MAX_DAYS'
+        line: 'PASS_MAX_DAYS   60'
+        state: present
+      when: >
+        rhel_10_600100_check.rc != 0 or
+        (rhel_10_600100_check.stdout | regex_search('PASS_MAX_DAYS\s+(\d+)', '\1') | first | int) > 60
+
+    - name: "RHEL-10-600100 | Re-check PASS_MAX_DAYS"
+      ansible.builtin.command:
+        cmd: grep -i "^PASS_MAX_DAYS" /etc/login.defs
+      register: rhel_10_600100_verify
+      changed_when: false
+      failed_when: false
+
+    - name: "RHEL-10-600100 | Assert PASS_MAX_DAYS is 60 or less"
+      ansible.builtin.assert:
+        that:
+          - rhel_10_600100_verify.rc == 0
+          - (rhel_10_600100_verify.stdout | regex_search('PASS_MAX_DAYS\s+(\d+)', '\1') | first | int) <= 60
+          - (rhel_10_600100_verify.stdout | regex_search('PASS_MAX_DAYS\s+(\d+)', '\1') | first | int) > 0
+        fail_msg: "result=FAIL stig_id=RHEL-10-600100 detail=PASS_MAX_DAYS is not set to 60 or less in /etc/login.defs (current={{ rhel_10_600100_verify.stdout | trim }})."
+        success_msg: "result=PASS stig_id=RHEL-10-600100 detail=PASS_MAX_DAYS is set correctly in /etc/login.defs ({{ rhel_10_600100_verify.stdout | trim }})."
+  rescue:
+    - name: "RHEL-10-600100 | RESCUE - record failure and continue"
+      ansible.builtin.debug:
+        msg: "result=ERROR stig_id=RHEL-10-600100 detail=Task failed unexpectedly — see prior error for details."

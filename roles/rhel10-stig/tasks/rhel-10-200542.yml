@@ -1,0 +1,91 @@
+---
+# =============================================================================
+# STIG ID  : RHEL-10-200542
+# Rule ID  : SV-280960r1165235_rule
+# Severity : medium
+# CCI      : CCI-000382
+# Title    : RHEL 10 must disable the chrony daemon from acting as a server.
+#
+# Description:
+#   Minimizing the exposure of the server functionality of the chrony daemon
+#   diminishes the attack surface. Satisfies: SRG-OS-000096-GPOS-00050,
+#   SRG-OS-000095-GPOS-00049
+#
+# Check Text:
+#   Verify RHEL 10 disables the chrony daemon from acting as a server with
+#   the following command:
+#
+#   $ sudo grep -w port /etc/chrony.conf
+#   port 0
+#
+#   If the "port" option is not set to "0", is commented out, or is missing,
+#   this is a finding.
+#
+# Fix Text:
+#   Configure RHEL 10 to disable the chrony daemon from acting as a server by
+#   adding/modifying the following line in the "/etc/chrony.conf" file:
+#
+#   port 0
+#
+#   Restart the chronyd service with the following command for the changes to
+#   take effect:
+#
+#   $ sudo systemctl restart chronyd
+# =============================================================================
+
+- name: "RHEL-10-200542 | RHEL 10 must disable the chrony daemon from acting as a server."
+  when: rhel_10_200542 | bool
+  tags:
+    - RHEL-10-200542
+    - medium
+    - CCI-000382
+  block:
+    - name: "RHEL-10-200542 | Check port setting in chrony.conf"
+      ansible.builtin.command: grep -w port /etc/chrony.conf
+      register: rhel_10_200542_check
+      changed_when: false
+      failed_when: false
+
+    - name: "RHEL-10-200542 | Backup /etc/chrony.conf before modification"
+      ansible.builtin.copy:
+        src: /etc/chrony.conf
+        dest: "/etc/chrony.conf.{{ ansible_date_time.epoch }}.bak"
+        remote_src: true
+        owner: root
+        group: root
+        mode: '0644'
+      when: rhel_10_200542_check.stdout is not search('^\s*port\s+0\s*$')
+
+    - name: "RHEL-10-200542 | Ensure port 0 is set in chrony.conf"
+      ansible.builtin.lineinfile:
+        path: /etc/chrony.conf
+        regexp: '^\s*port\s+'
+        line: 'port 0'
+        state: present
+      register: rhel_10_200542_lineinfile
+      when: rhel_10_200542_check.stdout is not search('^\s*port\s+0\s*$')
+
+    - name: "RHEL-10-200542 | Restart chronyd after chrony.conf change"
+      ansible.builtin.service:
+        name: chronyd
+        state: restarted
+      when: rhel_10_200542_lineinfile is changed
+
+    - name: "RHEL-10-200542 | Re-check port setting after remediation"
+      ansible.builtin.command: grep -w port /etc/chrony.conf
+      register: rhel_10_200542_check_final
+      changed_when: false
+      failed_when: false
+
+    - name: "RHEL-10-200542 | Assert port 0 is set in chrony.conf"
+      ansible.builtin.assert:
+        that: rhel_10_200542_check_final.stdout is search('^\s*port\s+0\s*$')
+        fail_msg: >-
+          result=FAIL stig_id=RHEL-10-200542
+          detail=chrony.conf does not have 'port 0' set
+          (found={{ rhel_10_200542_check_final.stdout | trim | default('missing') }}).
+        success_msg: "result=PASS stig_id=RHEL-10-200542 detail=chrony.conf has 'port 0' set — chrony server mode is disabled."
+  rescue:
+    - name: "RHEL-10-200542 | RESCUE - record failure and continue"
+      ansible.builtin.debug:
+        msg: "result=ERROR stig_id=RHEL-10-200542 detail=Task failed unexpectedly — see prior error for details."

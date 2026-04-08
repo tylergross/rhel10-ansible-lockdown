@@ -1,0 +1,69 @@
+---
+# =============================================================================
+# STIG ID  : RHEL-10-400200
+# Rule ID  : SV-281057r1165526_rule
+# Severity : medium
+# CCI      : CCI-000171
+# Title    : RHEL 10 must enforce root group ownership of the "/etc/audit/" directory.
+#
+# Description:
+#   The "/etc/audit/" directory contains files that ensure the proper
+#   auditing of command execution, privilege escalation, file manipulation,
+#   and more. Protection of this directory is critical for system security.
+#
+# Check Text:
+#   Verify RHEL 10 enforces root group ownership of the "/etc/audit/"
+#   directory with the following command:
+#
+#   $ sudo stat -c "%G %n" /etc/audit/
+#   root /etc/audit/
+#
+#   If "/etc/audit/" does not have a group owner of "root", this is a
+#   finding.
+#
+# Fix Text:
+#   Configure RHEL 10 so that the "/etc/audit/" directory is group-owned by
+#   "root" with the following command:
+#
+#   $ sudo chgrp root /etc/audit/
+# =============================================================================
+
+- name: "RHEL-10-400200 | RHEL 10 must enforce root group ownership of the /etc/audit/ directory."
+  when: rhel_10_400200 | bool
+  tags:
+    - RHEL-10-400200
+    - medium
+    - CCI-000171
+  block:
+    - name: "RHEL-10-400200 | Check group ownership of /etc/audit/"
+      ansible.builtin.stat:
+        path: /etc/audit/
+      register: rhel_10_400200_stat
+      changed_when: false
+
+    - name: "RHEL-10-400200 | Set group ownership of /etc/audit/ to root"
+      ansible.builtin.file:
+        path: /etc/audit/
+        group: root
+      when: >
+        not rhel_10_400200_stat.stat.exists or
+        rhel_10_400200_stat.stat.gr_name != 'root'
+
+    - name: "RHEL-10-400200 | Re-check group ownership of /etc/audit/"
+      ansible.builtin.stat:
+        path: /etc/audit/
+      register: rhel_10_400200_verify
+      changed_when: false
+
+    - name: "RHEL-10-400200 | Assert /etc/audit/ is group-owned by root"
+      ansible.builtin.assert:
+        that:
+          - rhel_10_400200_verify.stat.exists
+          - rhel_10_400200_verify.stat.gr_name == 'root'
+        fail_msg: "result=FAIL stig_id=RHEL-10-400200 detail=/etc/audit/ is not group-owned by root (gr_name={{ rhel_10_400200_verify.stat.gr_name | default('unknown') }})."
+        success_msg: "result=PASS stig_id=RHEL-10-400200 detail=/etc/audit/ is correctly group-owned by root."
+
+  rescue:
+    - name: "RHEL-10-400200 | RESCUE - record failure and continue"
+      ansible.builtin.debug:
+        msg: "result=ERROR stig_id=RHEL-10-400200 detail=Task failed unexpectedly — see prior error for details."

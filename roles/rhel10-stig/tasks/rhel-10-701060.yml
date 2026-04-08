@@ -1,0 +1,79 @@
+---
+# =============================================================================
+# STIG ID  : RHEL-10-701060
+# Rule ID  : SV-281308r1167074_rule
+# Severity : medium
+# CCI      : CCI-001082
+# Title    : RHEL 10 must restrict exposed kernel pointer address access.
+#
+# Description:
+#   Exposing kernel pointers (through procfs or "seq_printf()") exposes
+#   kernel writable structures, which may contain functions pointers. If a
+#   write vulnerability occurs in the kernel, allowing write access to any of
+#   this structure, the kernel can be compromised. This option disallows any
+#   program without the CAP_SYSLOG capability to get the addresses of kernel
+#   pointers by replacing them with "0". Satisfies: SRG-OS-000132-GPOS-00067,
+#   SRG-OS-000433-GPOS-00192
+#
+# Check Text:
+#   Verify RHEL 10 is configured to restrict exposed kernel pointer address
+#   access.
+#
+#   Verify the runtime status of the "kernel.kptr_restrict" kernel parameter
+#   with the following command:
+#
+#   $ sudo sysctl kernel.kptr_restrict
+#   kernel.kptr_restrict = 1
+#
+#   If "kernel.kptr_restrict" is not set to "1" or is missing, this is a
+#   finding.
+#
+# Fix Text:
+#   Configure RHEL 10 to restrict exposed kernel pointer address access.
+#
+#   Create a drop-in if it does not already exist:
+#
+#   $ sudo vi /etc/sysctl.d/99-kernel_kptr_restrict.conf
+#
+#   Add the following to the file:
+#
+#   kernel.kptr_restrict = 1
+#
+#   Reload settings from all system configuration files with the following
+#   command:
+#
+#   $ sudo sysctl --system
+# =============================================================================
+
+- name: "RHEL-10-701060 | RHEL 10 must restrict exposed kernel pointer address access."
+  when: rhel_10_701060 | bool
+  tags:
+    - RHEL-10-701060
+    - medium
+    - CCI-001082
+  block:
+    - name: "RHEL-10-701060 | Set sysctl kernel.kptr_restrict = 1"
+      ansible.posix.sysctl:
+        name: kernel.kptr_restrict
+        value: '1'
+        state: present
+        reload: true
+        sysctl_file: /etc/sysctl.d/rhel10-stig.conf
+
+    - name: "RHEL-10-701060 | Verify kernel.kptr_restrict"
+      ansible.builtin.command:
+        cmd: sysctl kernel.kptr_restrict
+      register: rhel_10_701060_sysctl
+      changed_when: false
+      failed_when: false
+
+    - name: "RHEL-10-701060 | Assert kernel.kptr_restrict = 1"
+      ansible.builtin.assert:
+        that: "'= 1' in rhel_10_701060_sysctl.stdout"
+        fail_msg: "result=FAIL stig_id=RHEL-10-701060 detail=kernel.kptr_restrict is not set to 1 (output={{ rhel_10_701060_sysctl.stdout | trim }})."
+        success_msg: "result=PASS stig_id=RHEL-10-701060 detail=kernel.kptr_restrict is set to 1."
+
+  rescue:
+    - name: "RHEL-10-701060 | RESCUE - record failure and continue"
+      ansible.builtin.debug:
+        msg: "result=ERROR stig_id=RHEL-10-701060 detail=Task failed unexpectedly — see prior error for details."

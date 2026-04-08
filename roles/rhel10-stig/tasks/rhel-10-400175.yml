@@ -1,0 +1,80 @@
+---
+# =============================================================================
+# STIG ID  : RHEL-10-400175
+# Rule ID  : SV-281052r1165511_rule
+# Severity : medium
+# CCI      : CCI-000162
+# Title    : RHEL 10 must enforce "root" ownership of audit logs to prevent unauthorized access.
+#
+# Description:
+#   Unauthorized disclosure of audit records can reveal system and
+#   configuration data to attackers, thus compromising its confidentiality.
+#   Satisfies: SRG-OS-000057-GPOS-00027, SRG-OS-000058-GPOS-00028,
+#   SRG-OS-000059-GPOS-00029, SRG-OS-000206-GPOS-00084
+#
+# Check Text:
+#   Verify RHEL 10 enforces "root" ownership of audit logs to prevent
+#   unauthorized access.
+#
+#   Determine where the audit logs are stored with the following command:
+#
+#   $ sudo grep "^log_file" /etc/audit/auditd.conf
+#   log_file = /var/log/audit/audit.log
+#
+#   Using the location of the audit log file, determine if the audit log
+#   files are owned by "root" using the following command:
+#
+#   $ sudo ls -la /var/log/audit/audit.log
+#   rw-------. 2 root root 237923 Jun 11 11:56 /var/log/audit/audit.log
+#
+#   If the audit logs are not owned by "root", this is a finding.
+#
+# Fix Text:
+#   Configure RHEL 10 to enforce "root" ownership of audit logs to prevent
+#   unauthorized access with the following command:
+#
+#   $ sudo chown root [audit_log_file]
+#
+#   Replace "[audit_log_file]" with the correct audit log path. By default
+#   this location is "/var/log/audit/audit.log".
+# =============================================================================
+
+- name: "RHEL-10-400175 | RHEL 10 must enforce root ownership of audit logs to prevent unauthorized access."
+  when: rhel_10_400175 | bool
+  tags:
+    - RHEL-10-400175
+    - medium
+    - CCI-000162
+  block:
+    - name: "RHEL-10-400175 | Find audit log files not owned by root"
+      ansible.builtin.command:
+        cmd: find /var/log/audit -type f ! -user root -print
+      register: rhel_10_400175_check
+      changed_when: false
+      failed_when: false
+
+    - name: "RHEL-10-400175 | Set root ownership on audit log files"
+      ansible.builtin.file:
+        path: "{{ item }}"
+        owner: root
+      loop: "{{ rhel_10_400175_check.stdout_lines }}"
+      when: rhel_10_400175_check.stdout_lines | length > 0
+
+    - name: "RHEL-10-400175 | Re-check audit log files not owned by root"
+      ansible.builtin.command:
+        cmd: find /var/log/audit -type f ! -user root -print
+      register: rhel_10_400175_verify
+      changed_when: false
+      failed_when: false
+
+    - name: "RHEL-10-400175 | Assert all audit log files are owned by root"
+      ansible.builtin.assert:
+        that:
+          - rhel_10_400175_verify.stdout_lines | length == 0
+        fail_msg: "result=FAIL stig_id=RHEL-10-400175 detail=Audit log files not owned by root: {{ rhel_10_400175_verify.stdout_lines | join(', ') }}."
+        success_msg: "result=PASS stig_id=RHEL-10-400175 detail=All audit log files are owned by root."
+
+  rescue:
+    - name: "RHEL-10-400175 | RESCUE - record failure and continue"
+      ansible.builtin.debug:
+        msg: "result=ERROR stig_id=RHEL-10-400175 detail=Task failed unexpectedly — see prior error for details."

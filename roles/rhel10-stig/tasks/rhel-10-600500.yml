@@ -1,0 +1,92 @@
+---
+# =============================================================================
+# STIG ID  : RHEL-10-600500
+# Rule ID  : SV-281205r1166567_rule
+# Severity : medium
+# CCI      : CCI-002038
+# Title    : RHEL 10 must restrict the use of the "su" command.
+#
+# Description:
+#   The "su" program allows commands to be run with a substitute user and
+#   group ID. It is commonly used to run commands as the root user. Limiting
+#   access to such commands is considered a good security practice.
+#   Satisfies: SRG-OS-000373-GPOS-00156, SRG-OS-000312-GPOS-00123
+#
+# Check Text:
+#   Verify RHEL 10 requires users to be members of the "wheel" group to run
+#   "su".
+#
+#   Verify the configuration with the following command:
+#
+#   $ sudo grep pam_wheel /etc/pam.d/su
+#   auth required pam_wheel.so use_uid
+#
+#   If a line for "pam_wheel.so" does not exist or is commented out, this is
+#   a finding.
+#
+# Fix Text:
+#   Configure RHEL 10 to require users to be in the "wheel" group to run the
+#   "su" command.
+#
+#   Edit the configuration file:
+#
+#   $ sudo vi /etc/pam.d/su
+#
+#   Add the following lines:
+#
+#   auth required pam_wheel.so use_uid
+#   $ sed
+#   '/^[[:space:]]*#[[:space:]]*auth[[:space:]]\+required[[:space:]]\+pam_wheel\.so[[:space:]]\+use_uid$/s/^[[:space:]]*#//'
+#   -i /etc/pam.d/su
+#
+#   If necessary, create a "wheel" group and add administrative users to the
+#   group.
+# =============================================================================
+
+- name: "RHEL-10-600500 | RHEL 10 must restrict the use of the "su" command."
+  when: rhel_10_600500 | bool
+  tags:
+    - RHEL-10-600500
+    - medium
+    - CCI-002038
+  block:
+    - name: "RHEL-10-600500 | Check pam_wheel.so in /etc/pam.d/su"
+      ansible.builtin.command:
+        cmd: grep -E '^auth\s+required\s+pam_wheel\.so\s+use_uid' /etc/pam.d/su
+      register: rhel_10_600500_check
+      changed_when: false
+      failed_when: false
+
+    - name: "RHEL-10-600500 | Backup /etc/pam.d/su"
+      ansible.builtin.copy:
+        src: /etc/pam.d/su
+        dest: "/etc/pam.d/su.bak.{{ ansible_date_time.epoch }}"
+        remote_src: true
+        mode: preserve
+      when: rhel_10_600500_check.rc != 0
+
+    - name: "RHEL-10-600500 | Enable pam_wheel.so use_uid in /etc/pam.d/su"
+      ansible.builtin.lineinfile:
+        path: /etc/pam.d/su
+        regexp: '^#?\s*auth\s+required\s+pam_wheel\.so'
+        line: 'auth required pam_wheel.so use_uid'
+        state: present
+      when: rhel_10_600500_check.rc != 0
+
+    - name: "RHEL-10-600500 | Re-check pam_wheel.so in /etc/pam.d/su"
+      ansible.builtin.command:
+        cmd: grep -E '^auth\s+required\s+pam_wheel\.so\s+use_uid' /etc/pam.d/su
+      register: rhel_10_600500_verify
+      changed_when: false
+      failed_when: false
+
+    - name: "RHEL-10-600500 | Assert pam_wheel.so use_uid is configured"
+      ansible.builtin.assert:
+        that: rhel_10_600500_verify.rc == 0
+        fail_msg: "result=FAIL stig_id=RHEL-10-600500 detail=pam_wheel.so use_uid is not present in /etc/pam.d/su."
+        success_msg: "result=PASS stig_id=RHEL-10-600500 detail=pam_wheel.so use_uid is configured in /etc/pam.d/su."
+
+  rescue:
+    - name: "RHEL-10-600500 | RESCUE - record failure and continue"
+      ansible.builtin.debug:
+        msg: "result=ERROR stig_id=RHEL-10-600500 detail=Task failed unexpectedly — see prior error for details."

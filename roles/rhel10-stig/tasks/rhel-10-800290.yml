@@ -1,0 +1,96 @@
+---
+# =============================================================================
+# STIG ID  : RHEL-10-800290
+# Rule ID  : SV-281361r1167233_rule
+# Severity : medium
+# CCI      : CCI-002385
+# Title    : RHEL 10 must protect against or limit the effects of denial-of-service (DoS) attacks by ensuring that rate-limiting measures on impacted network interfaces are implemented.
+#
+# Description:
+#   DoS is a condition when a resource is not available for legitimate users.
+#   When this occurs, the organization either cannot accomplish its mission
+#   or must operate at degraded capacity. This requirement addresses the
+#   configuration of RHEL 10 to mitigate the impact of DoS attacks that have
+#   occurred or are ongoing on system availability. For each system, known
+#   and potential DoS attacks must be identified and solutions for each type
+#   implemented. A variety of technologies exist to limit or, in some cases,
+#   eliminate the effects of DoS attacks (e.g., limiting processes or
+#   establishing memory partitions). Employing increased capacity and
+#   bandwidth, combined with service redundancy, may reduce the
+#   susceptibility to some DoS attacks.
+#
+# Check Text:
+#   Verify RHEL 10 protects against or limits the effects of DoS attacks by
+#   ensuring rate-limiting measures on impacted network interfaces are
+#   implemented.
+#
+#   Check that "nftables" is configured to allow rate limits on any
+#   connection to the system with the following command:
+#
+#   $ sudo grep -i firewallbackend /etc/firewalld/firewalld.conf
+#   # FirewallBackend
+#   FirewallBackend=nftables
+#
+#   If "nftables" is not set to "FirewallBackend", this is a finding.
+#
+# Fix Text:
+#   Configure RHEL 10 so that "nftables" is the default "firewallbackend" for
+#   "firewalld" by adding or editing the following line in
+#   "/etc/firewalld/firewalld.conf":
+#
+#   FirewallBackend=nftables
+#
+#   Establish rate-limiting rules based on organization-defined types of DoS
+#   attacks on impacted network interfaces.
+# =============================================================================
+
+- name: "RHEL-10-800290 | RHEL 10 must protect against or limit the effects of denial-of-service (DoS) attacks by ensuring that rate-limiting measures on impacted network interfaces are implemented."
+  when: rhel_10_800290 | bool
+  tags:
+    - RHEL-10-800290
+    - medium
+    - CCI-002385
+  block:
+    - name: "RHEL-10-800290 | Check FirewallBackend in /etc/firewalld/firewalld.conf"
+      ansible.builtin.command:
+        cmd: grep -i '^FirewallBackend' /etc/firewalld/firewalld.conf
+      register: rhel_10_800290_check
+      changed_when: false
+      failed_when: false
+
+    - name: "RHEL-10-800290 | Backup /etc/firewalld/firewalld.conf before modification"
+      ansible.builtin.copy:
+        src: /etc/firewalld/firewalld.conf
+        dest: "/etc/firewalld/firewalld.conf.bak.{{ ansible_date_time.epoch }}"
+        remote_src: true
+        mode: preserve
+      when: rhel_10_800290_check.rc != 0 or 'nftables' not in rhel_10_800290_check.stdout | lower
+
+    - name: "RHEL-10-800290 | Set FirewallBackend=nftables in firewalld.conf"
+      ansible.builtin.lineinfile:
+        path: /etc/firewalld/firewalld.conf
+        regexp: '^#?FirewallBackend='
+        line: 'FirewallBackend=nftables'
+        state: present
+      when: rhel_10_800290_check.rc != 0 or 'nftables' not in rhel_10_800290_check.stdout | lower
+      notify: reload firewalld
+
+    - name: "RHEL-10-800290 | Re-check FirewallBackend setting"
+      ansible.builtin.command:
+        cmd: grep -i '^FirewallBackend' /etc/firewalld/firewalld.conf
+      register: rhel_10_800290_verify
+      changed_when: false
+      failed_when: false
+
+    - name: "RHEL-10-800290 | Assert FirewallBackend is set to nftables"
+      ansible.builtin.assert:
+        that:
+          - rhel_10_800290_verify.rc == 0
+          - "'nftables' in rhel_10_800290_verify.stdout | lower"
+        fail_msg: "result=FAIL stig_id=RHEL-10-800290 detail=FirewallBackend is not set to nftables in /etc/firewalld/firewalld.conf (current={{ rhel_10_800290_verify.stdout | trim }})."
+        success_msg: "result=PASS stig_id=RHEL-10-800290 detail=FirewallBackend=nftables is set in /etc/firewalld/firewalld.conf."
+
+  rescue:
+    - name: "RHEL-10-800290 | RESCUE - record failure and continue"
+      ansible.builtin.debug:
+        msg: "result=ERROR stig_id=RHEL-10-800290 detail=Task failed unexpectedly — see prior error for details."

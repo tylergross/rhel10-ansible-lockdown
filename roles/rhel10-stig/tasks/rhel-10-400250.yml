@@ -1,0 +1,69 @@
+---
+# =============================================================================
+# STIG ID  : RHEL-10-400250
+# Rule ID  : SV-281067r1165556_rule
+# Severity : medium
+# CCI      : CCI-000213
+# Title    : RHEL 10 must enforce mode "0644" or less permissive for the "/etc/group-" file to prevent unauthorized access.
+#
+# Description:
+#   The "/etc/group-" file is a backup file of "/etc/group", and as such
+#   contains information regarding groups that are configured on the system.
+#   Protection of this file is important for system security.
+#
+# Check Text:
+#   Verify RHEL 10 is configured so that the "/etc/group-" file has mode
+#   "0644" or less permissive with the following command:
+#
+#   $ sudo stat -c "%a %n" /etc/group-
+#   644 /etc/group-
+#
+#   If a value of "0644" or less permissive is not returned, this is a
+#   finding.
+#
+# Fix Text:
+#   Configure RHEL 10 so that the mode of the "/etc/group-" file is set to
+#   "0644" by running the following command:
+#
+#   $ sudo chmod 0644 /etc/group-
+# =============================================================================
+
+- name: "RHEL-10-400250 | RHEL 10 must enforce mode 0644 or less permissive for the /etc/group- file to prevent unauthorized access."
+  when: rhel_10_400250 | bool
+  tags:
+    - RHEL-10-400250
+    - medium
+    - CCI-000213
+  block:
+    - name: "RHEL-10-400250 | Check mode of /etc/group-"
+      ansible.builtin.stat:
+        path: /etc/group-
+      register: rhel_10_400250_stat
+      changed_when: false
+
+    - name: "RHEL-10-400250 | Set mode of /etc/group- to 0644"
+      ansible.builtin.file:
+        path: /etc/group-
+        mode: '0644'
+      when: >
+        rhel_10_400250_stat.stat.exists and
+        (rhel_10_400250_stat.stat.mode | int(base=8)) > (0o644)
+
+    - name: "RHEL-10-400250 | Re-check mode of /etc/group-"
+      ansible.builtin.stat:
+        path: /etc/group-
+      register: rhel_10_400250_verify
+      changed_when: false
+
+    - name: "RHEL-10-400250 | Assert /etc/group- has mode 0644 or less permissive"
+      ansible.builtin.assert:
+        that:
+          - rhel_10_400250_verify.stat.exists
+          - (rhel_10_400250_verify.stat.mode | int(base=8)) <= (0o644)
+        fail_msg: "result=FAIL stig_id=RHEL-10-400250 detail=/etc/group- mode is {{ rhel_10_400250_verify.stat.mode }} which is more permissive than 0644."
+        success_msg: "result=PASS stig_id=RHEL-10-400250 detail=/etc/group- has mode 0644 or less permissive ({{ rhel_10_400250_verify.stat.mode }})."
+
+  rescue:
+    - name: "RHEL-10-400250 | RESCUE - record failure and continue"
+      ansible.builtin.debug:
+        msg: "result=ERROR stig_id=RHEL-10-400250 detail=Task failed unexpectedly — see prior error for details."

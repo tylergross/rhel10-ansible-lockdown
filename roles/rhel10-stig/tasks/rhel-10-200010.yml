@@ -1,0 +1,61 @@
+---
+# =============================================================================
+# STIG ID  : RHEL-10-200010
+# Rule ID  : SV-280943r1165184_rule
+# Severity : medium
+# CCI      : CCI-000381
+# Title    : RHEL 10 must not have the "nfs-utils" package installed.
+#
+# Description:
+#   The "nfs-utils" package provides a daemon for the kernel Network File
+#   System (NFS) server and related tools. This package also contains the
+#   "showmount" program. The "showmount" program queries the mount daemon on
+#   a remote host for information about the NFS server on the remote host.
+#   For example, "showmount" can display the clients that are mounted on that
+#   host.
+#
+# Check Text:
+#   Verify RHEL 10 does not have the "nfs-utils" package installed with the
+#   following command:
+#
+#   $ sudo dnf list --installed nfs-utils
+#   Error: No matching Packages to list
+#
+#   If the "nfs-utils" package is installed, this is a finding.
+#
+# Fix Text:
+#   Configure RHEL 10 to not have the "nfs-utils" package installed with the
+#   following command:
+#
+#   $ sudo dnf -y remove nfs-utils
+# =============================================================================
+
+- name: "RHEL-10-200010 | RHEL 10 must not have the nfs-utils package installed."
+  when: rhel_10_200010 | bool
+  tags:
+    - RHEL-10-200010
+    - medium
+    - CCI-000381
+  block:
+    - name: "RHEL-10-200010 | Remove nfs-utils if installed"
+      ansible.builtin.package:
+        name: nfs-utils
+        state: absent
+
+    - name: "RHEL-10-200010 | Verify nfs-utils is not installed"
+      ansible.builtin.command: rpm -q nfs-utils
+      register: rhel_10_200010_check
+      changed_when: false
+      failed_when: false
+
+    - name: "RHEL-10-200010 | Assert nfs-utils is not installed"
+      ansible.builtin.assert:
+        that: rhel_10_200010_check.rc != 0
+        fail_msg: >-
+          result=FAIL stig_id=RHEL-10-200010
+          detail=Package nfs-utils is still installed. Remove with: dnf -y remove nfs-utils
+        success_msg: "result=PASS stig_id=RHEL-10-200010 detail=Package nfs-utils is not installed."
+  rescue:
+    - name: "RHEL-10-200010 | RESCUE - record failure and continue"
+      ansible.builtin.debug:
+        msg: "result=ERROR stig_id=RHEL-10-200010 detail=Task failed unexpectedly — see prior error for details."

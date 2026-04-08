@@ -1,0 +1,102 @@
+---
+# =============================================================================
+# STIG ID  : RHEL-10-600540
+# Rule ID  : SV-281209r1166579_rule
+# Severity : medium
+# CCI      : CCI-002038
+# Title    : RHEL 10 must require reauthentication when using the "sudo" command.
+#
+# Description:
+#   Without reauthentication, users may access resources or perform tasks for
+#   which they do not have authorization. When operating systems provide the
+#   capability to escalate a functional capability, it is critical that the
+#   organization requires the user to reauthenticate when using the "sudo"
+#   command. If the value is set to an integer less than "0", the user's time
+#   stamp will not expire, and the user will not have to reauthenticate for
+#   privileged actions until the user's session is terminated. Satisfies:
+#   SRG-OS-000373-GPOS-00156, SRG-OS-000373-GPOS-00157,
+#   SRG-OS-000373-GPOS-00158
+#
+# Check Text:
+#   Verify RHEL 10 requires reauthentication when using the "sudo" command to
+#   elevate privileges with the following command:
+#
+#   $ sudo grep -ir 'timestamp_timeout' /etc/sudoers /etc/sudoers.d/
+#   /etc/sudoers:Defaults timestamp_timeout=0
+#
+#   If results are returned from more than one file location, this is a
+#   finding.
+#
+#   If "timestamp_timeout" is set to a negative number, is commented out, or
+#   no results are returned, this is a finding.
+#
+# Fix Text:
+#   Configure RHEL 10 to reauthenticate "sudo" commands after the specified
+#   timeout.
+#
+#   Add the following line to "/etc/sudoers" or a file in "/etc/sudoers.d":
+#
+#   Defaults timestamp_timeout=0
+# =============================================================================
+
+- name: "RHEL-10-600540 | RHEL 10 must require reauthentication when using the "sudo" command."
+  when: rhel_10_600540 | bool
+  tags:
+    - RHEL-10-600540
+    - medium
+    - CCI-002038
+  block:
+    - name: "RHEL-10-600540 | Check timestamp_timeout in sudoers"
+      ansible.builtin.command:
+        cmd: grep -ir 'timestamp_timeout' /etc/sudoers /etc/sudoers.d/
+      register: rhel_10_600540_check
+      changed_when: false
+      failed_when: false
+
+    - name: "RHEL-10-600540 | Check that timestamp_timeout=0 is in /etc/sudoers only"
+      ansible.builtin.command:
+        cmd: grep -i 'timestamp_timeout' /etc/sudoers
+      register: rhel_10_600540_main
+      changed_when: false
+      failed_when: false
+
+    - name: "RHEL-10-600540 | Backup /etc/sudoers"
+      ansible.builtin.copy:
+        src: /etc/sudoers
+        dest: "/etc/sudoers.bak.{{ ansible_date_time.epoch }}"
+        remote_src: true
+        mode: '0440'
+      when: >
+        rhel_10_600540_main.rc != 0 or
+        rhel_10_600540_main.stdout is not search('timestamp_timeout\s*=\s*0')
+
+    - name: "RHEL-10-600540 | Set Defaults timestamp_timeout=0 in /etc/sudoers"
+      ansible.builtin.lineinfile:
+        path: /etc/sudoers
+        regexp: '^Defaults\s+timestamp_timeout'
+        line: 'Defaults timestamp_timeout=0'
+        state: present
+        validate: '/usr/sbin/visudo -cf %s'
+      when: >
+        rhel_10_600540_main.rc != 0 or
+        rhel_10_600540_main.stdout is not search('timestamp_timeout\s*=\s*0')
+
+    - name: "RHEL-10-600540 | Re-check timestamp_timeout in /etc/sudoers"
+      ansible.builtin.command:
+        cmd: grep -i 'timestamp_timeout' /etc/sudoers
+      register: rhel_10_600540_verify
+      changed_when: false
+      failed_when: false
+
+    - name: "RHEL-10-600540 | Assert timestamp_timeout=0 is correctly set"
+      ansible.builtin.assert:
+        that:
+          - rhel_10_600540_verify.rc == 0
+          - rhel_10_600540_verify.stdout is search('timestamp_timeout\s*=\s*0')
+        fail_msg: "result=FAIL stig_id=RHEL-10-600540 detail=Defaults timestamp_timeout=0 is not configured in /etc/sudoers."
+        success_msg: "result=PASS stig_id=RHEL-10-600540 detail=Defaults timestamp_timeout=0 is configured in /etc/sudoers."
+
+  rescue:
+    - name: "RHEL-10-600540 | RESCUE - record failure and continue"
+      ansible.builtin.debug:
+        msg: "result=ERROR stig_id=RHEL-10-600540 detail=Task failed unexpectedly — see prior error for details."

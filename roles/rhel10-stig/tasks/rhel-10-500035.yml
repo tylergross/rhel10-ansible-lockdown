@@ -1,0 +1,79 @@
+---
+# =============================================================================
+# STIG ID  : RHEL-10-500035
+# Rule ID  : SV-281103r1166261_rule
+# Severity : medium
+# CCI      : CCI-000139
+# Title    : RHEL 10 must take appropriate action when a critical audit processing failure occurs.
+#
+# Description:
+#   It is critical for the appropriate personnel to be aware if a system is
+#   at risk of failing to process audit logs as required. Without this
+#   notification, the security personnel may be unaware of an impending
+#   failure of the audit capability, and system operation may be adversely
+#   affected. Audit processing failures include software/hardware errors,
+#   failures in the audit capturing mechanisms, and audit storage capacity
+#   being reached or exceeded.
+#
+# Check Text:
+#   Verify the RHEL 10 audit service is configured to panic on a critical
+#   error with the following command:
+#
+#   $ sudo grep "\-f" /etc/audit/audit.rules
+#   -f 2
+#
+#   If the value for "-f" is not "2", and availability is not documented as
+#   an overriding concern, this is a finding.
+#
+# Fix Text:
+#   Configure RHEL 10 to shut down when auditing failures occur.
+#
+#   Add the following line to the bottom of the
+#   "/etc/audit/rules.d/audit.rules" file:
+#
+#   -f 2
+# =============================================================================
+
+- name: "RHEL-10-500035 | RHEL 10 must take appropriate action when a critical audit processing failure occurs."
+  when: rhel_10_500035 | bool
+  tags:
+    - RHEL-10-500035
+    - medium
+    - CCI-000139
+  block:
+    - name: "RHEL-10-500035 | Check -f 2 in /etc/audit/rules.d/audit.rules"
+      ansible.builtin.command:
+        cmd: grep -E '^\s*-f\s+2' /etc/audit/rules.d/audit.rules
+      register: rhel_10_500035_check
+      changed_when: false
+      failed_when: false
+
+    - name: "RHEL-10-500035 | Add -f 2 to /etc/audit/rules.d/audit.rules"
+      ansible.builtin.lineinfile:
+        path: /etc/audit/rules.d/audit.rules
+        line: '-f 2'
+        state: present
+        create: true
+        mode: '0640'
+        owner: root
+        group: root
+      when: rhel_10_500035_check.rc != 0
+      notify: restart auditd
+
+    - name: "RHEL-10-500035 | Re-check -f 2 in /etc/audit/rules.d/audit.rules"
+      ansible.builtin.command:
+        cmd: grep -E '^\s*-f\s+2' /etc/audit/rules.d/audit.rules
+      register: rhel_10_500035_verify
+      changed_when: false
+      failed_when: false
+
+    - name: "RHEL-10-500035 | Assert -f 2 is configured"
+      ansible.builtin.assert:
+        that: rhel_10_500035_verify.rc == 0
+        fail_msg: "result=FAIL stig_id=RHEL-10-500035 detail=-f 2 is not set in /etc/audit/rules.d/audit.rules."
+        success_msg: "result=PASS stig_id=RHEL-10-500035 detail=-f 2 is configured in /etc/audit/rules.d/audit.rules."
+
+  rescue:
+    - name: "RHEL-10-500035 | RESCUE - record failure and continue"
+      ansible.builtin.debug:
+        msg: "result=ERROR stig_id=RHEL-10-500035 detail=Task failed unexpectedly — see prior error for details."

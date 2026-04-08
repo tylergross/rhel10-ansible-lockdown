@@ -1,0 +1,110 @@
+---
+# =============================================================================
+# STIG ID  : RHEL-10-700860
+# Rule ID  : SV-281289r1166819_rule
+# Severity : medium
+# CCI      : CCI-000381
+# Title    : RHEL 10 must disable Bluetooth.
+#
+# Description:
+#   This requirement applies to wireless peripheral technologies (e.g.,
+#   wireless mice, keyboards, displays, etc.) used with RHEL 10 systems.
+#   Wireless peripherals (e.g., Wi-Fi/Bluetooth/IR keyboards, mice and
+#   pointing devices, and near field communications [NFC]) present a unique
+#   challenge by creating an open, unsecured port on a computer. Wireless
+#   peripherals must meet DOD requirements for wireless data transmission and
+#   be approved for use by the authorizing official. Even though some
+#   wireless peripherals, such as mice and pointing devices, do not
+#   ordinarily carry information that must be protected, modification of
+#   communications with these wireless peripherals may be used to compromise
+#   the RHEL 10 operating system. Satisfies: SRG-OS-000095-GPOS-00049,
+#   SRG-OS-000300-GPOS-00118
+#
+# Check Text:
+#   Verify RHEL 10 disables the ability to load the Bluetooth kernel module
+#   with the following command:
+#
+#   $ sudo grep -rs bluetooth /etc/modprobe.conf /etc/modprobe.d/*
+#   /etc/modprobe.d/bluetooth.conf:install bluetooth /bin/false
+#   /etc/modprobe.d/bluetooth.conf:blacklist bluetooth
+#
+#   If the command does not return any output, or the lines are commented
+#   out, and use of Bluetooth is not documented with the information system
+#   security officer as an operational requirement, this is a finding.
+#
+# Fix Text:
+#   Configure RHEL 10 to disable the Bluetooth adapter when not in use.
+#
+#   Add the following lines to the file "/etc/modprobe.d/bluetooth.conf" (or
+#   create "bluetooth.conf" if it does not exist):
+#
+#   $ sudo vi /etc/modprobe.d/bluetooth.conf
+#
+#   install bluetooth /bin/false
+#   blacklist bluetooth
+#
+#   Reboot the system for the settings to take effect.
+# =============================================================================
+
+- name: "RHEL-10-700860 | RHEL 10 must disable Bluetooth."
+  when: rhel_10_700860 | bool
+  tags:
+    - RHEL-10-700860
+    - medium
+    - CCI-000381
+  block:
+    - name: "RHEL-10-700860 | Check bluetooth install rule in modprobe"
+      ansible.builtin.command:
+        cmd: grep -rs 'install bluetooth /bin/false' /etc/modprobe.conf /etc/modprobe.d/
+      register: rhel_10_700860_install_check
+      changed_when: false
+      failed_when: false
+
+    - name: "RHEL-10-700860 | Check bluetooth blacklist rule in modprobe"
+      ansible.builtin.command:
+        cmd: grep -rs 'blacklist bluetooth' /etc/modprobe.conf /etc/modprobe.d/
+      register: rhel_10_700860_blacklist_check
+      changed_when: false
+      failed_when: false
+
+    - name: "RHEL-10-700860 | Set bluetooth install rule in /etc/modprobe.d/bluetooth.conf"
+      ansible.builtin.lineinfile:
+        path: /etc/modprobe.d/bluetooth.conf
+        line: 'install bluetooth /bin/false'
+        state: present
+        create: true
+        mode: '0644'
+        owner: root
+        group: root
+      when: rhel_10_700860_install_check.rc != 0
+
+    - name: "RHEL-10-700860 | Set bluetooth blacklist rule in /etc/modprobe.d/bluetooth.conf"
+      ansible.builtin.lineinfile:
+        path: /etc/modprobe.d/bluetooth.conf
+        line: 'blacklist bluetooth'
+        state: present
+        create: true
+        mode: '0644'
+        owner: root
+        group: root
+      when: rhel_10_700860_blacklist_check.rc != 0
+
+    - name: "RHEL-10-700860 | Re-check bluetooth configuration in modprobe"
+      ansible.builtin.command:
+        cmd: grep -rs 'bluetooth' /etc/modprobe.conf /etc/modprobe.d/
+      register: rhel_10_700860_verify
+      changed_when: false
+      failed_when: false
+
+    - name: "RHEL-10-700860 | Assert bluetooth is disabled in modprobe"
+      ansible.builtin.assert:
+        that:
+          - "'install bluetooth /bin/false' in rhel_10_700860_verify.stdout"
+          - "'blacklist bluetooth' in rhel_10_700860_verify.stdout"
+        fail_msg: "result=FAIL stig_id=RHEL-10-700860 detail=bluetooth is not fully disabled in modprobe (install and/or blacklist missing)."
+        success_msg: "result=PASS stig_id=RHEL-10-700860 detail=bluetooth is disabled via modprobe install and blacklist rules."
+
+  rescue:
+    - name: "RHEL-10-700860 | RESCUE - record failure and continue"
+      ansible.builtin.debug:
+        msg: "result=ERROR stig_id=RHEL-10-700860 detail=Task failed unexpectedly — see prior error for details."

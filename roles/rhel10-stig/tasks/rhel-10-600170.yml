@@ -1,0 +1,74 @@
+---
+# =============================================================================
+# STIG ID  : RHEL-10-600170
+# Rule ID  : SV-281176r1166480_rule
+# Severity : medium
+# CCI      : CCI-003980
+# Title    : RHEL 10 must be configured so that all local interactive user initialization file executable search path statements do not contain statements that will reference a working directory other than user home directories.
+#
+# Description:
+#   The executable search path (typically the PATH environment variable)
+#   contains a list of directories for the shell to search to find
+#   executables. If this path includes the current working directory (other
+#   than the user's home directory), executables in these directories may be
+#   executed instead of system commands. This variable is formatted as a
+#   colon-separated list of directories. If there is an empty entry, such as
+#   a leading or trailing colon or two consecutive colons, this is
+#   interpreted as the current working directory. If deviations from the
+#   default system search path for the local interactive user are required,
+#   they must be documented with the information system security officer
+#   (ISSO).
+#
+# Check Text:
+#   Verify RHEL 10 local interactive user initialization file executable
+#   search path statements do not contain statements that will reference a
+#   working directory other than user home directories with the following
+#   commands:
+#
+#   $ sudo find /home -maxdepth 2 -type f -name ".[^.]*" -exec grep -iH path=
+#   {} \;
+#   PATH="$HOME/.local/bin:$HOME/bin:$PATH"
+#
+#   If any local interactive user initialization files have executable search
+#   path statements that include directories outside of their home directory,
+#   and this is not documented with the ISSO as an operational requirement,
+#   this is a finding.
+#
+# Fix Text:
+#   Configure RHEL 10 so that all local interactive user initialization file
+#   executable search path statements do not contain statements that will
+#   reference a working directory other than user home directories.
+#
+#   Edit the local interactive user initialization files to change any PATH
+#   variable statements that reference directories other than their home
+#   directory.
+#
+#   If a local interactive user requires path variables to reference a
+#   directory owned by the application, it must be documented with the ISSO.
+# =============================================================================
+
+- name: "RHEL-10-600170 | RHEL 10 must be configured so that all local interactive user initialization file executable search path statements do not contain statements that will reference a working directory other than user home directories."
+  when: rhel_10_600170 | bool
+  tags:
+    - RHEL-10-600170
+    - medium
+    - CCI-003980
+  block:
+    - name: "RHEL-10-600170 | Find local interactive user init files with non-home PATH references"
+      ansible.builtin.shell:
+        cmd: >
+          find /home -maxdepth 2 -type f -name ".[^.]*" -exec grep -lHiE 'PATH=.*[^$HOME][^/]' {} \; 2>/dev/null | head -50
+      register: rhel_10_600170_check
+      changed_when: false
+      failed_when: false
+
+    - name: "RHEL-10-600170 | Assert no init files contain non-home PATH references"
+      ansible.builtin.assert:
+        that:
+          - rhel_10_600170_check.stdout_lines | length == 0
+        fail_msg: "result=FAIL stig_id=RHEL-10-600170 detail=Local interactive user init files contain PATH statements referencing non-home directories ({{ rhel_10_600170_check.stdout | trim }}). Edit files to remove references outside home directories or document with ISSO."
+        success_msg: "result=PASS stig_id=RHEL-10-600170 detail=No local interactive user init files contain executable search path statements referencing directories outside home directories."
+  rescue:
+    - name: "RHEL-10-600170 | RESCUE - record failure and continue"
+      ansible.builtin.debug:
+        msg: "result=ERROR stig_id=RHEL-10-600170 detail=Task failed unexpectedly — see prior error for details."

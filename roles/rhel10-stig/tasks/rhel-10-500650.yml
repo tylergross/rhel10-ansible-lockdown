@@ -1,0 +1,79 @@
+---
+# =============================================================================
+# STIG ID  : RHEL-10-500650
+# Rule ID  : SV-281151r1166405_rule
+# Severity : medium
+# CCI      : CCI-000172
+# Title    : RHEL 10 must generate audit records for successful and unsuccessful uses of the shutdown command.
+#
+# Description:
+#   Misuse of the shutdown command may cause availability issues for the
+#   system.
+#
+# Check Text:
+#   Verify RHEL 10 is configured to audit the execution of the "shutdown"
+#   command with the following command:
+#
+#   $ sudo cat /etc/audit/rules.d/* | grep shutdown
+#   -a always,exit -S all -F path=/usr/sbin/shutdown -F perm=x -F auid>=1000
+#   -F auid!=-1 -F key=privileged-shutdown
+#
+#   If the command does not return a line, or the line is commented out, this
+#   is a finding.
+#
+# Fix Text:
+#   Configure RHEL 10 to generate audit records upon successful and
+#   unsuccessful uses of the "shutdown" command by adding or updating the
+#   following rule in the "/etc/audit/rules.d/audit.rules" file:
+#
+#   -a always,exit -F path=/usr/sbin/shutdown -F perm=x -F auid>=1000 -F
+#   auid!=unset -k privileged-shutdown
+#
+#   Restart the audit daemon with the following command for the changes to
+#   take effect:
+#
+#   $ sudo service auditd restart
+# =============================================================================
+
+- name: "RHEL-10-500650 | RHEL 10 must generate audit records for successful and unsuccessful uses of the shutdown command."
+  when: rhel_10_500650 | bool
+  tags:
+    - RHEL-10-500650
+    - medium
+    - CCI-000172
+  block:
+    - name: "RHEL-10-500650 | Check audit rule for shutdown command"
+      ansible.builtin.command:
+        cmd: auditctl -l
+      register: rhel_10_500650_rules
+      changed_when: false
+      failed_when: false
+
+    - name: "RHEL-10-500650 | Add audit rule for shutdown command"
+      ansible.builtin.lineinfile:
+        path: /etc/audit/rules.d/rhel10-stig.rules
+        line: "-a always,exit -F path=/usr/sbin/shutdown -F perm=x -F auid>=1000 -F auid!=unset -k privileged-shutdown"
+        create: true
+        mode: '0640'
+        owner: root
+        group: root
+      when: "'privileged-shutdown' not in rhel_10_500650_rules.stdout"
+      notify: restart auditd
+
+    - name: "RHEL-10-500650 | Re-check audit rule for shutdown command"
+      ansible.builtin.command:
+        cmd: auditctl -l
+      register: rhel_10_500650_verify
+      changed_when: false
+      failed_when: false
+
+    - name: "RHEL-10-500650 | Assert audit rule for shutdown command is present"
+      ansible.builtin.assert:
+        that: "'privileged-shutdown' in rhel_10_500650_verify.stdout"
+        fail_msg: "result=FAIL stig_id=RHEL-10-500650 detail=Audit rule for /usr/sbin/shutdown (key=privileged-shutdown) is missing."
+        success_msg: "result=PASS stig_id=RHEL-10-500650 detail=Audit rule for /usr/sbin/shutdown (key=privileged-shutdown) is present."
+
+  rescue:
+    - name: "RHEL-10-500650 | RESCUE - record failure and continue"
+      ansible.builtin.debug:
+        msg: "result=ERROR stig_id=RHEL-10-500650 detail=Task failed unexpectedly — see prior error for details."

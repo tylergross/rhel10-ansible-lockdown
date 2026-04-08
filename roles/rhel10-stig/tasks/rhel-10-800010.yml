@@ -1,0 +1,80 @@
+---
+# =============================================================================
+# STIG ID  : RHEL-10-800010
+# Rule ID  : SV-281333r1167149_rule
+# Severity : medium
+# CCI      : CCI-000382
+# Title    : RHEL 10 must be configured to prohibit or restrict the use of functions, ports, protocols, and/or services, as defined in the Ports, Protocols, and Services Management (PPSM) Category Assignments List (CAL) and vulnerability assessments.
+#
+# Description:
+#   To prevent unauthorized connection of devices, unauthorized transfer of
+#   information, or unauthorized tunneling (i.e., embedding of data types
+#   within data types), organizations must disable or restrict unused or
+#   unnecessary ports, protocols, and services on information systems.
+#
+# Check Text:
+#   Verify RHEL 10 is configured to prohibit or restrict the use of
+#   functions, ports, protocols, and/or services as defined in the PPSM CAL
+#   and vulnerability assessments.
+#
+#   Inspect the firewall configuration and running services to verify they
+#   are configured to prohibit or restrict the use of functions, ports,
+#   protocols, and/or services that are unnecessary or prohibited.
+#
+#   Check which services are currently active with the following command:
+#
+#   $ sudo firewall-cmd --list-all-zones
+#
+#   Ask the system administrator for the site or program PPSM Component Local
+#   Service Assessment (CLSA). Verify the services allowed by the firewall
+#   match the PPSM CLSA.
+#
+#   If there are additional ports, protocols, or services that are not in the
+#   PPSM CLSA, or there are ports, protocols, or services that are prohibited
+#   by the PPSM CAL, this is a finding.
+#
+# Fix Text:
+#   Configure RHEL 10 to prohibit or restrict the use of functions, ports,
+#   protocols, and/or services as defined in the PPSM CAL and vulnerability
+#   assessments.
+#
+#   Update the host's firewall settings and/or running services to comply
+#   with the PPSM CLSA for the site or program and the PPSM CAL.
+#
+#   Run the following command to load the newly created rule(s):
+#
+#   $ sudo firewall-cmd --reload
+# =============================================================================
+
+- name: "RHEL-10-800010 | RHEL 10 must be configured to prohibit or restrict the use of functions, ports, protocols, and/or services, as defined in the Ports, Protocols, and Services Management (PPSM) Category Assignments List (CAL) and vulnerability assessments."
+  when: rhel_10_800010 | bool
+  tags:
+    - RHEL-10-800010
+    - medium
+    - CCI-000382
+  block:
+    - name: "RHEL-10-800010 | Check firewalld is active"
+      ansible.builtin.command:
+        cmd: systemctl is-active firewalld
+      register: rhel_10_800010_svc
+      changed_when: false
+      failed_when: false
+
+    - name: "RHEL-10-800010 | List all active firewall zones"
+      ansible.builtin.command:
+        cmd: firewall-cmd --list-all-zones
+      register: rhel_10_800010_zones
+      changed_when: false
+      failed_when: false
+      when: rhel_10_800010_svc.stdout | trim == 'active'
+
+    - name: "RHEL-10-800010 | Assert firewalld is active to enforce port/protocol restrictions"
+      ansible.builtin.assert:
+        that: rhel_10_800010_svc.stdout | trim == 'active'
+        fail_msg: "result=FAIL stig_id=RHEL-10-800010 detail=firewalld is not active (status={{ rhel_10_800010_svc.stdout | trim }}). Port/protocol restrictions per PPSM CAL are not enforced."
+        success_msg: "result=PASS stig_id=RHEL-10-800010 detail=firewalld is active. Verify zone rules match the PPSM CAL and CLSA manually."
+
+  rescue:
+    - name: "RHEL-10-800010 | RESCUE - record failure and continue"
+      ansible.builtin.debug:
+        msg: "result=ERROR stig_id=RHEL-10-800010 detail=Task failed unexpectedly — see prior error for details."

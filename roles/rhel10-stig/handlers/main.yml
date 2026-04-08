@@ -1,0 +1,7 @@
+---
+# rhel10-stig | handlers
+# Add handlers here as tasks are implemented.
+# Common handlers to add:
+#   - Restart services (sshd, auditd, etc.)
+#   - Reload systemd daemon
+#   - Reboot notification

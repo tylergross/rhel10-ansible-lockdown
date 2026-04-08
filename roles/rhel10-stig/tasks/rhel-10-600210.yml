@@ -1,0 +1,91 @@
+---
+# =============================================================================
+# STIG ID  : RHEL-10-600210
+# Rule ID  : SV-281180r1166492_rule
+# Severity : medium
+# CCI      : CCI-004066
+# Title    : RHEL 10 must enforce a 24-hours minimum password lifetime restriction for passwords for new users or password changes in "/etc/login.defs".
+#
+# Description:
+#   Enforcing a minimum password lifetime helps to prevent repeated password
+#   changes to defeat the password reuse or history enforcement requirement.
+#   If users are allowed to immediately and continually change their
+#   password, the password could be repeatedly changed in a short period of
+#   time to defeat the organization's policy regarding password reuse.
+#   Setting the minimum password age protects against users cycling back to a
+#   favorite password after satisfying the password reuse requirement.
+#
+# Check Text:
+#   Verify RHEL 10 enforces 24 hours as the minimum password lifetime for new
+#   user accounts.
+#
+#   Check for the value of "PASS_MIN_DAYS" in "/etc/login.defs" with the
+#   following command:
+#
+#   $ sudo grep -i pass_min_days /etc/login.defs
+#   PASS_MIN_DAYS 1
+#
+#   If the "PASS_MIN_DAYS" parameter value is not "1" or greater or is
+#   commented out, this is a finding.
+#
+# Fix Text:
+#   Configure RHEL 10 to enforce 24 hours as the minimum password lifetime.
+#
+#   Add the following line in "/etc/login.defs" (or modify the line to have
+#   the required value):
+#
+#   PASS_MIN_DAYS 1
+# =============================================================================
+
+- name: "RHEL-10-600210 | RHEL 10 must enforce a 24-hours minimum password lifetime restriction for passwords for new users or password changes in /etc/login.defs."
+  when: rhel_10_600210 | bool
+  tags:
+    - RHEL-10-600210
+    - medium
+    - CCI-004066
+  block:
+    - name: "RHEL-10-600210 | Check PASS_MIN_DAYS in /etc/login.defs"
+      ansible.builtin.command:
+        cmd: grep -i "^PASS_MIN_DAYS" /etc/login.defs
+      register: rhel_10_600210_check
+      changed_when: false
+      failed_when: false
+
+    - name: "RHEL-10-600210 | Backup /etc/login.defs before modification"
+      ansible.builtin.copy:
+        src: /etc/login.defs
+        dest: "/etc/login.defs.bak.{{ ansible_date_time.epoch }}"
+        remote_src: true
+        mode: preserve
+      when: >
+        rhel_10_600210_check.rc != 0 or
+        (rhel_10_600210_check.stdout | regex_search('PASS_MIN_DAYS\s+(\d+)', '\1') | first | int) < 1
+
+    - name: "RHEL-10-600210 | Set PASS_MIN_DAYS to 1 in /etc/login.defs"
+      ansible.builtin.lineinfile:
+        path: /etc/login.defs
+        regexp: '^#?\s*PASS_MIN_DAYS'
+        line: 'PASS_MIN_DAYS   1'
+        state: present
+      when: >
+        rhel_10_600210_check.rc != 0 or
+        (rhel_10_600210_check.stdout | regex_search('PASS_MIN_DAYS\s+(\d+)', '\1') | first | int) < 1
+
+    - name: "RHEL-10-600210 | Re-check PASS_MIN_DAYS"
+      ansible.builtin.command:
+        cmd: grep -i "^PASS_MIN_DAYS" /etc/login.defs
+      register: rhel_10_600210_verify
+      changed_when: false
+      failed_when: false
+
+    - name: "RHEL-10-600210 | Assert PASS_MIN_DAYS is 1 or greater"
+      ansible.builtin.assert:
+        that:
+          - rhel_10_600210_verify.rc == 0
+          - (rhel_10_600210_verify.stdout | regex_search('PASS_MIN_DAYS\s+(\d+)', '\1') | first | int) >= 1
+        fail_msg: "result=FAIL stig_id=RHEL-10-600210 detail=PASS_MIN_DAYS is not set to 1 or greater in /etc/login.defs (current={{ rhel_10_600210_verify.stdout | trim }})."
+        success_msg: "result=PASS stig_id=RHEL-10-600210 detail=PASS_MIN_DAYS is set to 1 or greater in /etc/login.defs ({{ rhel_10_600210_verify.stdout | trim }})."
+  rescue:
+    - name: "RHEL-10-600210 | RESCUE - record failure and continue"
+      ansible.builtin.debug:
+        msg: "result=ERROR stig_id=RHEL-10-600210 detail=Task failed unexpectedly — see prior error for details."

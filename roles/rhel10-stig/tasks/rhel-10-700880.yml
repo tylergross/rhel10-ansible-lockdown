@@ -1,0 +1,118 @@
+---
+# =============================================================================
+# STIG ID  : RHEL-10-700880
+# Rule ID  : SV-281291r1166825_rule
+# Severity : medium
+# CCI      : CCI-000778
+# Title    : RHEL 10 must disable the graphical user interface automounter unless required.
+#
+# Description:
+#   Automatically mounting file systems permits easy introduction of unknown
+#   devices, thereby facilitating malicious activity. Satisfies:
+#   SRG-OS-000114-GPOS-00059, SRG-OS-000378-GPOS-00163
+#
+# Check Text:
+#   Note: This requirement assumes the use of the RHEL 10 default graphical
+#   user interface, the GNOME desktop environment. If the system does not
+#   have any graphical user interface installed, this requirement is not
+#   applicable.
+#
+#   Verify RHEL 10 disables the graphical user interface automount function.
+#
+#   Disable the setting with the following command:
+#
+#   $ gsettings get org.gnome.desktop.media-handling automount-open
+#   false
+#
+#   If "automount-open" is set to "true" and is not documented with the
+#   information system security officer as an operational requirement, this
+#   is a finding.
+#
+# Fix Text:
+#   Configure RHEL 10 GNOME to disable automated mount of removable media.
+#
+#   Note: The example below is using the database "local" for the system. If
+#   the system is using another database in "/etc/dconf/profile/user", the
+#   file should be created under the appropriate subdirectory.
+#
+#   Update the "/etc/dconf/db/local.d/00-security-settings" database file
+#   with the following lines:
+#
+#   $ sudo vi /etc/dconf/db/local.d/00-security-settings
+#
+#   [org/gnome/desktop/media-handling]
+#   automount-open=false
+#
+#   Update the dconf system databases:
+#
+#   $ sudo dconf update
+# =============================================================================
+
+- name: "RHEL-10-700880 | RHEL 10 must disable the graphical user interface automounter unless required."
+  when: rhel_10_700880 | bool
+  tags:
+    - RHEL-10-700880
+    - medium
+    - CCI-000778
+  block:
+    - name: "RHEL-10-700880 | Ensure dconf local.d directory exists"
+      ansible.builtin.file:
+        path: /etc/dconf/db/local.d
+        state: directory
+        mode: '0755'
+        owner: root
+        group: root
+
+    - name: "RHEL-10-700880 | Check automount-open setting in dconf keyfile"
+      ansible.builtin.command:
+        cmd: grep -r 'automount-open' /etc/dconf/db/local.d/
+      register: rhel_10_700880_check
+      changed_when: false
+      failed_when: false
+
+    - name: "RHEL-10-700880 | Ensure media-handling section header is present"
+      ansible.builtin.lineinfile:
+        path: /etc/dconf/db/local.d/00-security-settings
+        line: '[org/gnome/desktop/media-handling]'
+        state: present
+        create: true
+        mode: '0644'
+        owner: root
+        group: root
+      when: rhel_10_700880_check.rc != 0
+
+    - name: "RHEL-10-700880 | Set automount-open to false in dconf keyfile"
+      ansible.builtin.lineinfile:
+        path: /etc/dconf/db/local.d/00-security-settings
+        regexp: '^#?automount-open='
+        line: 'automount-open=false'
+        state: present
+        create: true
+        mode: '0644'
+        owner: root
+        group: root
+      when: rhel_10_700880_check.rc != 0
+
+    - name: "RHEL-10-700880 | Update dconf database"
+      ansible.builtin.command:
+        cmd: dconf update
+      when: rhel_10_700880_check.rc != 0
+      changed_when: true
+
+    - name: "RHEL-10-700880 | Re-check automount-open in dconf"
+      ansible.builtin.command:
+        cmd: grep -r 'automount-open' /etc/dconf/db/local.d/
+      register: rhel_10_700880_verify
+      changed_when: false
+      failed_when: false
+
+    - name: "RHEL-10-700880 | Assert automount-open is configured in dconf"
+      ansible.builtin.assert:
+        that: rhel_10_700880_verify.rc == 0
+        fail_msg: "result=FAIL stig_id=RHEL-10-700880 detail=automount-open is not configured in dconf."
+        success_msg: "result=PASS stig_id=RHEL-10-700880 detail=automount-open is set to false in dconf."
+
+  rescue:
+    - name: "RHEL-10-700880 | RESCUE - record failure and continue"
+      ansible.builtin.debug:
+        msg: "result=ERROR stig_id=RHEL-10-700880 detail=Task failed unexpectedly — see prior error for details."

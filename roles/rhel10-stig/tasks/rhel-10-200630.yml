@@ -1,0 +1,120 @@
+---
+# =============================================================================
+# STIG ID  : RHEL-10-200630
+# Rule ID  : SV-280977r1195366_rule
+# Severity : medium
+# CCI      : CCI-002696
+# Title    : RHEL 10 must have the Advanced Intrusion Detection Environment (AIDE) package installed.
+#
+# Description:
+#   Without verification of the security functions, security functions may
+#   not operate correctly, and the failure may go unnoticed. Security
+#   function is defined as the hardware, software, and/or firmware of the
+#   information system responsible for enforcing the system security policy
+#   and supporting the isolation of code and data on which the protection is
+#   based. Security functionality includes, but is not limited to,
+#   establishing system accounts, configuring access authorizations (e.g.,
+#   permissions, privileges), setting events to be audited, and setting
+#   intrusion detection parameters.
+#
+# Check Text:
+#   Verify RHEL 10 has the AIDE package installed with the following command:
+#
+#   $ sudo dnf list --installed aide
+#   Installed Packages
+#   aide.x86_64 0.18.6-8.el10_0.2 @rhel-10-for-x86_64-appstream-rpms
+#
+#   If AIDE is not installed, ask the system administrator how file integrity
+#   checks are performed on the system.
+#
+#   If no application is installed to perform integrity checks, this is a
+#   finding.
+#
+#   If AIDE is installed, determine if it has been initialized with the
+#   following command:
+#
+#   $ sudo /usr/sbin/aide --check
+#
+#   If the output is "Couldn't open file /var/lib/aide/aide.db.gz for
+#   reading", this is a finding.
+#
+# Fix Text:
+#   Configure RHEL 10 so that "AIDE" is installed and initialized, and then
+#   perform a manual check.
+#
+#   Install AIDE:
+#
+#   $ sudo dnf -y install aide
+#
+#   Initialize AIDE:
+#
+#   $ sudo /usr/sbin/aide --init
+#
+#   Example output:
+#
+#   Start timestamp: 2025-04-03 10:09:04 -0600 (AIDE 0.16)
+#   AIDE initialized database at /var/lib/aide/aide.db.new.gz
+#
+#   Number of entries: 86833
+#
+#   ---------------------------------------------------
+#   The attributes of the (uncompressed) database(s):
+#   ---------------------------------------------------
+#
+#   /var/lib/aide/aide.db.new.gz
+#   MD5 : coZUtPHhoFoeD7+k54fUvQ==
+#   SHA1 : DVpOEMWJwo0uPgrKZAygIUgSxeM=
+#   SHA256 : EQiZH0XNEk001tcDmJa+5STFEjDb4MPE
+#   TGdBJ/uvZKc=
+#   SHA512 : 86KUqw++PZhoPK0SZvT3zuFq9yu9nnPP
+#   toei0nENVELJ1LPurjoMlRig6q69VR8l
+#   +44EwO9eYyy9nnbzQsfG1g==
+#
+#   End timestamp: 2025-04-03 10:09:57 -0600 (run time: 0m 53s)
+#
+#   The new database must be renamed to be read by AIDE:
+#
+#   $ sudo mv /var/lib/aide/aide.db.new.gz /var/lib/aide/aide.db.gz
+#
+#   Perform a manual check:
+#
+#   $ sudo /usr/sbin/aide --check
+#
+#   Example output:
+#
+#   2025-04-03 10:16:08 -0600 (AIDE 0.16)
+#   AIDE found NO differences between database and filesystem. Looks okay!!
+#
+#   ...
+# =============================================================================
+
+- name: "RHEL-10-200630 | RHEL 10 must have the Advanced Intrusion Detection Environment (AIDE) package installed."
+  when: rhel_10_200630 | bool
+  tags:
+    - RHEL-10-200630
+    - medium
+    - CCI-002696
+  block:
+    - name: "RHEL-10-200630 | Ensure aide is installed"
+      ansible.builtin.package:
+        name: aide
+        state: present
+
+    - name: "RHEL-10-200630 | Verify aide is installed"
+      ansible.builtin.command: rpm -q aide
+      register: rhel_10_200630_check
+      changed_when: false
+      failed_when: false
+
+    - name: "RHEL-10-200630 | Assert aide is installed"
+      ansible.builtin.assert:
+        that: rhel_10_200630_check.rc == 0
+        fail_msg: >-
+          result=FAIL stig_id=RHEL-10-200630
+          detail=Package aide is not installed.
+          Install with: dnf -y install aide
+        success_msg: "result=PASS stig_id=RHEL-10-200630 detail=Package aide is installed."
+  rescue:
+    - name: "RHEL-10-200630 | RESCUE - record failure and continue"
+      ansible.builtin.debug:
+        msg: "result=ERROR stig_id=RHEL-10-200630 detail=Task failed unexpectedly — see prior error for details."

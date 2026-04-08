@@ -1,0 +1,122 @@
+---
+# =============================================================================
+# STIG ID  : RHEL-10-701290
+# Rule ID  : SV-281331r1167143_rule
+# Severity : medium
+# CCI      : CCI-002007
+# Title    : RHEL 10 must prohibit the use of cached authenticators after one day.
+#
+# Description:
+#   If cached authentication information is out of date, the validity of the
+#   authentication information may be questionable.
+#
+# Check Text:
+#   Verify RHEL 10 System Security Services Daemon (SSSD) prohibits the use
+#   of cached authentications after one day with the following command:
+#
+#   Note: Cached authentication settings should be configured even if smart
+#   card authentication is not used on the system.
+#
+#   Determine if SSSD allows cached authentications with the following
+#   command:
+#
+#   $ sudo grep -irs cache_credentials /etc/sssd/sssd.conf /etc/sssd/conf.d/
+#   | grep -v "^#"
+#   cache_credentials = true
+#
+#   If "cache_credentials" is set to "false" or missing from the
+#   configuration file, this is not a finding and no further checks are
+#   required.
+#
+#   If "cache_credentials" is set to "true", check that SSSD prohibits the
+#   use of cached authentications after one day with the following command:
+#
+#   $ sudo grep -irs offline_credentials_expiration /etc/sssd/sssd.conf
+#   /etc/sssd/conf.d/ | grep -v "^#"
+#   offline_credentials_expiration = 1
+#
+#   If "offline_credentials_expiration" is not set to a value of "1", this is
+#   a finding.
+#
+# Fix Text:
+#   Configure RHEL 10 SSSD to prohibit the use of cached authentications
+#   after one day.
+#
+#   Edit the file "/etc/sssd/sssd.conf" or a configuration file in
+#   "/etc/sssd/conf.d" and add or edit the following line just below the line
+#   [pam]:
+#
+#   offline_credentials_expiration = 1
+#
+#   Restart the "sssd" service with the following command for the changes to
+#   take effect:
+#
+#   $ sudo systemctl restart sssd.service
+# =============================================================================
+
+- name: "RHEL-10-701290 | RHEL 10 must prohibit the use of cached authenticators after one day."
+  when: rhel_10_701290 | bool
+  tags:
+    - RHEL-10-701290
+    - medium
+    - CCI-002007
+  block:
+    - name: "RHEL-10-701290 | Check current offline_credentials_expiration setting"
+      ansible.builtin.command:
+        cmd: grep -irs offline_credentials_expiration /etc/sssd/sssd.conf /etc/sssd/conf.d/ 2>/dev/null || true
+      register: rhel_10_701290_check
+      changed_when: false
+      failed_when: false
+
+    - name: "RHEL-10-701290 | Check if 10-stig.conf already exists"
+      ansible.builtin.stat:
+        path: /etc/sssd/conf.d/10-stig.conf
+      register: rhel_10_701290_stig_conf_stat
+
+    - name: "RHEL-10-701290 | Backup 10-stig.conf if it exists and needs modification"
+      ansible.builtin.copy:
+        src: /etc/sssd/conf.d/10-stig.conf
+        dest: "/etc/sssd/conf.d/10-stig.conf.bak.{{ ansible_date_time.epoch }}"
+        remote_src: true
+        mode: preserve
+      when:
+        - rhel_10_701290_stig_conf_stat.stat.exists
+        - "'offline_credentials_expiration = 1' not in (rhel_10_701290_check.stdout | default(''))"
+
+    - name: "RHEL-10-701290 | Set offline_credentials_expiration = 1 in sssd conf.d"
+      ansible.builtin.lineinfile:
+        path: /etc/sssd/conf.d/10-stig.conf
+        regexp: '^#?\s*offline_credentials_expiration\s*='
+        line: 'offline_credentials_expiration = 1'
+        state: present
+        create: true
+        owner: root
+        group: root
+        mode: '0600'
+      when: "'offline_credentials_expiration = 1' not in (rhel_10_701290_check.stdout | default(''))"
+      register: rhel_10_701290_changed
+
+    - name: "RHEL-10-701290 | Restart sssd after configuration change"
+      ansible.builtin.systemd:
+        name: sssd
+        state: restarted
+      when: rhel_10_701290_changed is changed
+      failed_when: false
+
+    - name: "RHEL-10-701290 | Re-check offline_credentials_expiration setting"
+      ansible.builtin.command:
+        cmd: grep -irs offline_credentials_expiration /etc/sssd/sssd.conf /etc/sssd/conf.d/ 2>/dev/null || true
+      register: rhel_10_701290_verify
+      changed_when: false
+      failed_when: false
+
+    - name: "RHEL-10-701290 | Assert offline_credentials_expiration is set to 1"
+      ansible.builtin.assert:
+        that: "'offline_credentials_expiration = 1' in (rhel_10_701290_verify.stdout | default(''))"
+        fail_msg: "result=FAIL stig_id=RHEL-10-701290 detail=offline_credentials_expiration is not set to 1 in sssd configuration."
+        success_msg: "result=PASS stig_id=RHEL-10-701290 detail=offline_credentials_expiration = 1 is correctly configured in sssd."
+
+  rescue:
+    - name: "RHEL-10-701290 | RESCUE - record failure and continue"
+      ansible.builtin.debug:
+        msg: "result=ERROR stig_id=RHEL-10-701290 detail=Task failed unexpectedly — see prior error for details."

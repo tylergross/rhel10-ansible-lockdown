@@ -1,0 +1,87 @@
+---
+# =============================================================================
+# STIG ID  : RHEL-10-900100
+# Rule ID  : SV-281365r1167245_rule
+# Severity : medium
+# CCI      : CCI-000162
+# Title    : RHEL 10 must prevent unauthorized changes to the audit system.
+#
+# Description:
+#   Unauthorized disclosure of audit records can reveal system and
+#   configuration data to attackers, thus compromising its confidentiality.
+#   Audit information includes all information (e.g., audit records, audit
+#   settings, audit reports) needed to successfully audit RHEL 10 system
+#   activity. In immutable mode, unauthorized users cannot execute changes to
+#   the audit system to potentially hide malicious activity and then put the
+#   audit rules back. A system reboot would be noticeable, and a system
+#   administrator could then investigate the unauthorized changes. Satisfies:
+#   SRG-OS-000057-GPOS-00027, SRG-OS-000058-GPOS-00028,
+#   SRG-OS-000059-GPOS-00029
+#
+# Check Text:
+#   Verify the RHEL 10 audit system prevents unauthorized changes with the
+#   following command:
+#
+#   $ sudo grep "^\s*[^#]" /etc/audit/audit.rules | tail -1
+#   -e 2
+#
+#   If the audit system is not set to be immutable by adding the "-e 2"
+#   option to the end of "/etc/audit/audit.rules", this is a finding.
+#
+# Fix Text:
+#   Configure RHEL 10 to protect the audit system from unauthorized changes.
+#
+#   Set the audit rules to be immutable by adding the following line to end
+#   of "/etc/audit/rules.d/audit.rules":
+#
+#   -e 2
+#
+#   Restart the audit daemon with the following command for the changes to
+#   take effect:
+#
+#   $ sudo service auditd restart
+# =============================================================================
+
+- name: "RHEL-10-900100 | RHEL 10 must prevent unauthorized changes to the audit system."
+  when: rhel_10_900100 | bool
+  tags:
+    - RHEL-10-900100
+    - medium
+    - CCI-000162
+  block:
+    - name: "RHEL-10-900100 | Check for -e 2 immutable flag in audit rules"
+      ansible.builtin.command:
+        cmd: grep -E '^\s*[^#]' /etc/audit/audit.rules
+      register: rhel_10_900100_rules
+      changed_when: false
+      failed_when: false
+
+    - name: "RHEL-10-900100 | Add -e 2 immutable flag to audit rules"
+      ansible.builtin.lineinfile:
+        path: /etc/audit/rules.d/audit.rules
+        line: '-e 2'
+        state: present
+        create: true
+        mode: '0640'
+        owner: root
+        group: root
+      when: rhel_10_900100_rules.stdout_lines | select('match', '^\\s*-e 2\\s*$') | list | length == 0
+      notify: restart auditd
+
+    - name: "RHEL-10-900100 | Re-check for -e 2 immutable flag"
+      ansible.builtin.command:
+        cmd: grep -E '^\s*[^#]' /etc/audit/audit.rules
+      register: rhel_10_900100_verify
+      changed_when: false
+      failed_when: false
+
+    - name: "RHEL-10-900100 | Assert -e 2 immutable flag is present in audit rules"
+      ansible.builtin.assert:
+        that: rhel_10_900100_verify.stdout_lines | select('match', '^\\s*-e 2\\s*$') | list | length > 0
+        fail_msg: "result=FAIL stig_id=RHEL-10-900100 detail=Audit rules do not contain the -e 2 immutable flag."
+        success_msg: "result=PASS stig_id=RHEL-10-900100 detail=Audit rules contain the -e 2 immutable flag."
+
+  rescue:
+    - name: "RHEL-10-900100 | RESCUE - record failure and continue"
+      ansible.builtin.debug:
+        msg: "result=ERROR stig_id=RHEL-10-900100 detail=Task failed unexpectedly — see prior error for details."

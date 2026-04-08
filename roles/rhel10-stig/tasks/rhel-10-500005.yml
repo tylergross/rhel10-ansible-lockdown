@@ -1,0 +1,105 @@
+---
+# =============================================================================
+# STIG ID  : RHEL-10-500005
+# Rule ID  : SV-281097r1165646_rule
+# Severity : medium
+# CCI      : CCI-000213
+# Title    : RHEL 10 must enable auditing of processes that start prior to the audit daemon.
+#
+# Description:
+#   Without the capability to generate audit records, it would be difficult
+#   to establish, correlate, and investigate the events relating to an
+#   incident or identify those responsible for one. If auditing is enabled
+#   late in the startup process, the actions of some startup processes may
+#   not be audited. Some audit systems also maintain state information
+#   available only if auditing is enabled before a given process is created.
+#
+# Check Text:
+#   Verify RHEL 10 is configured so that GRUB 2 enables auditing of processes
+#   that start prior to the audit daemon with the following commands:
+#
+#   Check that the current GRUB 2 configuration enables auditing:
+#
+#   $ sudo grubby --info=ALL | grep args | grep -v 'audit=1'
+#
+#   If any output is returned, this is a finding.
+#
+#   Check that auditing is enabled by default to persist in kernel updates:
+#
+#   $ sudo grep audit /etc/default/grub
+#   GRUB_CMDLINE_LINUX="audit=1"
+#
+#   If "audit" is not set to "1", is missing, or is commented out, this is a
+#   finding.
+#
+# Fix Text:
+#   Configure RHEL 10 to enable auditing of processes that start prior to the
+#   audit daemon with the following command:
+#
+#   $ sudo grubby --update-kernel=ALL --args="audit=1"
+#
+#   Add or modify the following line in "/etc/default/grub" to ensure the
+#   configuration survives kernel updates:
+#
+#   GRUB_CMDLINE_LINUX="audit=1"
+# =============================================================================
+
+- name: "RHEL-10-500005 | RHEL 10 must enable auditing of processes that start prior to the audit daemon."
+  when: rhel_10_500005 | bool
+  tags:
+    - RHEL-10-500005
+    - medium
+    - CCI-000213
+  block:
+    - name: "RHEL-10-500005 | Check current GRUB2 kernel args for audit=1"
+      ansible.builtin.command:
+        cmd: grubby --info=ALL
+      register: rhel_10_500005_grubby
+      changed_when: false
+      failed_when: false
+
+    - name: "RHEL-10-500005 | Check /etc/default/grub for audit=1"
+      ansible.builtin.command:
+        cmd: grep -E 'audit=1' /etc/default/grub
+      register: rhel_10_500005_grub_check
+      changed_when: false
+      failed_when: false
+
+    - name: "RHEL-10-500005 | Set audit=1 in all kernel entries via grubby"
+      ansible.builtin.command:
+        cmd: grubby --update-kernel=ALL --args="audit=1"
+      when: rhel_10_500005_grubby.stdout is not search('audit=1')
+
+    - name: "RHEL-10-500005 | Backup /etc/default/grub before modification"
+      ansible.builtin.copy:
+        src: /etc/default/grub
+        dest: "/etc/default/grub.bak.{{ ansible_date_time.epoch }}"
+        remote_src: true
+        mode: preserve
+      when: rhel_10_500005_grub_check.rc != 0
+
+    - name: "RHEL-10-500005 | Ensure audit=1 in GRUB_CMDLINE_LINUX in /etc/default/grub"
+      ansible.builtin.lineinfile:
+        path: /etc/default/grub
+        regexp: '^GRUB_CMDLINE_LINUX='
+        line: 'GRUB_CMDLINE_LINUX="audit=1"'
+        state: present
+      when: rhel_10_500005_grub_check.rc != 0
+
+    - name: "RHEL-10-500005 | Re-check /etc/default/grub for audit=1"
+      ansible.builtin.command:
+        cmd: grep -E 'audit=1' /etc/default/grub
+      register: rhel_10_500005_verify
+      changed_when: false
+      failed_when: false
+
+    - name: "RHEL-10-500005 | Assert audit=1 is configured in /etc/default/grub"
+      ansible.builtin.assert:
+        that: rhel_10_500005_verify.rc == 0
+        fail_msg: "result=FAIL stig_id=RHEL-10-500005 detail=audit=1 is not configured in /etc/default/grub."
+        success_msg: "result=PASS stig_id=RHEL-10-500005 detail=audit=1 is configured in /etc/default/grub."
+
+  rescue:
+    - name: "RHEL-10-500005 | RESCUE - record failure and continue"
+      ansible.builtin.debug:
+        msg: "result=ERROR stig_id=RHEL-10-500005 detail=Task failed unexpectedly — see prior error for details."

@@ -1,0 +1,88 @@
+---
+# =============================================================================
+# STIG ID  : RHEL-10-200645
+# Rule ID  : SV-280988r1195374_rule
+# Severity : medium
+# CCI      : CCI-001851
+# Title    : RHEL 10 must encrypt the transfer of audit records off-loaded onto a different system or media from the system being audited via rsyslog.
+#
+# Description:
+#   Information stored in one location is vulnerable to accidental or
+#   incidental deletion or alteration. Off-loading is a common process in
+#   information systems with limited audit storage capacity. RHEL 10
+#   installation media provides "rsyslogd", a system utility providing
+#   support for message logging. Support for both internet and Unix domain
+#   sockets enables this utility to support both local and remote logging.
+#   Coupling this utility with "gnutls" (a secure communications library
+#   implementing the Secure Sockets Layer [SSL], Transport Layer Security
+#   [TLS], and Datagram TLS [DTLS] protocols) creates a method to securely
+#   encrypt and off-load auditing. When this utility is coupled with the
+#   omfwd module, it can use the ossl network stream driver, which leverages
+#   the OpenSSL library for Transport Layer Security (TLS) to securely
+#   encrypt and off-load auditing. "Rsyslog" supported authentication modes
+#   include: - anon - Anonymous authentication. - x509/fingerprint -
+#   Certificate fingerprint authentication. - x509/certvalid - Certificate
+#   validation only. - x509/name - Certificate validation and subject name
+#   authentication. Satisfies: SRG-OS-000342-GPOS-00133,
+#   SRG-OS-000479-GPOS-00224
+#
+# Check Text:
+#   Verify RHEL 10 encrypts audit records offloaded onto a different system
+#   via rsyslog using the modern "omfwd" action.
+#
+#   Search for active TLS-enabling configurations within "omfwd" action
+#   blocks with the following command:
+#
+#   $ sudo grep -rE 'tls="on"|StreamDriver.Mode\s*=\s*"1"' /etc/rsyslog.conf
+#   /etc/rsyslog.d/
+#
+#   If an active TCP-based "omfwd" forwarding rule exists on the system but
+#   the command above returns no active configuration lines, or if all
+#   results are commented out, this is a finding.
+#
+# Fix Text:
+#   Configure RHEL 10 to encrypt off-loaded audit records via rsyslog by
+#   enabling TLS within the "omfwd" action rule.
+#
+#   Edit the configuration file containing the "omfwd" rule (e.g.,
+#   /etc/rsyslog.d/99-forwarding.conf) and add the tls="on" parameter.
+#
+#   Example:
+#   action(
+#   type="omfwd"
+#   target="logserver.example.com"
+#   protocol="tcp"
+#   port="6514"
+#   tls="on"
+#   )
+#
+#   After applying the configuration, restart the rsyslog service:
+#   $ sudo systemctl restart rsyslog
+# =============================================================================
+
+- name: "RHEL-10-200645 | RHEL 10 must encrypt the transfer of audit records off-loaded onto a different system or media from the system being audited via rsyslog."
+  when: rhel_10_200645 | bool
+  tags:
+    - RHEL-10-200645
+    - medium
+    - CCI-001851
+  block:
+    - name: "RHEL-10-200645 | Check rsyslog TLS encryption configuration"
+      ansible.builtin.shell: >-
+        grep -rE 'tls="on"|StreamDriver\.Mode\s*=\s*"1"' /etc/rsyslog.conf /etc/rsyslog.d/ 2>/dev/null || true
+      register: rhel_10_200645_check
+      changed_when: false
+      failed_when: false
+
+    - name: "RHEL-10-200645 | Assert rsyslog TLS encryption is enabled"
+      ansible.builtin.assert:
+        that: rhel_10_200645_check.stdout | trim != ''
+        fail_msg: >-
+          result=FAIL stig_id=RHEL-10-200645
+          detail=rsyslog is not configured to use TLS encryption for audit log transfer.
+          Set tls="on" or StreamDriver.Mode="1" in the omfwd action for {{ rhel_10_rsyslog_remote_server }}.
+        success_msg: "result=PASS stig_id=RHEL-10-200645 detail=rsyslog TLS encryption is enabled for audit log transfer."
+  rescue:
+    - name: "RHEL-10-200645 | RESCUE - record failure and continue"
+      ansible.builtin.debug:
+        msg: "result=ERROR stig_id=RHEL-10-200645 detail=Task failed unexpectedly — see prior error for details."

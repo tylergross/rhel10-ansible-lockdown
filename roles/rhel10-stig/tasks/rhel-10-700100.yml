@@ -1,0 +1,76 @@
+---
+# =============================================================================
+# STIG ID  : RHEL-10-700100
+# Rule ID  : SV-281228r1166636_rule
+# Severity : medium
+# CCI      : CCI-000213
+# Title    : RHEL 10 must prevent special devices on file systems that are imported via Network File System (NFS).
+#
+# Description:
+#   The "nodev" mount option causes the system to not interpret character or
+#   block special devices. Executing character or block special devices from
+#   untrusted file systems increases the opportunity for nonprivileged users
+#   to attain unauthorized administrative access.
+#
+# Check Text:
+#   Note: If no NFS mounts are configured, this requirement is not
+#   applicable.
+#
+#   Verify RHEL 10 has the "nodev" option configured for all NFS mounts with
+#   the following command:
+#
+#   $ sudo grep nfs /etc/fstab
+#   192.168.22.2:/mnt/export /data nfs4
+#   rw,nosuid,nodev,noexec,sync,soft,sec=krb5:krb5i:krb5p
+#
+#   If the system is mounting file systems via NFS and the "nodev" option is
+#   missing, this is a finding.
+#
+# Fix Text:
+#   Configure RHEL 10 to prevent special devices on file systems that are
+#   imported via NFS.
+#
+#   Update each NFS mounted file system to use the "nodev" option on file
+#   systems that are being imported via NFS.
+# =============================================================================
+
+- name: "RHEL-10-700100 | RHEL 10 must prevent special devices on file systems that are imported via Network File System (NFS)."
+  when: rhel_10_700100 | bool
+  tags:
+    - RHEL-10-700100
+    - medium
+    - CCI-000213
+  block:
+    - name: "RHEL-10-700100 | Check for NFS mounts in /etc/fstab"
+      ansible.builtin.command:
+        cmd: grep -i nfs /etc/fstab
+      register: rhel_10_700100_nfs
+      changed_when: false
+      failed_when: false
+
+    - name: "RHEL-10-700100 | Check NFS mounts have nodev option"
+      ansible.builtin.command:
+        cmd: grep -iP 'nfs' /etc/fstab
+      register: rhel_10_700100_check
+      changed_when: false
+      failed_when: false
+      when: rhel_10_700100_nfs.rc == 0
+
+    - name: "RHEL-10-700100 | Check for NFS mounts missing nodev"
+      ansible.builtin.command:
+        cmd: grep -iP '\snfs\S*\s+\S+\s+(?!.*\bnodev\b)' /etc/fstab
+      register: rhel_10_700100_missing
+      changed_when: false
+      failed_when: false
+      when: rhel_10_700100_nfs.rc == 0
+
+    - name: "RHEL-10-700100 | Assert NFS mounts have nodev or no NFS mounts exist"
+      ansible.builtin.assert:
+        that: rhel_10_700100_nfs.rc != 0 or rhel_10_700100_missing.rc != 0
+        fail_msg: "result=FAIL stig_id=RHEL-10-700100 detail=NFS mount(s) found in /etc/fstab without nodev option. Update /etc/fstab manually."
+        success_msg: "result=PASS stig_id=RHEL-10-700100 detail=No NFS mounts found or all NFS mounts have nodev option."
+
+  rescue:
+    - name: "RHEL-10-700100 | RESCUE - record failure and continue"
+      ansible.builtin.debug:
+        msg: "result=ERROR stig_id=RHEL-10-700100 detail=Task failed unexpectedly — see prior error for details."

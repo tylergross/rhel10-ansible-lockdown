@@ -1,0 +1,98 @@
+---
+# =============================================================================
+# STIG ID  : RHEL-10-700120
+# Rule ID  : SV-281232r1166648_rule
+# Severity : medium
+# CCI      : CCI-001764
+# Title    : RHEL 10 must mount "/boot" with the "nodev" option.
+#
+# Description:
+#   The only legitimate location for device files is the "/dev" directory
+#   located on the root partition. The only exception to this is chroot
+#   jails.
+#
+# Check Text:
+#   Verify RHEL 10 is configured so that the "/boot" mount point has the
+#   "nodev" option with the following command:
+#
+#   $ mount | grep '\s/boot\s'
+#   /dev/sda1 on /boot type xfs (rw,nodev,nosuid,relatime,seclabel,attr2)
+#
+#   If the "/boot" file system does not have the "nodev" option set, this is
+#   a finding.
+#
+# Fix Text:
+#   Configure RHEL 10 to mount "/boot" with the "nodev" option.
+#
+#   Modify "/etc/fstab" to use the "nodev" option on the "/boot" directory.
+#
+#   To reload all implicit mount units and update the dependency graph so
+#   that new options will apply correctly at next remount, run the following
+#   command:
+#
+#   $ sudo systemctl daemon-reload
+#
+#   Use the following command to apply the changes immediately without a
+#   reboot:
+#
+#   $ sudo mount -o remount /boot
+# =============================================================================
+
+- name: "RHEL-10-700120 | RHEL 10 must mount /boot with the nodev option."
+  when: rhel_10_700120 | bool
+  tags:
+    - RHEL-10-700120
+    - medium
+    - CCI-001764
+  block:
+    - name: "RHEL-10-700120 | Check /boot is mounted with nodev"
+      ansible.builtin.command:
+        cmd: findmnt -kn -o OPTIONS /boot
+      register: rhel_10_700120_check
+      changed_when: false
+      failed_when: false
+
+    - name: "RHEL-10-700120 | Backup /etc/fstab before modification"
+      ansible.builtin.copy:
+        src: /etc/fstab
+        dest: "/etc/fstab.bak.{{ ansible_date_time.epoch }}"
+        remote_src: true
+        mode: preserve
+      when: "'nodev' not in (rhel_10_700120_check.stdout | default(''))"
+
+    - name: "RHEL-10-700120 | Add nodev to /boot mount options in /etc/fstab"
+      ansible.builtin.replace:
+        path: /etc/fstab
+        regexp: '^(\S+\s+/boot\s+\S+\s+)(\S+)(\s+.*)$'
+        replace: '\1\2,nodev\3'
+      when: >
+        rhel_10_700120_check.rc == 0 and
+        'nodev' not in (rhel_10_700120_check.stdout | default(''))
+
+    - name: "RHEL-10-700120 | Remount /boot to apply nodev"
+      ansible.builtin.command:
+        cmd: mount -o remount /boot
+      when: >
+        rhel_10_700120_check.rc == 0 and
+        'nodev' not in (rhel_10_700120_check.stdout | default(''))
+      changed_when: true
+
+    - name: "RHEL-10-700120 | Re-check /boot is mounted with nodev"
+      ansible.builtin.command:
+        cmd: findmnt -kn -o OPTIONS /boot
+      register: rhel_10_700120_verify
+      changed_when: false
+      failed_when: false
+
+    - name: "RHEL-10-700120 | Assert /boot is mounted with nodev"
+      ansible.builtin.assert:
+        that: >
+          rhel_10_700120_verify.rc != 0 or
+          'nodev' in (rhel_10_700120_verify.stdout | default(''))
+        fail_msg: "result=FAIL stig_id=RHEL-10-700120 detail=/boot is mounted without the nodev option."
+        success_msg: "result=PASS stig_id=RHEL-10-700120 detail=/boot is mounted with the nodev option."
+
+  rescue:
+    - name: "RHEL-10-700120 | RESCUE - record failure and continue"
+      ansible.builtin.debug:
+        msg: "result=ERROR stig_id=RHEL-10-700120 detail=Task failed unexpectedly — see prior error for details."

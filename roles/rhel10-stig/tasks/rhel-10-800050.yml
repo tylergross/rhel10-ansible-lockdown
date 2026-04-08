@@ -1,0 +1,74 @@
+---
+# =============================================================================
+# STIG ID  : RHEL-10-800050
+# Rule ID  : SV-281337r1167161_rule
+# Severity : medium
+# CCI      : CCI-002824
+# Title    : RHEL 10 must enable hardening for the Berkeley Packet Filter (BPF) just-in-time compiler.
+#
+# Description:
+#   When hardened, the extended BPF just-in-time (JIT) compiler will
+#   randomize any kernel addresses in the BPF programs and maps, and will not
+#   expose the JIT addresses in "/proc/kallsyms".
+#
+# Check Text:
+#   Verify RHEL 10 enables hardening for the BPF JIT compiler.
+#
+#   Check the status of the "net.core.bpf_jit_harden" parameter with the
+#   following command:
+#
+#   $ sudo sysctl net.core.bpf_jit_harden
+#   net.core.bpf_jit_harden = 2
+#
+#   If "net.core.bpf_jit_harden" is not equal to "2" or is missing, this is a
+#   finding.
+#
+# Fix Text:
+#   Configure RHEL 10 to enable hardening for the BPF JIT compiler.
+#
+#   Create the drop-in file if it does not already exist:
+#
+#   $ sudo vi /etc/sysctl.d/99-net_core-bpf_jit_harden.conf
+#
+#   Add the following line to the file:
+#
+#   net.core.bpf_jit_harden = 2
+#
+#   Reload settings from all system configuration files with the following
+#   command:
+#
+#   $ sudo sysctl --system
+# =============================================================================
+
+- name: "RHEL-10-800050 | RHEL 10 must enable hardening for the Berkeley Packet Filter (BPF) just-in-time compiler."
+  when: rhel_10_800050 | bool
+  tags:
+    - RHEL-10-800050
+    - medium
+    - CCI-002824
+  block:
+    - name: "RHEL-10-800050 | Set sysctl net.core.bpf_jit_harden = 2"
+      ansible.posix.sysctl:
+        name: net.core.bpf_jit_harden
+        value: '2'
+        state: present
+        reload: true
+        sysctl_file: /etc/sysctl.d/rhel10-stig.conf
+
+    - name: "RHEL-10-800050 | Verify net.core.bpf_jit_harden"
+      ansible.builtin.command:
+        cmd: sysctl net.core.bpf_jit_harden
+      register: rhel_10_800050_sysctl
+      changed_when: false
+      failed_when: false
+
+    - name: "RHEL-10-800050 | Assert net.core.bpf_jit_harden = 2"
+      ansible.builtin.assert:
+        that: "'= 2' in rhel_10_800050_sysctl.stdout"
+        fail_msg: "result=FAIL stig_id=RHEL-10-800050 detail=net.core.bpf_jit_harden is not set to 2 (output={{ rhel_10_800050_sysctl.stdout | trim }})."
+        success_msg: "result=PASS stig_id=RHEL-10-800050 detail=net.core.bpf_jit_harden is set to 2."
+
+  rescue:
+    - name: "RHEL-10-800050 | RESCUE - record failure and continue"
+      ansible.builtin.debug:
+        msg: "result=ERROR stig_id=RHEL-10-800050 detail=Task failed unexpectedly — see prior error for details."

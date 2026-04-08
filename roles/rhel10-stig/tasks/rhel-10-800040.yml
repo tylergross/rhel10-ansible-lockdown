@@ -1,0 +1,85 @@
+---
+# =============================================================================
+# STIG ID  : RHEL-10-800040
+# Rule ID  : SV-281336r1167158_rule
+# Severity : medium
+# CCI      : CCI-004923
+# Title    : RHEL 10 must securely compare internal information system clocks at least every 24 hours.
+#
+# Description:
+#   Inaccurate time stamps make it more difficult to correlate events and can
+#   lead to an inaccurate analysis. Determining the correct time a particular
+#   event occurred on a system is critical when conducting forensic analysis
+#   and investigating system events. Sources outside the configured
+#   acceptable allowance (drift) may be inaccurate. Synchronizing internal
+#   information system clocks provides uniformity of time stamps for
+#   information systems with multiple system clocks and systems connected
+#   over a network. Depending on the infrastructure being used, the "pool"
+#   directive may not be supported. Authoritative time sources include the
+#   United States Naval Observatory (USNO) time servers, a time server
+#   designated for the appropriate DOD network (NIPRNet/SIPRNet), and/or the
+#   Global Positioning System (GPS). Satisfies: SRG-OS-000355-GPOS-00143,
+#   SRG-OS-000356-GPOS-00144, SRG-OS-000359-GPOS-00146,
+#   SRG-OS-000785-GPOS-00250
+#
+# Check Text:
+#   Verify RHEL 10 is securely comparing internal information system clocks
+#   at least every 24 hours with an NTP server with the following commands:
+#
+#   $ sudo grep maxpoll /etc/chrony.conf
+#   server 0.us.pool.ntp.mil iburst maxpoll 16
+#
+#   If the "maxpoll" option is set to a number greater than 16, or the line
+#   is missing or commented out, this is a finding.
+#
+#   Verify the "chrony.conf" file is configured to an authoritative DOD time
+#   source by running the following command:
+#
+#   $ sudo grep -i server /etc/chrony.conf
+#   server 0.us.pool.ntp.mil
+#
+#   If the parameter "server" is not set or is not set to an authoritative
+#   DOD time source, this is a finding.
+#
+# Fix Text:
+#   Configure RHEL 10 to securely compare internal information system clocks
+#   at least every 24 hours with an NTP server by adding/modifying the
+#   following line in the "/etc/chrony.conf" file:
+#
+#   server [ntp.server.name] iburst maxpoll 16
+# =============================================================================
+
+- name: "RHEL-10-800040 | RHEL 10 must securely compare internal information system clocks at least every 24 hours."
+  when: rhel_10_800040 | bool
+  tags:
+    - RHEL-10-800040
+    - medium
+    - CCI-004923
+  block:
+    - name: "RHEL-10-800040 | Check chrony.conf for server entries with maxpoll"
+      ansible.builtin.command:
+        cmd: grep -i maxpoll /etc/chrony.conf
+      register: rhel_10_800040_maxpoll
+      changed_when: false
+      failed_when: false
+
+    - name: "RHEL-10-800040 | Check chrony.conf for server directive"
+      ansible.builtin.command:
+        cmd: grep -iE '^(server|pool)' /etc/chrony.conf
+      register: rhel_10_800040_server
+      changed_when: false
+      failed_when: false
+
+    - name: "RHEL-10-800040 | Assert chrony server is configured with maxpoll <= 16"
+      ansible.builtin.assert:
+        that:
+          - rhel_10_800040_server.rc == 0
+          - rhel_10_800040_maxpoll.rc == 0
+          - rhel_10_800040_maxpoll.stdout_lines | map('regex_search', 'maxpoll\s+(\d+)', '\1') | select('string') | map('int') | select('gt', 16) | list | length == 0
+        fail_msg: "result=FAIL stig_id=RHEL-10-800040 detail=chrony.conf is missing a server entry, maxpoll, or maxpoll exceeds 16 (output={{ rhel_10_800040_maxpoll.stdout | trim }})."
+        success_msg: "result=PASS stig_id=RHEL-10-800040 detail=chrony.conf has a server with maxpoll <= 16."
+
+  rescue:
+    - name: "RHEL-10-800040 | RESCUE - record failure and continue"
+      ansible.builtin.debug:
+        msg: "result=ERROR stig_id=RHEL-10-800040 detail=Task failed unexpectedly — see prior error for details."

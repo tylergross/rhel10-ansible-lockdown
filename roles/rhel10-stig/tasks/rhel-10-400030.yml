@@ -1,0 +1,65 @@
+---
+# =============================================================================
+# STIG ID  : RHEL-10-400030
+# Rule ID  : SV-281023r1165424_rule
+# Severity : medium
+# CCI      : CCI-000213
+# Title    : RHEL 10 must be configured so that the "/etc/gshadow-" file is owned by "root".
+#
+# Description:
+#   The "/etc/gshadow-" file is a backup of "/etc/gshadow", and as such
+#   contains group password hashes. Protection of this file is critical for
+#   system security.
+#
+# Check Text:
+#   Verify RHEL 10 is configured so that the "/etc/gshadow-" file is owned by
+#   "root" with the following command:
+#
+#   $ sudo stat -c "%U %n" /etc/gshadow-
+#   root /etc/gshadow-
+#
+#   If the "/etc/gshadow-" file does not have an owner of "root", this is a
+#   finding.
+#
+# Fix Text:
+#   Configure RHEL 10 so that the owner of the "/etc/gshadow-" file is set to
+#   "root" by running the following command:
+#
+#   $ sudo chown root /etc/gshadow-
+# =============================================================================
+
+- name: "RHEL-10-400030 | RHEL 10 must be configured so that the /etc/gshadow- file is owned by root."
+  when: rhel_10_400030 | bool
+  tags:
+    - RHEL-10-400030
+    - medium
+    - CCI-000213
+  block:
+    - name: "RHEL-10-400030 | Check owner of /etc/gshadow-"
+      ansible.builtin.stat:
+        path: /etc/gshadow-
+      register: rhel_10_400030_stat
+
+    - name: "RHEL-10-400030 | Set correct owner on /etc/gshadow-"
+      ansible.builtin.file:
+        path: /etc/gshadow-
+        owner: root
+      when: rhel_10_400030_stat.stat.exists and rhel_10_400030_stat.stat.pw_name != 'root'
+
+    - name: "RHEL-10-400030 | Re-check owner of /etc/gshadow-"
+      ansible.builtin.stat:
+        path: /etc/gshadow-
+      register: rhel_10_400030_verify
+
+    - name: "RHEL-10-400030 | Assert correct owner on /etc/gshadow-"
+      ansible.builtin.assert:
+        that:
+          - rhel_10_400030_verify.stat.exists
+          - rhel_10_400030_verify.stat.pw_name == 'root'
+        fail_msg: "result=FAIL stig_id=RHEL-10-400030 detail=/etc/gshadow- is not owned by root (owner={{ rhel_10_400030_verify.stat.pw_name | default('file missing') }})."
+        success_msg: "result=PASS stig_id=RHEL-10-400030 detail=/etc/gshadow- is owned by root."
+
+  rescue:
+    - name: "RHEL-10-400030 | RESCUE - record failure and continue"
+      ansible.builtin.debug:
+        msg: "result=ERROR stig_id=RHEL-10-400030 detail=Task failed unexpectedly — see prior error for details."

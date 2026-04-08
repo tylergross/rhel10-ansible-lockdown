@@ -1,0 +1,89 @@
+---
+# =============================================================================
+# STIG ID  : RHEL-10-701170
+# Rule ID  : SV-281319r1184633_rule
+# Severity : medium
+# CCI      : CCI-000381
+# Title    : RHEL 10 must disable core dumps for all users.
+#
+# Description:
+#   A core dump includes a memory image taken at the time the operating
+#   system terminates an application. The memory image could contain
+#   sensitive data and is generally useful only for developers trying to
+#   debug problems.
+#
+# Check Text:
+#   Note: If kernel dumps are disabled in accordance with RHEL-10-701090,
+#   this requirement is not applicable.
+#
+#   Verify RHEL 10 disables core dumps for all users by issuing the following
+#   command:
+#
+#   $ sudo grep -r core /etc/security/ | grep -v '#'
+#   /etc/security/limits.d/core_dumps.conf:* hard core 0
+#
+#   This can be set as a global domain (with the * wildcard) but may be set
+#   differently for multiple domains.
+#
+#   If the "core" item is missing or the value is anything other than "0",
+#   and the need for core dumps is not documented with the information system
+#   security officer as an operational requirement for all domains that have
+#   the "core" item assigned, this is a finding.
+#
+# Fix Text:
+#   Configure RHEL 10 to disable core dumps for all users.
+#
+#   Create or edit the setting in a drop-in configuration file:
+#
+#   $ sudo vi /etc/security/limits.d/core_dumps.conf
+#
+#   Add the following line:
+#
+#   * hard core 0
+#
+#   Remove any entries for users or groups with a value set to anything other
+#   than "0".
+# =============================================================================
+
+- name: "RHEL-10-701170 | RHEL 10 must disable core dumps for all users."
+  when: rhel_10_701170 | bool
+  tags:
+    - RHEL-10-701170
+    - medium
+    - CCI-000381
+  block:
+    - name: "RHEL-10-701170 | Check current core dump limits"
+      ansible.builtin.command:
+        cmd: grep -r core /etc/security/limits.conf /etc/security/limits.d/ 2>/dev/null || true
+      register: rhel_10_701170_check
+      changed_when: false
+      failed_when: false
+
+    - name: "RHEL-10-701170 | Ensure core dump hard limit is set to 0 for all users"
+      ansible.builtin.lineinfile:
+        path: /etc/security/limits.d/rhel10-stig-coredump.conf
+        regexp: '^\*\s+hard\s+core\s+'
+        line: '* hard core 0'
+        state: present
+        create: true
+        owner: root
+        group: root
+        mode: '0644'
+
+    - name: "RHEL-10-701170 | Re-check core dump limits"
+      ansible.builtin.command:
+        cmd: grep -r core /etc/security/limits.conf /etc/security/limits.d/ 2>/dev/null || true
+      register: rhel_10_701170_verify
+      changed_when: false
+      failed_when: false
+
+    - name: "RHEL-10-701170 | Assert hard core limit is set to 0"
+      ansible.builtin.assert:
+        that: "'* hard core 0' in (rhel_10_701170_verify.stdout | default(''))"
+        fail_msg: "result=FAIL stig_id=RHEL-10-701170 detail=Hard core limit is not set to 0 for all users in limits configuration."
+        success_msg: "result=PASS stig_id=RHEL-10-701170 detail=Hard core limit is correctly set to 0 for all users."
+
+  rescue:
+    - name: "RHEL-10-701170 | RESCUE - record failure and continue"
+      ansible.builtin.debug:
+        msg: "result=ERROR stig_id=RHEL-10-701170 detail=Task failed unexpectedly — see prior error for details."

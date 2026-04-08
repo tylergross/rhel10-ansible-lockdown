@@ -1,0 +1,101 @@
+---
+# =============================================================================
+# STIG ID  : RHEL-10-500750
+# Rule ID  : SV-281161r1166435_rule
+# Severity : medium
+# CCI      : CCI-002884
+# Title    : RHEL 10 must generate audit records for all account creations, modifications, disabling, and termination events that affect "/var/log/faillock".
+#
+# Description:
+#   Without generating audit records specific to the security and mission
+#   needs of the organization, it would be difficult to establish, correlate,
+#   and investigate the events relating to an incident or identify those
+#   responsible for one. Satisfies: SRG-OS-000392-GPOS-00172,
+#   SRG-OS-000470-GPOS-00214, SRG-OS-000473-GPOS-00218
+#
+# Check Text:
+#   Verify RHEL 10 generates audit records for all account creations,
+#   modifications, disabling, and termination events that affect
+#   "/var/log/faillock" with the following command:
+#
+#   $ sudo auditctl -l | grep /var/log/faillock
+#   -a always,exit -F arch=b32 -F path=/var/log/faillock -F perm=wa -F
+#   key=identity
+#   -a always,exit -F arch=b64 -F path=/var/log/faillock -F perm=wa -F
+#   key=identity
+#
+#   If the command does not return a line, or the line is commented out, this
+#   is a finding.
+#
+# Fix Text:
+#   Configure RHEL 10 to generate audit records for all account creations,
+#   modifications, disabling, and termination events that affect
+#   "/var/log/faillock".
+#
+#   Add or update the following file system rule to
+#   "/etc/audit/rules.d/audit.rules":
+#
+#   -a always,exit -F arch=b32 -F path=/var/log/faillock -F perm=wa -F
+#   key=identity
+#   -a always,exit -F arch=b64 -F path=/var/log/faillock -F perm=wa -F
+#   key=identity
+#
+#   Restart the audit daemon with the following command for the changes to
+#   take effect:
+#
+#   $ sudo service auditd restart
+# =============================================================================
+
+- name: "RHEL-10-500750 | RHEL 10 must generate audit records for all account creations, modifications, disabling, and termination events that affect /var/log/faillock."
+  when: rhel_10_500750 | bool
+  tags:
+    - RHEL-10-500750
+    - medium
+    - CCI-002884
+  block:
+    - name: "RHEL-10-500750 | Check audit rule for /var/log/faillock"
+      ansible.builtin.command:
+        cmd: auditctl -l
+      register: rhel_10_500750_rules
+      changed_when: false
+      failed_when: false
+
+    - name: "RHEL-10-500750 | Add audit rule for /var/log/faillock (b32)"
+      ansible.builtin.lineinfile:
+        path: /etc/audit/rules.d/rhel10-stig.rules
+        line: "-a always,exit -F arch=b32 -F path=/var/log/faillock -F perm=wa -F key=identity"
+        create: true
+        mode: '0640'
+        owner: root
+        group: root
+      when: "'/var/log/faillock' not in rhel_10_500750_rules.stdout"
+      notify: restart auditd
+
+    - name: "RHEL-10-500750 | Add audit rule for /var/log/faillock (b64)"
+      ansible.builtin.lineinfile:
+        path: /etc/audit/rules.d/rhel10-stig.rules
+        line: "-a always,exit -F arch=b64 -F path=/var/log/faillock -F perm=wa -F key=identity"
+        create: true
+        mode: '0640'
+        owner: root
+        group: root
+      when: "'/var/log/faillock' not in rhel_10_500750_rules.stdout"
+      notify: restart auditd
+
+    - name: "RHEL-10-500750 | Re-check audit rule for /var/log/faillock"
+      ansible.builtin.command:
+        cmd: auditctl -l
+      register: rhel_10_500750_verify
+      changed_when: false
+      failed_when: false
+
+    - name: "RHEL-10-500750 | Assert audit rule for /var/log/faillock is present"
+      ansible.builtin.assert:
+        that: "'/var/log/faillock' in rhel_10_500750_verify.stdout"
+        fail_msg: "result=FAIL stig_id=RHEL-10-500750 detail=Audit rule for /var/log/faillock (key=identity) is missing."
+        success_msg: "result=PASS stig_id=RHEL-10-500750 detail=Audit rule for /var/log/faillock (key=identity) is present."
+
+  rescue:
+    - name: "RHEL-10-500750 | RESCUE - record failure and continue"
+      ansible.builtin.debug:
+        msg: "result=ERROR stig_id=RHEL-10-500750 detail=Task failed unexpectedly — see prior error for details."

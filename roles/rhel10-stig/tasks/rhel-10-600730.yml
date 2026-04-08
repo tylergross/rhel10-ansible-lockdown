@@ -1,0 +1,63 @@
+---
+# =============================================================================
+# STIG ID  : RHEL-10-600730
+# Rule ID  : SV-281221r1166615_rule
+# Severity : high
+# CCI      : CCI-004062
+# Title    : RHEL 10 must employ FIPS 140-3-approved cryptographic hashing algorithms for all stored passwords.
+#
+# Description:
+#   The system must use a strong hashing algorithm to store the password.
+#   Passwords must be protected at all times, and encryption is the standard
+#   method for protecting passwords. If passwords are not encrypted, they can
+#   be plainly read (i.e., clear text) and easily compromised. Satisfies:
+#   SRG-OS-000073-GPOS-00041, SRG-OS-000120-GPOS-00061
+#
+# Check Text:
+#   Verify RHEL 10 employs FIPS 140-3-approved cryptographic hashing
+#   algorithms for all stored passwords for interactive user accounts with
+#   the following command:
+#
+#   $ sudo cut -d: -f2 /etc/shadow
+#
+#   $6$kcOnRq/5$NUEYPuyL.wghQwWssXRcLRFiiru7f5JPV6GaJhNC2aK5F3PZpE/BCCtwrxRc/AInKMNX3CdMw11m9STiql12f/
+#
+#   Password hashes "!" or "*" indicate inactive accounts not available for
+#   login and are not evaluated.
+#
+#   If any interactive user password hash does not begin with "$6", this is a
+#   finding.
+#
+# Fix Text:
+#   Configure RHEL 10 to employ FIPS 140-3-approved cryptographic hashing
+#   algorithms for all stored passwords.
+#
+#   Lock all interactive user accounts not using SHA-512 hashing until the
+#   passwords can be regenerated with SHA-512.
+# =============================================================================
+
+- name: "RHEL-10-600730 | RHEL 10 must employ FIPS 140-3-approved cryptographic hashing algorithms for all stored passwords."
+  when: rhel_10_600730 | bool
+  tags:
+    - RHEL-10-600730
+    - high
+    - CCI-004062
+  block:
+    - name: "RHEL-10-600730 | Find interactive user accounts not using SHA-512 password hashes"
+      ansible.builtin.shell:
+        cmd: >
+          awk -F: '($2 != "!" && $2 != "*" && $2 != "" && $2 !~ /^\$6\$/) {print $1}' /etc/shadow
+      register: rhel_10_600730_check
+      changed_when: false
+      failed_when: false
+
+    - name: "RHEL-10-600730 | Assert all interactive account passwords use SHA-512"
+      ansible.builtin.assert:
+        that: rhel_10_600730_check.stdout | trim == ''
+        fail_msg: "result=FAIL stig_id=RHEL-10-600730 detail=Interactive accounts not using SHA-512 password hashes: {{ rhel_10_600730_check.stdout_lines | join(', ') }}. Lock accounts and regenerate passwords with SHA-512."
+        success_msg: "result=PASS stig_id=RHEL-10-600730 detail=All interactive account passwords use SHA-512 hashing."
+
+  rescue:
+    - name: "RHEL-10-600730 | RESCUE - record failure and continue"
+      ansible.builtin.debug:
+        msg: "result=ERROR stig_id=RHEL-10-600730 detail=Task failed unexpectedly — see prior error for details."

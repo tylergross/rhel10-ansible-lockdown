@@ -1,0 +1,91 @@
+---
+# =============================================================================
+# STIG ID  : RHEL-10-600000
+# Rule ID  : SV-281166r1166450_rule
+# Severity : medium
+# CCI      : CCI-000213
+# Title    : RHEL 10 must require a boot loader superuser password.
+#
+# Description:
+#   To mitigate the risk of unauthorized access to sensitive information by
+#   entities that have been issued certificates by DOD-approved PKIs, all DOD
+#   systems (e.g., web servers and web portals) must be properly configured
+#   to incorporate access control methods that do not rely solely on the
+#   possession of a certificate for access. Successful authentication must
+#   not automatically give an entity access to an asset or security boundary.
+#   Authorization procedures and controls must be implemented to ensure each
+#   authenticated entity also has a validated and current authorization.
+#   Authorization is the process of determining whether an entity, once
+#   authenticated, is permitted to access a specific asset. Information
+#   systems use access control policies and enforcement mechanisms to
+#   implement this requirement. Password protection on the boot loader
+#   configuration ensures users with physical access cannot trivially alter
+#   important bootloader settings. These include which kernel to use and
+#   whether to enter single-user mode.
+#
+# Check Text:
+#   Verify RHEL 10 requires a boot loader superuser password with the
+#   following command:
+#
+#   $ sudo grep password_pbkdf2 /etc/grub2.cfg
+#   password_pbkdf2 <superusers-accountname> ${GRUB2_PASSWORD}
+#
+#   To verify the boot loader superuser account password has been set and the
+#   password encrypted, run the following command:
+#
+#   $ sudo cat /boot/grub2/user.cfg
+#
+#   GRUB2_PASSWORD=grub.pbkdf2.sha512.10000.C4E08AC72FBFF7E837FD267BFAD7AEB3D42DDC
+#
+#   2C99F2A94DD5E2E75C2DC331B719FE55D9411745F82D1B6CFD9E927D61925F9BBDD1CFAA0080E0
+#
+#   916F7AB46E0D.1302284FCCC52CD73BA3671C6C12C26FF50BA873293B24EE2A96EE3B57963E6D7
+#   0C83964B473EC8F93B07FE749AA6710269E904A9B08A6BBACB00A2D242AD828
+#
+#   If a "GRUB2_PASSWORD" is not set, this is a finding.
+#
+# Fix Text:
+#   Configure RHEL 10 to require a grub bootloader password for the grub
+#   superuser account.
+#
+#   Generate an encrypted grub2 password for the grub superuser account with
+#   the following command:
+#
+#   $ sudo grub2-setpassword
+#   Enter password:
+#   Confirm password:
+# =============================================================================
+
+- name: "RHEL-10-600000 | RHEL 10 must require a boot loader superuser password."
+  when: rhel_10_600000 | bool
+  tags:
+    - RHEL-10-600000
+    - medium
+    - CCI-000213
+  block:
+    - name: "RHEL-10-600000 | Check for GRUB2_PASSWORD in /boot/grub2/user.cfg"
+      ansible.builtin.command:
+        cmd: grep -s "^GRUB2_PASSWORD=" /boot/grub2/user.cfg
+      register: rhel_10_600000_check
+      changed_when: false
+      failed_when: false
+
+    - name: "RHEL-10-600000 | Check for password_pbkdf2 in /etc/grub2.cfg"
+      ansible.builtin.command:
+        cmd: grep -s "password_pbkdf2" /etc/grub2.cfg
+      register: rhel_10_600000_grub_check
+      changed_when: false
+      failed_when: false
+
+    - name: "RHEL-10-600000 | Assert GRUB2 boot loader password is set"
+      ansible.builtin.assert:
+        that:
+          - rhel_10_600000_check.rc == 0
+          - rhel_10_600000_check.stdout | length > 0
+          - rhel_10_600000_grub_check.rc == 0
+        fail_msg: "result=FAIL stig_id=RHEL-10-600000 detail=GRUB2 boot loader password is not set. Run 'sudo grub2-setpassword' to configure it manually."
+        success_msg: "result=PASS stig_id=RHEL-10-600000 detail=GRUB2 boot loader superuser password is configured."
+  rescue:
+    - name: "RHEL-10-600000 | RESCUE - record failure and continue"
+      ansible.builtin.debug:
+        msg: "result=ERROR stig_id=RHEL-10-600000 detail=Task failed unexpectedly — see prior error for details."

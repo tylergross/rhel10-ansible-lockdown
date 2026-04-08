@@ -1,0 +1,118 @@
+---
+# =============================================================================
+# STIG ID  : RHEL-10-700890
+# Rule ID  : SV-281292r1166828_rule
+# Severity : low
+# CCI      : CCI-000778
+# Title    : RHEL 10 must disable the graphical user interface autorunner unless required.
+#
+# Description:
+#   Automatically running applications when media is inserted allows for the
+#   easy introduction of unknown data, thereby facilitating malicious
+#   activity. Satisfies: SRG-OS-000114-GPOS-00059, SRG-OS-000378-GPOS-00163
+#
+# Check Text:
+#   Note: This requirement assumes the use of the RHEL 10 default graphical
+#   user interface, the GNOME desktop environment. If the system does not
+#   have any graphical user interface installed, this requirement is not
+#   applicable.
+#
+#   Verify RHEL 10 disables the graphical user interface autorun function.
+#
+#   Disable the setting with the following command:
+#
+#   $ gsettings get org.gnome.desktop.media-handling autorun-never
+#   true
+#
+#   If "autorun-never" is set to "false" and is not documented with the
+#   information system security officer as an operational requirement, this
+#   is a finding.
+#
+# Fix Text:
+#   Configure RHEL 10 GNOME to disable autorunning of removable media.
+#
+#   Note: The example below is using the database "local" for the system. If
+#   the system is using another database in "/etc/dconf/profile/user", the
+#   file should be created under the appropriate subdirectory.
+#
+#   Update the "/etc/dconf/db/local.d/00-security-settings" database to
+#   disable the GUI autorun function:
+#
+#   $ sudo vi /etc/dconf/db/local.d/00-security-settings
+#
+#   [org/gnome/desktop/media-handling]
+#   autorun-never=true
+#
+#   Update the dconf system databases:
+#
+#   $ sudo dconf update
+# =============================================================================
+
+- name: "RHEL-10-700890 | RHEL 10 must disable the graphical user interface autorunner unless required."
+  when: rhel_10_700890 | bool
+  tags:
+    - RHEL-10-700890
+    - low
+    - CCI-000778
+  block:
+    - name: "RHEL-10-700890 | Ensure dconf local.d directory exists"
+      ansible.builtin.file:
+        path: /etc/dconf/db/local.d
+        state: directory
+        mode: '0755'
+        owner: root
+        group: root
+
+    - name: "RHEL-10-700890 | Check autorun-never setting in dconf keyfile"
+      ansible.builtin.command:
+        cmd: grep -r 'autorun-never' /etc/dconf/db/local.d/
+      register: rhel_10_700890_check
+      changed_when: false
+      failed_when: false
+
+    - name: "RHEL-10-700890 | Ensure media-handling section header is present"
+      ansible.builtin.lineinfile:
+        path: /etc/dconf/db/local.d/00-security-settings
+        line: '[org/gnome/desktop/media-handling]'
+        state: present
+        create: true
+        mode: '0644'
+        owner: root
+        group: root
+      when: rhel_10_700890_check.rc != 0
+
+    - name: "RHEL-10-700890 | Set autorun-never to true in dconf keyfile"
+      ansible.builtin.lineinfile:
+        path: /etc/dconf/db/local.d/00-security-settings
+        regexp: '^#?autorun-never='
+        line: 'autorun-never=true'
+        state: present
+        create: true
+        mode: '0644'
+        owner: root
+        group: root
+      when: rhel_10_700890_check.rc != 0
+
+    - name: "RHEL-10-700890 | Update dconf database"
+      ansible.builtin.command:
+        cmd: dconf update
+      when: rhel_10_700890_check.rc != 0
+      changed_when: true
+
+    - name: "RHEL-10-700890 | Re-check autorun-never in dconf"
+      ansible.builtin.command:
+        cmd: grep -r 'autorun-never' /etc/dconf/db/local.d/
+      register: rhel_10_700890_verify
+      changed_when: false
+      failed_when: false
+
+    - name: "RHEL-10-700890 | Assert autorun-never is configured in dconf"
+      ansible.builtin.assert:
+        that: rhel_10_700890_verify.rc == 0
+        fail_msg: "result=FAIL stig_id=RHEL-10-700890 detail=autorun-never is not configured in dconf."
+        success_msg: "result=PASS stig_id=RHEL-10-700890 detail=autorun-never is set to true in dconf."
+
+  rescue:
+    - name: "RHEL-10-700890 | RESCUE - record failure and continue"
+      ansible.builtin.debug:
+        msg: "result=ERROR stig_id=RHEL-10-700890 detail=Task failed unexpectedly — see prior error for details."

@@ -1,0 +1,59 @@
+---
+# =============================================================================
+# STIG ID  : RHEL-10-200612
+# Rule ID  : SV-280974r1195362_rule
+# Severity : medium
+# CCI      : CCI-004046
+# Title    : RHEL 10 must have the "pcsc-lite-ccid" package installed.
+#
+# Description:
+#   The "pcsc-lite-ccid" package must be installed if it is to be available
+#   for multifactor authentication using smart cards.
+#
+# Check Text:
+#   Verify RHEL 10 has the "pcsc-lite-ccid" package installed with the
+#   following command:
+#
+#   $ sudo dnf list --installed pcsc-lite-ccid
+#   Installed Packages
+#   pcsc-lite-ccid.x86_64 1.6.0-2.el10 @anaconda
+#
+#   If the "pcsc-lite-ccid" package is not installed, this is a finding.
+#
+# Fix Text:
+#   Configure RHEL 10 to have the "pcsc-lite-ccid" package installed with the
+#   following command:
+#
+#   $ sudo dnf -y install pcsc-lite-ccid
+# =============================================================================
+
+- name: "RHEL-10-200612 | RHEL 10 must have the pcsc-lite-ccid package installed."
+  when: rhel_10_200612 | bool
+  tags:
+    - RHEL-10-200612
+    - medium
+    - CCI-004046
+  block:
+    - name: "RHEL-10-200612 | Ensure pcsc-lite-ccid is installed"
+      ansible.builtin.package:
+        name: pcsc-lite-ccid
+        state: present
+
+    - name: "RHEL-10-200612 | Verify pcsc-lite-ccid is installed"
+      ansible.builtin.command: rpm -q pcsc-lite-ccid
+      register: rhel_10_200612_check
+      changed_when: false
+      failed_when: false
+
+    - name: "RHEL-10-200612 | Assert pcsc-lite-ccid is installed"
+      ansible.builtin.assert:
+        that: rhel_10_200612_check.rc == 0
+        fail_msg: >-
+          result=FAIL stig_id=RHEL-10-200612
+          detail=Package pcsc-lite-ccid is not installed.
+          Install with: dnf -y install pcsc-lite-ccid
+        success_msg: "result=PASS stig_id=RHEL-10-200612 detail=Package pcsc-lite-ccid is installed."
+  rescue:
+    - name: "RHEL-10-200612 | RESCUE - record failure and continue"
+      ansible.builtin.debug:
+        msg: "result=ERROR stig_id=RHEL-10-200612 detail=Task failed unexpectedly — see prior error for details."

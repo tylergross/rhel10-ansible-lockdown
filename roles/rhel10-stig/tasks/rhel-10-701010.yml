@@ -1,0 +1,120 @@
+---
+# =============================================================================
+# STIG ID  : RHEL-10-701010
+# Rule ID  : SV-281303r1167059_rule
+# Severity : medium
+# CCI      : CCI-001084
+# Title    : RHEL 10 must clear memory when it is freed to prevent use-after-free attacks.
+#
+# Description:
+#   Some adversaries launch attacks with the intent of executing code in
+#   nonexecutable regions of memory or in memory locations that are
+#   prohibited. Security safeguards employed to protect memory include, for
+#   example, data execution prevention and address space layout
+#   randomization. Data execution prevention safeguards can be either
+#   hardware-enforced or software-enforced, with hardware providing the
+#   greater strength of mechanism. Poisoning writes an arbitrary value to
+#   freed pages, so any modification or reference to that page after being
+#   freed or before being initialized will be detected and prevented. This
+#   prevents many types of use-after-free vulnerabilities at little
+#   performance cost. It also prevents data leakage and detection of
+#   corrupted memory. "init_on_free" is a Linux kernel boot parameter that
+#   enhances security by initializing memory regions when they are freed,
+#   preventing data leakage. This process ensures that stale data in freed
+#   memory cannot be accessed by malicious programs. SLUB canaries add a
+#   randomized value (canary) at the end of SLUB-allocated objects to detect
+#   memory corruption caused by buffer overflows or underflows. Redzoning
+#   adds padding (red zones) around SLUB-allocated objects to detect
+#   overflows or underflows by triggering a fault when adjacent memory is
+#   accessed. SLUB canaries are often more efficient and provide stronger
+#   detection against buffer overflows compared to redzoning. SLUB canaries
+#   are supported in hardened Linux kernels such as the ones provided by
+#   Linux-hardened. SLAB objects are blocks of physically contiguous memory.
+#   SLUB is the unqueued SLAB allocator.
+#
+# Check Text:
+#   Verify RHEL 10 is configured so that the current GRUB2 configuration
+#   mitigates use-after-free vulnerabilities by employing memory poisoning.
+#
+#   Check that the current GRUB2 configuration mitigates use-after-free
+#   vulnerabilities by employing memory poisoning with the following command:
+#
+#   $ sudo grubby --info=ALL | grep args | grep -v init_on_free=1
+#
+#   If any output is returned, this is a finding.
+#
+#   Check that page poisoning is enabled by default to persist in kernel
+#   updates with the following command:
+#
+#   $ sudo grep grub_cmdline_linux /etc/default/grub
+#   GRUB_CMDLINE_LINUX="... init_on_free=1"
+#
+#   If "init_on_free=1" is missing or commented out, this is a finding.
+#
+# Fix Text:
+#   Configure RHEL 10 to enable "init_on_free" with the following command:
+#
+#   $ sudo grubby --update-kernel=ALL --args="init_on_free=1"
+# =============================================================================
+
+- name: "RHEL-10-701010 | RHEL 10 must clear memory when it is freed to prevent use-after-free attacks."
+  when: rhel_10_701010 | bool
+  tags:
+    - RHEL-10-701010
+    - medium
+    - CCI-001084
+  block:
+    - name: "RHEL-10-701010 | Check current GRUB2 kernel args for init_on_free=1"
+      ansible.builtin.command:
+        cmd: grubby --info=ALL
+      register: rhel_10_701010_grubby
+      changed_when: false
+      failed_when: false
+
+    - name: "RHEL-10-701010 | Check /etc/default/grub for init_on_free=1"
+      ansible.builtin.command:
+        cmd: grep -E 'init_on_free=1' /etc/default/grub
+      register: rhel_10_701010_grub_check
+      changed_when: false
+      failed_when: false
+
+    - name: "RHEL-10-701010 | Set init_on_free=1 in all kernel entries via grubby"
+      ansible.builtin.command:
+        cmd: grubby --update-kernel=ALL --args="init_on_free=1"
+      when: rhel_10_701010_grubby.stdout is not search('init_on_free=1')
+      changed_when: true
+
+    - name: "RHEL-10-701010 | Backup /etc/default/grub before modification"
+      ansible.builtin.copy:
+        src: /etc/default/grub
+        dest: "/etc/default/grub.bak.{{ ansible_date_time.epoch }}"
+        remote_src: true
+        mode: preserve
+      when: rhel_10_701010_grub_check.rc != 0
+
+    - name: "RHEL-10-701010 | Ensure init_on_free=1 in GRUB_CMDLINE_LINUX in /etc/default/grub"
+      ansible.builtin.lineinfile:
+        path: /etc/default/grub
+        regexp: '^(GRUB_CMDLINE_LINUX=.*)"$'
+        line: '\1 init_on_free=1"'
+        backrefs: true
+        state: present
+      when: rhel_10_701010_grub_check.rc != 0
+
+    - name: "RHEL-10-701010 | Re-check /etc/default/grub for init_on_free=1"
+      ansible.builtin.command:
+        cmd: grep -E 'init_on_free=1' /etc/default/grub
+      register: rhel_10_701010_verify
+      changed_when: false
+      failed_when: false
+
+    - name: "RHEL-10-701010 | Assert init_on_free=1 is configured in /etc/default/grub"
+      ansible.builtin.assert:
+        that: rhel_10_701010_verify.rc == 0
+        fail_msg: "result=FAIL stig_id=RHEL-10-701010 detail=init_on_free=1 is not configured in /etc/default/grub."
+        success_msg: "result=PASS stig_id=RHEL-10-701010 detail=init_on_free=1 is configured in /etc/default/grub."
+
+  rescue:
+    - name: "RHEL-10-701010 | RESCUE - record failure and continue"
+      ansible.builtin.debug:
+        msg: "result=ERROR stig_id=RHEL-10-701010 detail=Task failed unexpectedly — see prior error for details."

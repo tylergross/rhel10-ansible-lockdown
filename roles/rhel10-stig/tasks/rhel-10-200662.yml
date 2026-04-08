@@ -1,0 +1,61 @@
+---
+# =============================================================================
+# STIG ID  : RHEL-10-200662
+# Rule ID  : SV-280995r1195383_rule
+# Severity : low
+# CCI      : CCI-001851
+# Title    : RHEL 10 must have the "audispd-plugins" package installed.
+#
+# Description:
+#   The "audispd-plugins" package provides plugins for the real-time
+#   interface to the audit subsystem, "audispd". These plugins can do such
+#   things as relay events to remote machines or analyze events for
+#   suspicious behavior.
+#
+# Check Text:
+#   Verify RHEL 10 has the "audispd-plugins" package installed with the
+#   following command:
+#
+#   $ sudo dnf list --installed audispd-plugins
+#   Installed Packages
+#   audispd-plugins.x86_64 4.0.3-1.el10 @rhel-10-for-x86_64-baseos-rpms
+#
+#   If the "audispd-plugins" package is not installed, this is a finding.
+#
+# Fix Text:
+#   Configure RHEL 10 to have the "audispd-plugins" package installed with
+#   the following command:
+#
+#   $ sudo dnf -y install audispd-plugins
+# =============================================================================
+
+- name: "RHEL-10-200662 | RHEL 10 must have the audispd-plugins package installed."
+  when: rhel_10_200662 | bool
+  tags:
+    - RHEL-10-200662
+    - low
+    - CCI-001851
+  block:
+    - name: "RHEL-10-200662 | Ensure audispd-plugins is installed"
+      ansible.builtin.package:
+        name: audispd-plugins
+        state: present
+
+    - name: "RHEL-10-200662 | Verify audispd-plugins is installed"
+      ansible.builtin.command: rpm -q audispd-plugins
+      register: rhel_10_200662_check
+      changed_when: false
+      failed_when: false
+
+    - name: "RHEL-10-200662 | Assert audispd-plugins is installed"
+      ansible.builtin.assert:
+        that: rhel_10_200662_check.rc == 0
+        fail_msg: >-
+          result=FAIL stig_id=RHEL-10-200662
+          detail=Package audispd-plugins is not installed.
+          Install with: dnf -y install audispd-plugins
+        success_msg: "result=PASS stig_id=RHEL-10-200662 detail=Package audispd-plugins is installed."
+  rescue:
+    - name: "RHEL-10-200662 | RESCUE - record failure and continue"
+      ansible.builtin.debug:
+        msg: "result=ERROR stig_id=RHEL-10-200662 detail=Task failed unexpectedly — see prior error for details."

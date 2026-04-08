@@ -1,0 +1,62 @@
+---
+# =============================================================================
+# STIG ID  : RHEL-10-200520
+# Rule ID  : SV-280954r1195344_rule
+# Severity : medium
+# CCI      : CCI-001744
+# Title    : RHEL 10 must have the "s-nail" package installed.
+#
+# Description:
+#   The "s-nail" package provides the mail command required to allow sending
+#   email notifications of unauthorized configuration changes to designated
+#   personnel.
+#
+# Check Text:
+#   Verify RHEL 10 is configured to allow sending email notifications.
+#
+#   Verify the "s-nail" package is installed on the system with the following
+#   command:
+#
+#   $ sudo dnf list --installed s-nail
+#   Installed Packages
+#   s-nail.x86_64 14.9.24-12.el10 @rhel-10-for-x86_64-appstream-rpms
+#
+#   If the "s-nail" package is not installed, this is a finding.
+#
+# Fix Text:
+#   Configure RHEL 10 to have the "s-nail" package installed with the
+#   following command:
+#
+#   $ sudo dnf -y install s-nail
+# =============================================================================
+
+- name: "RHEL-10-200520 | RHEL 10 must have the s-nail package installed."
+  when: rhel_10_200520 | bool
+  tags:
+    - RHEL-10-200520
+    - medium
+    - CCI-001744
+  block:
+    - name: "RHEL-10-200520 | Ensure s-nail is installed"
+      ansible.builtin.package:
+        name: s-nail
+        state: present
+
+    - name: "RHEL-10-200520 | Verify s-nail is installed"
+      ansible.builtin.command: rpm -q s-nail
+      register: rhel_10_200520_check
+      changed_when: false
+      failed_when: false
+
+    - name: "RHEL-10-200520 | Assert s-nail is installed"
+      ansible.builtin.assert:
+        that: rhel_10_200520_check.rc == 0
+        fail_msg: >-
+          result=FAIL stig_id=RHEL-10-200520
+          detail=Package s-nail is not installed.
+          Install with: dnf -y install s-nail
+        success_msg: "result=PASS stig_id=RHEL-10-200520 detail=Package s-nail is installed."
+  rescue:
+    - name: "RHEL-10-200520 | RESCUE - record failure and continue"
+      ansible.builtin.debug:
+        msg: "result=ERROR stig_id=RHEL-10-200520 detail=Task failed unexpectedly — see prior error for details."

@@ -1,0 +1,120 @@
+---
+# =============================================================================
+# STIG ID  : RHEL-10-700770
+# Rule ID  : SV-281280r1166792_rule
+# Severity : medium
+# CCI      : CCI-000057
+# Title    : RHEL 10 must initiate a session lock for graphical user interfaces when the screensaver is activated.
+#
+# Description:
+#   A session lock is a temporary action taken when a user stops work and
+#   moves away from the immediate physical vicinity of the information system
+#   but does not want to log out because of the temporary nature of the
+#   absence. Satisfies: SRG-OS-000029-GPOS-00010, SRG-OS-000031-GPOS-00012
+#
+# Check Text:
+#   Note: This requirement assumes the use of the RHEL 10 default graphical
+#   user interface, the GNOME desktop environment. If the system does not
+#   have any graphical user interface installed, this requirement is not
+#   applicable.
+#
+#   Verify RHEL 10 initiates a session lock for graphical user interfaces
+#   when the screensaver is activated with the following command:
+#
+#   $ gsettings get org.gnome.desktop.screensaver lock-delay
+#   uint32 5
+#
+#   If the "uint32" setting is not set to "5" or less, or is missing, this is
+#   a finding.
+#
+# Fix Text:
+#   Configure RHEL 10 to initiate a session lock for graphical user
+#   interfaces when a screensaver is activated.
+#
+#   Note: The example below is using the database "local" for the system. If
+#   the system is using another database in "/etc/dconf/profile/user", the
+#   file should be created under the appropriate subdirectory.
+#
+#   Create a database to contain the systemwide screensaver settings (if it
+#   does not already exist) with the following command:
+#
+#   $ sudo vi /etc/dconf/db/local.d/00-screensaver
+#
+#   [org/gnome/desktop/screensaver]
+#   lock-delay=uint32 5
+#
+#   The "uint32" must be included along with the integer key values as shown.
+#
+#   Update the system databases:
+#
+#   $ sudo dconf update
+# =============================================================================
+
+- name: "RHEL-10-700770 | RHEL 10 must initiate a session lock for graphical user interfaces when the screensaver is activated."
+  when: rhel_10_700770 | bool
+  tags:
+    - RHEL-10-700770
+    - medium
+    - CCI-000057
+  block:
+    - name: "RHEL-10-700770 | Ensure dconf local.d directory exists"
+      ansible.builtin.file:
+        path: /etc/dconf/db/local.d
+        state: directory
+        mode: '0755'
+        owner: root
+        group: root
+
+    - name: "RHEL-10-700770 | Check lock-delay in dconf keyfile"
+      ansible.builtin.command:
+        cmd: grep -r 'lock-delay' /etc/dconf/db/local.d/
+      register: rhel_10_700770_check
+      changed_when: false
+      failed_when: false
+
+    - name: "RHEL-10-700770 | Ensure dconf screensaver section header is present for lock-delay"
+      ansible.builtin.lineinfile:
+        path: /etc/dconf/db/local.d/00-screensaver
+        line: '[org/gnome/desktop/screensaver]'
+        state: present
+        create: true
+        mode: '0644'
+        owner: root
+        group: root
+      when: rhel_10_700770_check.rc != 0
+
+    - name: "RHEL-10-700770 | Set lock-delay to 5 in dconf keyfile"
+      ansible.builtin.lineinfile:
+        path: /etc/dconf/db/local.d/00-screensaver
+        regexp: '^#?lock-delay='
+        line: 'lock-delay=uint32 5'
+        state: present
+        create: true
+        mode: '0644'
+        owner: root
+        group: root
+      when: rhel_10_700770_check.rc != 0
+
+    - name: "RHEL-10-700770 | Update dconf database"
+      ansible.builtin.command:
+        cmd: dconf update
+      when: rhel_10_700770_check.rc != 0
+      changed_when: true
+
+    - name: "RHEL-10-700770 | Re-check lock-delay in dconf"
+      ansible.builtin.command:
+        cmd: grep -r 'lock-delay' /etc/dconf/db/local.d/
+      register: rhel_10_700770_verify
+      changed_when: false
+      failed_when: false
+
+    - name: "RHEL-10-700770 | Assert lock-delay is configured in dconf"
+      ansible.builtin.assert:
+        that: rhel_10_700770_verify.rc == 0
+        fail_msg: "result=FAIL stig_id=RHEL-10-700770 detail=lock-delay is not configured in dconf."
+        success_msg: "result=PASS stig_id=RHEL-10-700770 detail=lock-delay is configured in dconf."
+
+  rescue:
+    - name: "RHEL-10-700770 | RESCUE - record failure and continue"
+      ansible.builtin.debug:
+        msg: "result=ERROR stig_id=RHEL-10-700770 detail=Task failed unexpectedly — see prior error for details."

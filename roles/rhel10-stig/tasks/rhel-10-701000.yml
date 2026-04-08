@@ -1,0 +1,102 @@
+---
+# =============================================================================
+# STIG ID  : RHEL-10-701000
+# Rule ID  : SV-281302r1167056_rule
+# Severity : medium
+# CCI      : CCI-001084
+# Title    : RHEL 10 must clear the page allocator to prevent use-after-free attacks.
+#
+# Description:
+#   Poisoning writes an arbitrary value to freed pages, so any modification
+#   or reference to that page after being freed or before being initialized
+#   will be detected and prevented. This prevents many types of
+#   use-after-free vulnerabilities at little performance cost. It also
+#   prevents data leakage and detection of corrupted memory.
+#
+# Check Text:
+#   Verify RHEL 10 is configured so that the current GRUB 2 configuration
+#   enables page poisoning to mitigate use-after-free vulnerabilities.
+#
+#   Check that the current GRUB 2 configuration has page poisoning enabled
+#   with the following command:
+#
+#   $ sudo grubby --info=ALL | grep args | grep -v 'page_poison=1'
+#
+#   If any output is returned, this is a finding.
+#
+#   Check that page poisoning is enabled by default to persist in kernel
+#   updates with the following command:
+#
+#   $ sudo grep page_poison /etc/default/grub
+#   GRUB_CMDLINE_LINUX="page_poison=1"
+#
+#   If "page_poison" is not set to "1", is missing or commented out, this is
+#   a finding.
+#
+# Fix Text:
+#   Configure RHEL 10 to enable page poisoning with the following commands:
+#
+#   $ sudo grubby --update-kernel=ALL --args="page_poison=1"
+# =============================================================================
+
+- name: "RHEL-10-701000 | RHEL 10 must clear the page allocator to prevent use-after-free attacks."
+  when: rhel_10_701000 | bool
+  tags:
+    - RHEL-10-701000
+    - medium
+    - CCI-001084
+  block:
+    - name: "RHEL-10-701000 | Check current GRUB2 kernel args for page_poison=1"
+      ansible.builtin.command:
+        cmd: grubby --info=ALL
+      register: rhel_10_701000_grubby
+      changed_when: false
+      failed_when: false
+
+    - name: "RHEL-10-701000 | Check /etc/default/grub for page_poison=1"
+      ansible.builtin.command:
+        cmd: grep -E 'page_poison=1' /etc/default/grub
+      register: rhel_10_701000_grub_check
+      changed_when: false
+      failed_when: false
+
+    - name: "RHEL-10-701000 | Set page_poison=1 in all kernel entries via grubby"
+      ansible.builtin.command:
+        cmd: grubby --update-kernel=ALL --args="page_poison=1"
+      when: rhel_10_701000_grubby.stdout is not search('page_poison=1')
+      changed_when: true
+
+    - name: "RHEL-10-701000 | Backup /etc/default/grub before modification"
+      ansible.builtin.copy:
+        src: /etc/default/grub
+        dest: "/etc/default/grub.bak.{{ ansible_date_time.epoch }}"
+        remote_src: true
+        mode: preserve
+      when: rhel_10_701000_grub_check.rc != 0
+
+    - name: "RHEL-10-701000 | Ensure page_poison=1 in GRUB_CMDLINE_LINUX in /etc/default/grub"
+      ansible.builtin.lineinfile:
+        path: /etc/default/grub
+        regexp: '^(GRUB_CMDLINE_LINUX=.*)"$'
+        line: '\1 page_poison=1"'
+        backrefs: true
+        state: present
+      when: rhel_10_701000_grub_check.rc != 0
+
+    - name: "RHEL-10-701000 | Re-check /etc/default/grub for page_poison=1"
+      ansible.builtin.command:
+        cmd: grep -E 'page_poison=1' /etc/default/grub
+      register: rhel_10_701000_verify
+      changed_when: false
+      failed_when: false
+
+    - name: "RHEL-10-701000 | Assert page_poison=1 is configured in /etc/default/grub"
+      ansible.builtin.assert:
+        that: rhel_10_701000_verify.rc == 0
+        fail_msg: "result=FAIL stig_id=RHEL-10-701000 detail=page_poison=1 is not configured in /etc/default/grub."
+        success_msg: "result=PASS stig_id=RHEL-10-701000 detail=page_poison=1 is configured in /etc/default/grub."
+
+  rescue:
+    - name: "RHEL-10-701000 | RESCUE - record failure and continue"
+      ansible.builtin.debug:
+        msg: "result=ERROR stig_id=RHEL-10-701000 detail=Task failed unexpectedly — see prior error for details."

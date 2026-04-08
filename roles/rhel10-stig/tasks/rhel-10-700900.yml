@@ -1,0 +1,97 @@
+---
+# =============================================================================
+# STIG ID  : RHEL-10-700900
+# Rule ID  : SV-281293r1166831_rule
+# Severity : medium
+# CCI      : CCI-002824
+# Title    : RHEL 10 must implement nonexecutable data to protect its memory from unauthorized code execution.
+#
+# Description:
+#   ExecShield uses the segmentation feature on all x86 systems to prevent
+#   execution in memory higher than a certain address. It writes an address
+#   as a limit in the code segment descriptor, to control where code can be
+#   executed, on a per-process basis. When the kernel places a process's
+#   memory regions such as the stack and heap higher than this address, the
+#   hardware prevents execution in that address range. This is enabled by
+#   default on the latest Red Hat and Fedora systems if supported by the
+#   hardware.
+#
+# Check Text:
+#   Verify RHEL 10 implements nonexecutable data to protect its memory from
+#   unauthorized code execution.
+#
+#   Run the following command:
+#
+#   $ sudo grep ^flags /proc/cpuinfo | grep -Ev
+#   '([^[:alnum:]])(nx)([^[:alnum:]]|$)'
+#
+#   If any output is returned, this is a finding.
+#
+#   Run the following command:
+#
+#   $ sudo grubby --info=ALL | grep args | grep -E
+#   '([^[:alnum:]])(noexec)([^[:alnum:]])'
+#
+#   If any output is returned, this is a finding.
+#
+# Fix Text:
+#   Configure RHEL 10 to implement nonexecutable data to protect its memory
+#   from unauthorized code execution.
+#
+#   Update the GRUB 2 bootloader configuration.
+#
+#   Run the following command:
+#
+#   $ sudo grubby --update-kernel=ALL --remove-args=noexec
+# =============================================================================
+
+- name: "RHEL-10-700900 | RHEL 10 must implement nonexecutable data to protect its memory from unauthorized code execution."
+  when: rhel_10_700900 | bool
+  tags:
+    - RHEL-10-700900
+    - medium
+    - CCI-002824
+  block:
+    - name: "RHEL-10-700900 | Check CPU NX flag is present in /proc/cpuinfo"
+      ansible.builtin.command:
+        cmd: grep -E '^flags' /proc/cpuinfo
+      register: rhel_10_700900_cpuflags
+      changed_when: false
+      failed_when: false
+
+    - name: "RHEL-10-700900 | Assert NX flag is present on all CPUs"
+      ansible.builtin.assert:
+        that: "'nx' in rhel_10_700900_cpuflags.stdout | lower"
+        fail_msg: "result=FAIL stig_id=RHEL-10-700900 detail=NX (non-execute) CPU flag not found in /proc/cpuinfo — hardware may not support NX."
+        success_msg: "result=PASS stig_id=RHEL-10-700900 detail=NX CPU flag is present — hardware supports non-executable memory protection."
+
+    - name: "RHEL-10-700900 | Check if noexec is present in any kernel boot args"
+      ansible.builtin.command:
+        cmd: grubby --info=ALL
+      register: rhel_10_700900_grubby
+      changed_when: false
+      failed_when: false
+
+    - name: "RHEL-10-700900 | Remove noexec argument from all kernel entries"
+      ansible.builtin.command:
+        cmd: grubby --update-kernel=ALL --remove-args=noexec
+      when: "'noexec' in rhel_10_700900_grubby.stdout"
+      changed_when: true
+
+    - name: "RHEL-10-700900 | Re-check grubby args for noexec"
+      ansible.builtin.command:
+        cmd: grubby --info=ALL
+      register: rhel_10_700900_verify
+      changed_when: false
+      failed_when: false
+
+    - name: "RHEL-10-700900 | Assert noexec is not present in kernel boot args"
+      ansible.builtin.assert:
+        that: "'noexec' not in rhel_10_700900_verify.stdout"
+        fail_msg: "result=FAIL stig_id=RHEL-10-700900 detail=noexec argument is still present in kernel boot args after remediation."
+        success_msg: "result=PASS stig_id=RHEL-10-700900 detail=noexec argument is not present in kernel boot args."
+
+  rescue:
+    - name: "RHEL-10-700900 | RESCUE - record failure and continue"
+      ansible.builtin.debug:
+        msg: "result=ERROR stig_id=RHEL-10-700900 detail=Task failed unexpectedly — see prior error for details."

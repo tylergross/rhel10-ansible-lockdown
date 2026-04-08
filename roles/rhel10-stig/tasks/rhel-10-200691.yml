@@ -1,0 +1,105 @@
+---
+# =============================================================================
+# STIG ID  : RHEL-10-200691
+# Rule ID  : SV-280998r1165349_rule
+# Severity : medium
+# CCI      : CCI-000139
+# Title    : RHEL 10 must have mail aliases to notify the information system security officer (ISSO) and system administrator (SA) (at a minimum) of an audit processing failure.
+#
+# Description:
+#   It is critical for the appropriate personnel to be aware if a system is
+#   at risk of failing to process audit logs as required. Without this
+#   notification, the security personnel may be unaware of an impending
+#   failure of the audit capability, and system operation may be adversely
+#   affected. Audit processing failures include software/hardware errors,
+#   failures in the audit capturing mechanisms, and audit storage capacity
+#   being reached or exceeded. This requirement applies to each audit data
+#   storage repository (i.e., distinct information system component where
+#   audit records are stored), the centralized audit storage capacity of
+#   organizations (i.e., all audit data storage repositories combined), or
+#   both.
+#
+# Check Text:
+#   Verify RHEL 10 is configured to notify the appropriate interactive users
+#   of an audit processing failure.
+#
+#   Find the alias maps that are being used with the following command:
+#
+#   $ postconf alias_maps
+#   alias_maps = hash:/etc/aliases
+#
+#   Query the Postfix alias maps for an alias for the root user with the
+#   following command:
+#
+#   $ postmap -q root hash:/etc/aliases
+#   isso
+#
+#   If an alias is not set, this is a finding.
+#
+# Fix Text:
+#   Configure RHEL 10 to have mail aliases notify the ISSO and SA (at a
+#   minimum) of an audit processing failure.
+#
+#   Edit the aliases map file (by default /etc/aliases) used by Postfix and
+#   configure a root alias (using the user ISSO as an example):
+#
+#   root: ISSO
+#
+#   Update the aliases database with the following command:
+#
+#   $ sudo newaliases
+# =============================================================================
+
+- name: "RHEL-10-200691 | RHEL 10 must have mail aliases to notify the information system security officer (ISSO) and system administrator (SA) (at a minimum) of an audit processing failure."
+  when: rhel_10_200691 | bool
+  tags:
+    - RHEL-10-200691
+    - medium
+    - CCI-000139
+  block:
+    - name: "RHEL-10-200691 | Check root alias in /etc/aliases"
+      ansible.builtin.command: grep '^root:' /etc/aliases
+      register: rhel_10_200691_check
+      changed_when: false
+      failed_when: false
+
+    - name: "RHEL-10-200691 | Backup /etc/aliases before modification"
+      ansible.builtin.copy:
+        src: /etc/aliases
+        dest: "/etc/aliases.{{ ansible_date_time.epoch }}.bak"
+        remote_src: true
+        mode: preserve
+      when: rhel_10_200691_check.rc != 0
+
+    - name: "RHEL-10-200691 | Ensure root alias is set in /etc/aliases"
+      ansible.builtin.lineinfile:
+        path: /etc/aliases
+        regexp: '^root:'
+        line: "root: {{ rhel_10_200691_root_alias_dest }}"
+        state: present
+      register: rhel_10_200691_lineinfile
+      when: rhel_10_200691_check.rc != 0
+
+    - name: "RHEL-10-200691 | Run newaliases after modifying /etc/aliases"
+      ansible.builtin.command: newaliases
+      changed_when: true
+      when: rhel_10_200691_lineinfile is changed
+
+    - name: "RHEL-10-200691 | Re-check root alias in /etc/aliases"
+      ansible.builtin.command: grep '^root:' /etc/aliases
+      register: rhel_10_200691_recheck
+      changed_when: false
+      failed_when: false
+
+    - name: "RHEL-10-200691 | Assert root alias is configured"
+      ansible.builtin.assert:
+        that: rhel_10_200691_recheck.rc == 0
+        fail_msg: >-
+          result=FAIL stig_id=RHEL-10-200691
+          detail=No root alias found in /etc/aliases.
+          Add 'root: {{ rhel_10_200691_root_alias_dest }}' to /etc/aliases and run newaliases.
+        success_msg: "result=PASS stig_id=RHEL-10-200691 detail=Root mail alias is configured in /etc/aliases."
+  rescue:
+    - name: "RHEL-10-200691 | RESCUE - record failure and continue"
+      ansible.builtin.debug:
+        msg: "result=ERROR stig_id=RHEL-10-200691 detail=Task failed unexpectedly — see prior error for details."

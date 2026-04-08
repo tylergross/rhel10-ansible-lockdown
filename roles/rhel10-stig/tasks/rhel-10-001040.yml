@@ -1,0 +1,89 @@
+---
+# =============================================================================
+# STIG ID  : RHEL-10-001040
+# Rule ID  : SV-280933r1197217_rule
+# Severity : high
+# CCI      : CCI-003992
+# Title    : RHEL 10 must check the GNU Privacy Guard (GPG) signature of locally installed software packages before installation.
+#
+# Description:
+#   Changes to any software components can have significant effects on the
+#   overall security of the operating system. This requirement ensures the
+#   software has not been tampered with and that it has been provided by a
+#   trusted vendor. All software packages must be signed with a cryptographic
+#   key recognized and approved by the organization. Verifying the
+#   authenticity of software prior to installation validates the integrity of
+#   the software package received from a vendor.
+#
+# Check Text:
+#   Verify RHEL 10 dnf always checks the GPG signature of locally installed
+#   software packages before installation with the following command:
+#
+#   $ sudo grep localpkg_gpgcheck /etc/dnf/dnf.conf
+#   localpkg_gpgcheck=1
+#
+#   If "localpkg_gpgcheck" is not set to "1", or if the option is missing or
+#   commented out, ask the system administrator how the GPG signatures of
+#   local software packages are being verified.
+#
+#   If no process to verify GPG signatures has been approved by the
+#   organization, this is a finding.
+#
+# Fix Text:
+#   Configure RHEL 10 dnf to always check the GPG signature of local software
+#   packages before installation.
+#
+#   Add or update the following line in the [main] section of the
+#   "/etc/dnf/dnf.conf" file:
+#
+#   localpkg_gpgcheck=1
+# =============================================================================
+
+- name: "RHEL-10-001040 | RHEL 10 must check the GNU Privacy Guard (GPG) signature of locally installed software packages before installation."
+  when: rhel_10_001040 | bool
+  tags:
+    - RHEL-10-001040
+    - high
+    - CCI-003992
+  block:
+    - name: "RHEL-10-001040 | Check localpkg_gpgcheck setting in dnf.conf"
+      ansible.builtin.command:
+        cmd: grep -Pw 'localpkg_gpgcheck\s*=\s*\d' /etc/dnf/dnf.conf
+      register: rhel_10_001040_gpgcheck
+      changed_when: false
+      failed_when: false
+
+    - name: "RHEL-10-001040 | Backup /etc/dnf/dnf.conf before modification"
+      ansible.builtin.copy:
+        src: /etc/dnf/dnf.conf
+        dest: "/etc/dnf/dnf.conf.{{ ansible_date_time.epoch }}.bak"
+        remote_src: true
+        owner: root
+        group: root
+        mode: '0644'
+      when: rhel_10_001040_gpgcheck.stdout is not search('localpkg_gpgcheck\s*=\s*1')
+
+    - name: "RHEL-10-001040 | Ensure localpkg_gpgcheck=1 in dnf.conf"
+      ansible.builtin.lineinfile:
+        path: /etc/dnf/dnf.conf
+        regexp: '^\s*localpkg_gpgcheck\s*='
+        line: 'localpkg_gpgcheck=1'
+        insertafter: '^\[main\]'
+        state: present
+      when: rhel_10_001040_gpgcheck.stdout is not search('localpkg_gpgcheck\s*=\s*1')
+
+    - name: "RHEL-10-001040 | Re-check localpkg_gpgcheck setting after remediation"
+      ansible.builtin.command:
+        cmd: grep -Pw 'localpkg_gpgcheck\s*=\s*\d' /etc/dnf/dnf.conf
+      register: rhel_10_001040_gpgcheck_final
+      changed_when: false
+      failed_when: false
+
+    - name: "RHEL-10-001040 | Assert localpkg_gpgcheck=1 is set in dnf.conf"
+      ansible.builtin.assert:
+        that: rhel_10_001040_gpgcheck_final.stdout is search('localpkg_gpgcheck\s*=\s*1')
+        fail_msg: >-
+          result=FAIL stig_id=RHEL-10-001040
+          detail=localpkg_gpgcheck is not set to 1 in /etc/dnf/dnf.conf
+          (found={{ rhel_10_001040_gpgcheck_final.stdout | trim | default('missing') }}).
+        success_msg: "result=PASS stig_id=RHEL-10-001040 detail=localpkg_gpgcheck=1 is set in /etc/dnf/dnf.conf."

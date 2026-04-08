@@ -1,0 +1,59 @@
+---
+# =============================================================================
+# STIG ID  : RHEL-10-400290
+# Rule ID  : SV-281075r1165580_rule
+# Severity : medium
+# CCI      : CCI-000213
+# Title    : RHEL 10 must be configured so that all local files and directories must have a valid owner.
+#
+# Description:
+#   Unowned files and directories may be unintentionally inherited if a user
+#   is assigned the same user identifier (UID) as the UID of the unowned
+#   files.
+#
+# Check Text:
+#   Verify RHEL 10 is configured so that all local files and directories have
+#   a valid owner with the following command:
+#
+#   $ df --local -P | awk {'if (NR!=1) print $6'} | sudo xargs -I '{}' find
+#   '{}' -xdev -nouser
+#
+#   If any files on the system do not have an assigned owner, this is a
+#   finding.
+#
+# Fix Text:
+#   Configure RHEL 10 so that all local files and directories must have a
+#   valid owner.
+#
+#   Either remove all files and directories that do not have a valid user
+#   from the system, or assign a valid user to all unowned files and
+#   directories on RHEL 10 with the "chown" command:
+#
+#   $ sudo chown <user> <file>
+# =============================================================================
+
+- name: "RHEL-10-400290 | RHEL 10 must be configured so that all local files and directories must have a valid owner."
+  when: rhel_10_400290 | bool
+  tags:
+    - RHEL-10-400290
+    - medium
+    - CCI-000213
+  block:
+    - name: "RHEL-10-400290 | Find local files and directories with no valid owner"
+      ansible.builtin.shell:
+        cmd: df --local -P | awk 'NR!=1 {print $6}' | xargs -I '{}' find '{}' -xdev -nouser 2>/dev/null
+      register: rhel_10_400290_check
+      changed_when: false
+      failed_when: false
+
+    - name: "RHEL-10-400290 | Assert no files or directories exist without a valid owner"
+      ansible.builtin.assert:
+        that:
+          - rhel_10_400290_check.stdout_lines | length == 0
+        fail_msg: "result=FAIL stig_id=RHEL-10-400290 detail=Files/directories with no valid owner found: {{ rhel_10_400290_check.stdout_lines | join(', ') }}. Manual remediation required (chown or remove)."
+        success_msg: "result=PASS stig_id=RHEL-10-400290 detail=All local files and directories have a valid owner."
+
+  rescue:
+    - name: "RHEL-10-400290 | RESCUE - record failure and continue"
+      ansible.builtin.debug:
+        msg: "result=ERROR stig_id=RHEL-10-400290 detail=Task failed unexpectedly — see prior error for details."

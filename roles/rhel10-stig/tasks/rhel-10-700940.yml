@@ -1,0 +1,69 @@
+---
+# =============================================================================
+# STIG ID  : RHEL-10-700940
+# Rule ID  : SV-281297r1166843_rule
+# Severity : medium
+# CCI      : CCI-000381
+# Title    : RHEL 10 must not default to the graphical display manager unless approved.
+#
+# Description:
+#   Unnecessary service packages must not be installed to decrease the attack
+#   surface of the system. Graphical display managers have a long history of
+#   security vulnerabilities and must not be used unless approved and
+#   documented.
+#
+# Check Text:
+#   Verify RHEL 10 is configured to boot to the command line with the
+#   following command:
+#
+#   $ systemctl get-default
+#   multi-user.target
+#
+#   If the system default target is not set to "multi-user.target", and the
+#   information system security officer lacks a documented requirement for a
+#   graphical user interface, this is a finding.
+#
+# Fix Text:
+#   Configure RHEL 10 to boot to the command line by setting the default
+#   target to "multi-user" with the following command:
+#
+#   $ sudo systemctl set-default multi-user.target
+# =============================================================================
+
+- name: "RHEL-10-700940 | RHEL 10 must not default to the graphical display manager unless approved."
+  when: rhel_10_700940 | bool
+  tags:
+    - RHEL-10-700940
+    - medium
+    - CCI-000381
+  block:
+    - name: "RHEL-10-700940 | Check current systemd default target"
+      ansible.builtin.command:
+        cmd: systemctl get-default
+      register: rhel_10_700940_current
+      changed_when: false
+      failed_when: false
+
+    - name: "RHEL-10-700940 | Set systemd default target"
+      ansible.builtin.command:
+        cmd: "systemctl set-default {{ rhel_10_700940_default_target }}"
+      when: rhel_10_700940_current.stdout | trim != rhel_10_700940_default_target
+      changed_when: true
+
+    - name: "RHEL-10-700940 | Re-check systemd default target"
+      ansible.builtin.command:
+        cmd: systemctl get-default
+      register: rhel_10_700940_verify
+      changed_when: false
+      failed_when: false
+
+    - name: "RHEL-10-700940 | Assert default target matches configured value"
+      ansible.builtin.assert:
+        that: rhel_10_700940_verify.stdout | trim == rhel_10_700940_default_target
+        fail_msg: "result=FAIL stig_id=RHEL-10-700940 detail=Default target is not {{ rhel_10_700940_default_target }} (current={{ rhel_10_700940_verify.stdout | trim }})."
+        success_msg: "result=PASS stig_id=RHEL-10-700940 detail=Default target is {{ rhel_10_700940_default_target }}."
+
+  rescue:
+    - name: "RHEL-10-700940 | RESCUE - record failure and continue"
+      ansible.builtin.debug:
+        msg: "result=ERROR stig_id=RHEL-10-700940 detail=Task failed unexpectedly — see prior error for details."

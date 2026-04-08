@@ -1,0 +1,88 @@
+---
+# =============================================================================
+# STIG ID  : RHEL-10-200647
+# Rule ID  : SV-280990r1165325_rule
+# Severity : medium
+# CCI      : CCI-000067
+# Title    : RHEL 10 must monitor all remote access methods.
+#
+# Description:
+#   Logging remote access methods can be used to trace the decrease in the
+#   risks associated with remote user access management. It can also be used
+#   to spot cyberattacks and ensure ongoing compliance with organizational
+#   policies surrounding the use of remote access methods.
+#
+# Check Text:
+#   Verify RHEL 10 monitors all remote access methods with the following
+#   command:
+#
+#   $ sudo grep -rE '(auth.\*|authpriv.\*|daemon.\*)' /etc/rsyslog.conf
+#   /etc/rsyslog.d/
+#   /etc/rsyslog.conf:authpriv.* /var/log/secure
+#
+#   If "auth.*", "authpriv.*", or "daemon.*" are not configured to be logged,
+#   this is a finding.
+#
+# Fix Text:
+#   Configure RHEL 10 to monitor all remote access methods.
+#
+#   Add or update the following lines to the "/etc/rsyslog.conf" file or a
+#   file in "/etc/rsyslog.d":
+#
+#   auth.*;authpriv.*;daemon.* /var/log/secure
+#
+#   Restart the "rsyslog" service with the following command for the changes
+#   to take effect:
+#
+#   $ sudo systemctl restart rsyslog.service
+# =============================================================================
+
+- name: "RHEL-10-200647 | RHEL 10 must monitor all remote access methods."
+  when: rhel_10_200647 | bool
+  tags:
+    - RHEL-10-200647
+    - medium
+    - CCI-000067
+  block:
+    - name: "RHEL-10-200647 | Check rsyslog auth/authpriv/daemon forwarding configuration"
+      ansible.builtin.shell: >-
+        grep -rE '(auth\.\*|authpriv\.\*|daemon\.\*)' /etc/rsyslog.conf /etc/rsyslog.d/ 2>/dev/null || true
+      register: rhel_10_200647_check
+      changed_when: false
+      failed_when: false
+
+    - name: "RHEL-10-200647 | Create /etc/rsyslog.d/99-stig-auth.conf if auth logging missing"
+      ansible.builtin.copy:
+        dest: /etc/rsyslog.d/99-stig-auth.conf
+        content: "auth.*;authpriv.*;daemon.* /var/log/secure\n"
+        owner: root
+        group: root
+        mode: '0640'
+      register: rhel_10_200647_create
+      when: rhel_10_200647_check.stdout | trim == ''
+
+    - name: "RHEL-10-200647 | Restart rsyslog if auth logging config was created"
+      ansible.builtin.service:
+        name: rsyslog
+        state: restarted
+      when: rhel_10_200647_create is changed
+
+    - name: "RHEL-10-200647 | Re-check rsyslog auth/authpriv/daemon forwarding configuration"
+      ansible.builtin.shell: >-
+        grep -rE '(auth\.\*|authpriv\.\*|daemon\.\*)' /etc/rsyslog.conf /etc/rsyslog.d/ 2>/dev/null || true
+      register: rhel_10_200647_recheck
+      changed_when: false
+      failed_when: false
+
+    - name: "RHEL-10-200647 | Assert auth/authpriv/daemon logging is configured"
+      ansible.builtin.assert:
+        that: rhel_10_200647_recheck.stdout | trim != ''
+        fail_msg: >-
+          result=FAIL stig_id=RHEL-10-200647
+          detail=No auth/authpriv/daemon logging rule found in rsyslog configuration.
+          Add auth.*;authpriv.*;daemon.* /var/log/secure to /etc/rsyslog.conf or /etc/rsyslog.d/.
+        success_msg: "result=PASS stig_id=RHEL-10-200647 detail=rsyslog is configured to log auth/authpriv/daemon facilities."
+  rescue:
+    - name: "RHEL-10-200647 | RESCUE - record failure and continue"
+      ansible.builtin.debug:
+        msg: "result=ERROR stig_id=RHEL-10-200647 detail=Task failed unexpectedly — see prior error for details."

@@ -1,0 +1,97 @@
+---
+# =============================================================================
+# STIG ID  : RHEL-10-700720
+# Rule ID  : SV-281275r1166777_rule
+# Severity : high
+# CCI      : CCI-000213
+# Title    : RHEL 10 must not allow unattended or automatic login via the graphical user interface.
+#
+# Description:
+#   Failure to restrict system access to authenticated users negatively
+#   impacts operating system security.
+#
+# Check Text:
+#   Note: This requirement assumes the use of the RHEL 10 default graphical
+#   user interface, the GNOME desktop environment. If the system does not
+#   have any graphical user interface installed, this requirement is not
+#   applicable.
+#
+#   Verify RHEL 10 does not allow an unattended or automatic login to the
+#   system via a graphical user interface.
+#
+#   Check for the value of the "AutomaticLoginEnable" in the
+#   "/etc/gdm/custom.conf" file with the following command:
+#
+#   $ grep -i automaticlogin /etc/gdm/custom.conf
+#   AutomaticLoginEnable=false
+#
+#   If the value of "AutomaticLoginEnable" is not set to "false", this is a
+#   finding.
+#
+# Fix Text:
+#   Configure RHEL 10 so that the GNOME desktop display manager disables
+#   automatic login.
+#
+#   Update the "/etc/gdm/custom.conf" file to disable automatic login to the
+#   GNOME desktop:
+#
+#   $ sudo vi /etc/gdm/custom.conf
+#
+#   [daemon]
+#   AutomaticLoginEnable=false
+# =============================================================================
+
+- name: "RHEL-10-700720 | RHEL 10 must not allow unattended or automatic login via the graphical user interface."
+  when: rhel_10_700720 | bool
+  tags:
+    - RHEL-10-700720
+    - high
+    - CCI-000213
+  block:
+    - name: "RHEL-10-700720 | Check AutomaticLoginEnable in /etc/gdm/custom.conf"
+      ansible.builtin.command:
+        cmd: grep -i AutomaticLoginEnable /etc/gdm/custom.conf
+      register: rhel_10_700720_check
+      changed_when: false
+      failed_when: false
+
+    - name: "RHEL-10-700720 | Backup /etc/gdm/custom.conf before modification"
+      ansible.builtin.copy:
+        src: /etc/gdm/custom.conf
+        dest: "/etc/gdm/custom.conf.bak.{{ ansible_date_time.iso8601_basic_short }}"
+        remote_src: true
+        mode: '0644'
+        owner: root
+        group: root
+      when: "'AutomaticLoginEnable=false' not in rhel_10_700720_check.stdout"
+
+    - name: "RHEL-10-700720 | Set AutomaticLoginEnable to false in /etc/gdm/custom.conf"
+      ansible.builtin.lineinfile:
+        path: /etc/gdm/custom.conf
+        regexp: '^#?AutomaticLoginEnable'
+        line: 'AutomaticLoginEnable=false'
+        state: present
+        insertafter: '^\[daemon\]'
+        create: true
+        mode: '0644'
+        owner: root
+        group: root
+      when: "'AutomaticLoginEnable=false' not in rhel_10_700720_check.stdout"
+
+    - name: "RHEL-10-700720 | Re-check AutomaticLoginEnable in /etc/gdm/custom.conf"
+      ansible.builtin.command:
+        cmd: grep -i AutomaticLoginEnable /etc/gdm/custom.conf
+      register: rhel_10_700720_verify
+      changed_when: false
+      failed_when: false
+
+    - name: "RHEL-10-700720 | Assert AutomaticLoginEnable is set to false"
+      ansible.builtin.assert:
+        that: "'AutomaticLoginEnable=false' in rhel_10_700720_verify.stdout"
+        fail_msg: "result=FAIL stig_id=RHEL-10-700720 detail=AutomaticLoginEnable is not set to false in /etc/gdm/custom.conf."
+        success_msg: "result=PASS stig_id=RHEL-10-700720 detail=AutomaticLoginEnable is set to false in /etc/gdm/custom.conf."
+
+  rescue:
+    - name: "RHEL-10-700720 | RESCUE - record failure and continue"
+      ansible.builtin.debug:
+        msg: "result=ERROR stig_id=RHEL-10-700720 detail=Task failed unexpectedly — see prior error for details."

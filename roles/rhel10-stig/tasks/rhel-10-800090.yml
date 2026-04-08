@@ -1,0 +1,78 @@
+---
+# =============================================================================
+# STIG ID  : RHEL-10-800090
+# Rule ID  : SV-281341r1167173_rule
+# Severity : medium
+# CCI      : CCI-002385
+# Title    : RHEL 10 must ignore Internet Protocol version 4 (IPv4) Internet Control Message Protocol (ICMP) redirect messages.
+#
+# Description:
+#   ICMP redirect messages are used by routers to inform hosts that a more
+#   direct route exists for a particular destination. These messages modify
+#   the host's route table and are unauthenticated. An illicit ICMP redirect
+#   message could result in a man-in-the-middle attack. This feature of the
+#   IPv4 protocol has few legitimate uses. It should be disabled unless
+#   absolutely required. Satisfies: SRG-OS-000420-GPOS-00186,
+#   SRG-OS-000142-GPOS-00072
+#
+# Check Text:
+#   Verify RHEL 10 will not accept IPv4 ICMP redirect messages.
+#
+#   Check the value of all "net.ipv4.conf.all.accept_redirects" variables
+#   with the following command:
+#
+#   $ sudo sysctl net.ipv4.conf.all.accept_redirects
+#   net.ipv4.conf.all.accept_redirects = 0
+#
+#   If "net.ipv4.conf.all.accept_redirects" is not set to "0" or is missing,
+#   this is a finding.
+#
+# Fix Text:
+#   Configure RHEL 10 to ignore IPv4 ICMP redirect messages.
+#
+#   Create a configuration file if it does not already exist:
+#
+#   $ sudo vi /etc/sysctl.d/99-ipv4_accept_redirects.conf
+#
+#   Add the following line to the file:
+#
+#   net.ipv4.conf.all.accept_redirects = 0
+#
+#   Reload settings from all system configuration files with the following
+#   command:
+#
+#   $ sudo sysctl --system
+# =============================================================================
+
+- name: "RHEL-10-800090 | RHEL 10 must ignore Internet Protocol version 4 (IPv4) Internet Control Message Protocol (ICMP) redirect messages."
+  when: rhel_10_800090 | bool
+  tags:
+    - RHEL-10-800090
+    - medium
+    - CCI-002385
+  block:
+    - name: "RHEL-10-800090 | Set sysctl net.ipv4.conf.all.accept_redirects = 0"
+      ansible.posix.sysctl:
+        name: net.ipv4.conf.all.accept_redirects
+        value: '0'
+        state: present
+        reload: true
+        sysctl_file: /etc/sysctl.d/rhel10-stig.conf
+
+    - name: "RHEL-10-800090 | Verify net.ipv4.conf.all.accept_redirects"
+      ansible.builtin.command:
+        cmd: sysctl net.ipv4.conf.all.accept_redirects
+      register: rhel_10_800090_sysctl
+      changed_when: false
+      failed_when: false
+
+    - name: "RHEL-10-800090 | Assert net.ipv4.conf.all.accept_redirects = 0"
+      ansible.builtin.assert:
+        that: "'= 0' in rhel_10_800090_sysctl.stdout"
+        fail_msg: "result=FAIL stig_id=RHEL-10-800090 detail=net.ipv4.conf.all.accept_redirects is not set to 0 (output={{ rhel_10_800090_sysctl.stdout | trim }})."
+        success_msg: "result=PASS stig_id=RHEL-10-800090 detail=net.ipv4.conf.all.accept_redirects is set to 0."
+
+  rescue:
+    - name: "RHEL-10-800090 | RESCUE - record failure and continue"
+      ansible.builtin.debug:
+        msg: "result=ERROR stig_id=RHEL-10-800090 detail=Task failed unexpectedly — see prior error for details."

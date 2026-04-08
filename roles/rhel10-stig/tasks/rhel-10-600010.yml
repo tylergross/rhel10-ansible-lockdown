@@ -1,0 +1,75 @@
+---
+# =============================================================================
+# STIG ID  : RHEL-10-600010
+# Rule ID  : SV-281167r1166453_rule
+# Severity : medium
+# CCI      : CCI-000213
+# Title    : RHEL 10 must require a unique superusers name upon booting into single-user and maintenance modes.
+#
+# Description:
+#   Having a nondefault grub superuser username makes password-guessing
+#   attacks less effective.
+#
+# Check Text:
+#   Verify RHEL 10 requires a unique superusers name upon booting into
+#   single-user and maintenance modes.
+#
+#   Verify that the boot loader superuser account has been set with the
+#   following command:
+#
+#   $ sudo grep -A1 "superusers" /etc/grub2.cfg
+#   set superusers="<accountname>"
+#   export superusers
+#   password_pbkdf2 <accountname> ${GRUB2_PASSWORD}
+#
+#   Verify <accountname> is not a common name such as root, admin, or
+#   administrator.
+#
+#   If superusers contains easily guessable usernames, this is a finding.
+#
+# Fix Text:
+#   Configure RHEL 10 to have a unique username for the grub superuser
+#   account.
+#
+#   Edit the "/etc/grub.d/01_users" file and add or modify the following
+#   lines with a nondefault username for the superuser account:
+#
+#   set superusers="<accountname>"
+#   export superusers
+#
+#   Once the superuser account has been added, update the "grub.cfg" file by
+#   regenerating the GRUB configuration with the following command:
+#
+#   $ sudo grub2-mkconfig -o /boot/grub2/grub.cfg --update-bls-cmdline
+#
+#   Reboot the system:
+#
+#   $ sudo reboot
+# =============================================================================
+
+- name: "RHEL-10-600010 | RHEL 10 must require a unique superusers name upon booting into single-user and maintenance modes."
+  when: rhel_10_600010 | bool
+  tags:
+    - RHEL-10-600010
+    - medium
+    - CCI-000213
+  block:
+    - name: "RHEL-10-600010 | Check superusers name in /etc/grub2.cfg"
+      ansible.builtin.command:
+        cmd: grep -A1 "superusers" /etc/grub2.cfg
+      register: rhel_10_600010_check
+      changed_when: false
+      failed_when: false
+
+    - name: "RHEL-10-600010 | Assert superusers name is set and not a common/default name"
+      ansible.builtin.assert:
+        that:
+          - rhel_10_600010_check.rc == 0
+          - rhel_10_600010_check.stdout | length > 0
+          - not (rhel_10_600010_check.stdout | regex_search('superusers\s*=\s*"(root|admin|administrator)"'))
+        fail_msg: "result=FAIL stig_id=RHEL-10-600010 detail=GRUB2 superusers account is missing, uses an easily guessable name, or /etc/grub2.cfg is not present. Edit /etc/grub.d/01_users and run grub2-mkconfig to set a unique superuser name."
+        success_msg: "result=PASS stig_id=RHEL-10-600010 detail=GRUB2 superusers account is configured with a unique name."
+  rescue:
+    - name: "RHEL-10-600010 | RESCUE - record failure and continue"
+      ansible.builtin.debug:
+        msg: "result=ERROR stig_id=RHEL-10-600010 detail=Task failed unexpectedly — see prior error for details."

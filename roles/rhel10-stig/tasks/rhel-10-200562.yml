@@ -1,0 +1,80 @@
+---
+# =============================================================================
+# STIG ID  : RHEL-10-200562
+# Rule ID  : SV-280964r1165247_rule
+# Severity : medium
+# CCI      : CCI-001958
+# Title    : RHEL 10 must block unauthorized peripherals before establishing a connection.
+#
+# Description:
+#   The USBGuard-daemon is the main component of the USBGuard software
+#   framework. It runs as a service in the background and enforces the USB
+#   device authorization policy for all USB devices. The policy is defined by
+#   a set of rules using a rule language described in the
+#   "usbguard-rules.conf" file. The policy and the authorization state of USB
+#   devices can be modified during runtime using the usbguard tool. The
+#   system administrator (SA) must work with the site information system
+#   security officer (ISSO) to determine a list of authorized peripherals and
+#   establish rules within the USBGuard software framework to allow only
+#   authorized devices.
+#
+# Check Text:
+#   Note: If the system is virtual machine with no virtual or physical USB
+#   peripherals attached, this is not applicable.
+#
+#   Verify RHEL 10 USBGuard has a policy configured.
+#
+#   Confirm the setting with the following command:
+#
+#   $ sudo usbguard list-rules
+#   allow id 1d6b:0001 serial
+#
+#   If the command does not return results, or an error is returned, ask the
+#   SA to indicate how unauthorized peripherals are being blocked.
+#
+#   If there is no evidence that unauthorized peripherals are being blocked
+#   before establishing a connection, this is a finding.
+#
+# Fix Text:
+#   Configure RHEL 10 to enable the blocking of unauthorized peripherals with
+#   the following command:
+#
+#   Note: This command must be run from a root shell and will create an
+#   allowlist for any USB devices currently connected to the system.
+#
+#   # usbguard generate-policy --no-hash > /etc/usbguard/rules.conf
+#
+#   Note: Enabling and starting usbguard without properly configuring it for
+#   an individual system will immediately prevent any access over a USB
+#   device such as a keyboard or mouse.
+# =============================================================================
+
+- name: "RHEL-10-200562 | RHEL 10 must block unauthorized peripherals before establishing a connection."
+  when: rhel_10_200562 | bool
+  tags:
+    - RHEL-10-200562
+    - medium
+    - CCI-001958
+  block:
+    - name: "RHEL-10-200562 | Check usbguard has rules configured"
+      ansible.builtin.command: usbguard list-rules
+      register: rhel_10_200562_rules
+      changed_when: false
+      failed_when: false
+
+    - name: "RHEL-10-200562 | Assert usbguard has at least one rule"
+      ansible.builtin.assert:
+        that:
+          - rhel_10_200562_rules.rc == 0
+          - rhel_10_200562_rules.stdout | trim != ''
+        fail_msg: >-
+          result=FAIL stig_id=RHEL-10-200562
+          detail=USBGuard has no rules configured — unauthorized peripherals will not be blocked.
+          Generate an initial policy from connected devices with:
+          usbguard generate-policy > /etc/usbguard/rules.conf
+          then review and reload: systemctl restart usbguard
+        success_msg: "result=PASS stig_id=RHEL-10-200562 detail=USBGuard has rules configured — unauthorized peripherals will be blocked."
+  rescue:
+    - name: "RHEL-10-200562 | RESCUE - record failure and continue"
+      ansible.builtin.debug:
+        msg: "result=ERROR stig_id=RHEL-10-200562 detail=Task failed unexpectedly — see prior error for details."

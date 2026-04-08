@@ -1,0 +1,64 @@
+---
+# =============================================================================
+# STIG ID  : RHEL-10-400000
+# Rule ID  : SV-281017r1165406_rule
+# Severity : medium
+# CCI      : CCI-000213
+# Title    : RHEL 10 must be configured so that the "/etc/group" file is owned by root.
+#
+# Description:
+#   The "/etc/group" file contains information regarding groups that are
+#   configured on the system. Protection of this file is important for system
+#   security.
+#
+# Check Text:
+#   Verify RHEL 10 is configured so that "/etc/group" file is owned by "root"
+#   with the following command:
+#
+#   $ sudo stat -c "%U %n" /etc/group
+#   root /etc/group
+#
+#   If the "/etc/group" file does not have an owner of "root", this is a
+#   finding.
+#
+# Fix Text:
+#   Configure RHEL 10 so that the owner of the file "/etc/group" is set to
+#   "root" by running the following command:
+#
+#   $ sudo chown root /etc/group
+# =============================================================================
+
+- name: "RHEL-10-400000 | RHEL 10 must be configured so that the /etc/group file is owned by root."
+  when: rhel_10_400000 | bool
+  tags:
+    - RHEL-10-400000
+    - medium
+    - CCI-000213
+  block:
+    - name: "RHEL-10-400000 | Check owner of /etc/group"
+      ansible.builtin.stat:
+        path: /etc/group
+      register: rhel_10_400000_stat
+
+    - name: "RHEL-10-400000 | Set correct owner on /etc/group"
+      ansible.builtin.file:
+        path: /etc/group
+        owner: root
+      when: rhel_10_400000_stat.stat.pw_name != 'root'
+
+    - name: "RHEL-10-400000 | Re-check owner of /etc/group"
+      ansible.builtin.stat:
+        path: /etc/group
+      register: rhel_10_400000_verify
+
+    - name: "RHEL-10-400000 | Assert correct owner on /etc/group"
+      ansible.builtin.assert:
+        that:
+          - rhel_10_400000_verify.stat.pw_name == 'root'
+        fail_msg: "result=FAIL stig_id=RHEL-10-400000 detail=/etc/group is not owned by root (owner={{ rhel_10_400000_verify.stat.pw_name }})."
+        success_msg: "result=PASS stig_id=RHEL-10-400000 detail=/etc/group is owned by root."
+
+  rescue:
+    - name: "RHEL-10-400000 | RESCUE - record failure and continue"
+      ansible.builtin.debug:
+        msg: "result=ERROR stig_id=RHEL-10-400000 detail=Task failed unexpectedly — see prior error for details."

@@ -1,0 +1,77 @@
+---
+# =============================================================================
+# STIG ID  : RHEL-10-400150
+# Rule ID  : SV-281047r1184647_rule
+# Severity : medium
+# CCI      : CCI-000213
+# Title    : RHEL 10 must be configured so that the Secure Shell (SSH) server configuration file is group-owned by "root".
+#
+# Description:
+#   Service configuration files enable or disable features of their
+#   respective services, which if configured incorrectly can lead to insecure
+#   and vulnerable configurations. Therefore, service configuration files
+#   must be owned by the correct group to prevent unauthorized changes.
+#
+# Check Text:
+#   Verify RHEL 10 is configured so that the "/etc/ssh/sshd_config" file and
+#   the contents of "/etc/ssh/sshd_config.d" are group-owned by "root" with
+#   the following command:
+#
+#   $ sudo find /etc/ssh/sshd_config /etc/ssh/sshd_config.d -exec stat -c "%G
+#   %n" {} \;
+#   root /etc/ssh/sshd_config
+#   root /etc/ssh/sshd_config.d
+#   root /etc/ssh/sshd_config.d/50-cloud-init.conf
+#   root /etc/ssh/sshd_config.d/50-redhat.conf
+#
+#   If the "/etc/ssh/sshd_config" file or "/etc/ssh/sshd_config.d" or any
+#   files in the "sshd_config.d" directory do not have a group owner of
+#   "root", this is a finding.
+#
+# Fix Text:
+#   Configure RHEL 10 so that the "/etc/ssh/sshd_config" file and the
+#   contents of "/etc/ssh/sshd_config.d" are group-owned by "root" with the
+#   following command:
+#
+#   $ sudo chgrp root /etc/ssh/sshd_config /etc/ssh/sshd_config.d
+# =============================================================================
+
+- name: "RHEL-10-400150 | RHEL 10 must be configured so that the Secure Shell (SSH) server configuration file is group-owned by root."
+  when: rhel_10_400150 | bool
+  tags:
+    - RHEL-10-400150
+    - medium
+    - CCI-000213
+  block:
+    - name: "RHEL-10-400150 | Find sshd_config files not group-owned by root"
+      ansible.builtin.command:
+        cmd: find /etc/ssh/sshd_config /etc/ssh/sshd_config.d ! -group root -print 2>/dev/null
+      register: rhel_10_400150_check
+      changed_when: false
+      failed_when: false
+
+    - name: "RHEL-10-400150 | Set root group ownership on sshd_config files"
+      ansible.builtin.file:
+        path: "{{ item }}"
+        group: root
+      loop: "{{ rhel_10_400150_check.stdout_lines }}"
+      when: rhel_10_400150_check.stdout_lines | length > 0
+
+    - name: "RHEL-10-400150 | Re-check sshd_config files not group-owned by root"
+      ansible.builtin.command:
+        cmd: find /etc/ssh/sshd_config /etc/ssh/sshd_config.d ! -group root -print 2>/dev/null
+      register: rhel_10_400150_verify
+      changed_when: false
+      failed_when: false
+
+    - name: "RHEL-10-400150 | Assert sshd_config files are group-owned by root"
+      ansible.builtin.assert:
+        that:
+          - rhel_10_400150_verify.stdout_lines | length == 0
+        fail_msg: "result=FAIL stig_id=RHEL-10-400150 detail=SSH server config files not group-owned by root: {{ rhel_10_400150_verify.stdout_lines | join(', ') }}."
+        success_msg: "result=PASS stig_id=RHEL-10-400150 detail=All SSH server configuration files are group-owned by root."
+
+  rescue:
+    - name: "RHEL-10-400150 | RESCUE - record failure and continue"
+      ansible.builtin.debug:
+        msg: "result=ERROR stig_id=RHEL-10-400150 detail=Task failed unexpectedly — see prior error for details."

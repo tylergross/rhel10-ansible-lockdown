@@ -1,0 +1,80 @@
+---
+# =============================================================================
+# STIG ID  : RHEL-10-701080
+# Rule ID  : SV-281310r1167080_rule
+# Severity : medium
+# CCI      : CCI-002165
+# Title    : RHEL 10 must enable kernel parameters to enforce discretionary access control (DAC) on symlinks.
+#
+# Description:
+#   By enabling the "fs.protected_symlinks" kernel parameter, symbolic links
+#   are permitted to be followed only when outside a sticky world-writable
+#   directory, or when the user identifier (UID) of the link and follower
+#   match, or when the directory owner matches the symlink's owner.
+#   Disallowing such symlinks helps mitigate vulnerabilities based on
+#   insecure file systems accessed by privileged programs, avoiding an
+#   exploitation vector exploiting unsafe use of open() or creat().
+#   Satisfies: SRG-OS-000312-GPOS-00122, SRG-OS-000312-GPOS-00123,
+#   SRG-OS-000324-GPOS-00125
+#
+# Check Text:
+#   Verify RHEL 10 is configured to enable DAC on symlinks.
+#
+#   Check the status of the "fs.protected_symlinks" kernel parameter with the
+#   following command:
+#
+#   $ sudo sysctl fs.protected_symlinks
+#   fs.protected_symlinks = 1
+#
+#   If "fs.protected_symlinks" is not set to "1" or is missing, this is a
+#   finding.
+#
+# Fix Text:
+#   Configure RHEL 10 to enable DAC on symlinks with the following:
+#
+#   Create a drop-in if it does not already exist:
+#
+#   $ sudo vi /etc/sysctl.d/99-fs_protected_symlinks.conf
+#
+#   Add the following to the file:
+#
+#   fs.protected_symlinks = 1
+#
+#   Reload settings from all system configuration files with the following
+#   command:
+#
+#   $ sudo sysctl --system
+# =============================================================================
+
+- name: "RHEL-10-701080 | RHEL 10 must enable kernel parameters to enforce discretionary access control (DAC) on symlinks."
+  when: rhel_10_701080 | bool
+  tags:
+    - RHEL-10-701080
+    - medium
+    - CCI-002165
+  block:
+    - name: "RHEL-10-701080 | Set sysctl fs.protected_symlinks = 1"
+      ansible.posix.sysctl:
+        name: fs.protected_symlinks
+        value: '1'
+        state: present
+        reload: true
+        sysctl_file: /etc/sysctl.d/rhel10-stig.conf
+
+    - name: "RHEL-10-701080 | Verify fs.protected_symlinks"
+      ansible.builtin.command:
+        cmd: sysctl fs.protected_symlinks
+      register: rhel_10_701080_sysctl
+      changed_when: false
+      failed_when: false
+
+    - name: "RHEL-10-701080 | Assert fs.protected_symlinks = 1"
+      ansible.builtin.assert:
+        that: "'= 1' in rhel_10_701080_sysctl.stdout"
+        fail_msg: "result=FAIL stig_id=RHEL-10-701080 detail=fs.protected_symlinks is not set to 1 (output={{ rhel_10_701080_sysctl.stdout | trim }})."
+        success_msg: "result=PASS stig_id=RHEL-10-701080 detail=fs.protected_symlinks is set to 1."
+
+  rescue:
+    - name: "RHEL-10-701080 | RESCUE - record failure and continue"
+      ansible.builtin.debug:
+        msg: "result=ERROR stig_id=RHEL-10-701080 detail=Task failed unexpectedly — see prior error for details."

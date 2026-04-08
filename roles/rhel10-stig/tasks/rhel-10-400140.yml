@@ -1,0 +1,77 @@
+---
+# =============================================================================
+# STIG ID  : RHEL-10-400140
+# Rule ID  : SV-281045r1165490_rule
+# Severity : medium
+# CCI      : CCI-001090
+# Title    : RHEL 10 must be configured so that world-writable directories are owned by root, sys, bin, or an application user.
+#
+# Description:
+#   If a world-writable directory is not owned by root, sys, bin, or an
+#   application user identifier (UID), unauthorized users may be able to
+#   modify files created by others. The only authorized public directories
+#   are temporary directories supplied with the system or those designed to
+#   be temporary file repositories. The setting is normally reserved for
+#   directories used by the system and by users for temporary file storage,
+#   (e.g., /tmp), and for directories requiring global read/write access.
+#
+# Check Text:
+#   Verify RHEL 10 world-writable directories are owned by root, a system
+#   account, or an application account with the following command:
+#
+#   $ sudo find / -xdev -type d -perm -0002 -uid +999 -exec stat -c "%U, %u,
+#   %A, %n" {} \; 2>/dev/null
+#
+#   If output indicates that world-writable directories are owned by any
+#   account other than root or an approved system account, this is a finding.
+#
+# Fix Text:
+#   Configure RHEL 10 public directories to be owned by root or a system
+#   account to prevent unauthorized and unintended information transferred
+#   via shared system resources.
+#
+#   Use the following command template to set ownership of public directories
+#   to root or a system account:
+#
+#   $ sudo chown [root or system account] [Public Directory]
+# =============================================================================
+
+- name: "RHEL-10-400140 | RHEL 10 must be configured so that world-writable directories are owned by root, sys, bin, or an application user."
+  when: rhel_10_400140 | bool
+  tags:
+    - RHEL-10-400140
+    - medium
+    - CCI-001090
+  block:
+    - name: "RHEL-10-400140 | Find world-writable directories owned by non-system users (uid > 999)"
+      ansible.builtin.command:
+        cmd: find / -xdev -type d -perm -0002 -uid +999 -print 2>/dev/null
+      register: rhel_10_400140_check
+      changed_when: false
+      failed_when: false
+
+    - name: "RHEL-10-400140 | Set root ownership on world-writable directories owned by non-system users"
+      ansible.builtin.file:
+        path: "{{ item }}"
+        owner: root
+      loop: "{{ rhel_10_400140_check.stdout_lines }}"
+      when: rhel_10_400140_check.stdout_lines | length > 0
+
+    - name: "RHEL-10-400140 | Re-check world-writable directories owned by non-system users"
+      ansible.builtin.command:
+        cmd: find / -xdev -type d -perm -0002 -uid +999 -print 2>/dev/null
+      register: rhel_10_400140_verify
+      changed_when: false
+      failed_when: false
+
+    - name: "RHEL-10-400140 | Assert no world-writable directories are owned by non-system users"
+      ansible.builtin.assert:
+        that:
+          - rhel_10_400140_verify.stdout_lines | length == 0
+        fail_msg: "result=FAIL stig_id=RHEL-10-400140 detail=World-writable directories owned by non-system accounts: {{ rhel_10_400140_verify.stdout_lines | join(', ') }}."
+        success_msg: "result=PASS stig_id=RHEL-10-400140 detail=All world-writable directories are owned by root or system accounts."
+
+  rescue:
+    - name: "RHEL-10-400140 | RESCUE - record failure and continue"
+      ansible.builtin.debug:
+        msg: "result=ERROR stig_id=RHEL-10-400140 detail=Task failed unexpectedly — see prior error for details."

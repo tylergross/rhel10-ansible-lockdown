@@ -1,0 +1,81 @@
+---
+# =============================================================================
+# STIG ID  : RHEL-10-700115
+# Rule ID  : SV-281231r1166645_rule
+# Severity : medium
+# CCI      : CCI-000213
+# Title    : RHEL 10 must be configured so that the Network File System (NFS) is configured to use RPCSEC_GSS.
+#
+# Description:
+#   When an NFS server is configured to use RPCSEC_SYS, a selected userid and
+#   groupid are used to handle requests from the remote user. The userid and
+#   groupid could mistakenly or maliciously be set incorrectly. The
+#   RPCSEC_GSS method of authentication uses certificates on the server and
+#   client systems to more securely authenticate the remote mount request.
+#
+# Check Text:
+#   Note: If no NFS mounts are configured, this requirement is not
+#   applicable.
+#
+#   Verify RHEL 10 has the "sec" option configured for all NFS mounts with
+#   the following command:
+#
+#   $ sudo grep nfs /etc/fstab
+#   192.168.22.2:/mnt/export /data nfs4
+#   rw,nosuid,nodev,noexec,sync,soft,sec=krb5p:krb5i:krb5
+#
+#   If the system is mounting file systems via NFS and has the sec option
+#   without the "krb5:krb5i:krb5p" settings, the "sec" option has the "sys"
+#   setting, or the "sec" option is missing, this is a finding.
+#
+# Fix Text:
+#   Configure RHEL 10 so that the "/etc/fstab" file "sec" option is defined
+#   for each NFS mounted file system, and the "sec" option does not have the
+#   "sys" setting.
+#
+#   Ensure the "sec" option is defined as "krb5p:krb5i:krb5".
+# =============================================================================
+
+- name: "RHEL-10-700115 | RHEL 10 must be configured so that the Network File System (NFS) is configured to use RPCSEC_GSS."
+  when: rhel_10_700115 | bool
+  tags:
+    - RHEL-10-700115
+    - medium
+    - CCI-000213
+  block:
+    - name: "RHEL-10-700115 | Check for NFS mounts in /etc/fstab"
+      ansible.builtin.command:
+        cmd: grep -i nfs /etc/fstab
+      register: rhel_10_700115_nfs
+      changed_when: false
+      failed_when: false
+
+    - name: "RHEL-10-700115 | Check for NFS mounts with sec=sys or missing krb5"
+      ansible.builtin.command:
+        cmd: grep -iP '\snfs' /etc/fstab
+      register: rhel_10_700115_raw
+      changed_when: false
+      failed_when: false
+      when: rhel_10_700115_nfs.rc == 0
+
+    - name: "RHEL-10-700115 | Check for NFS mounts missing valid sec= option"
+      ansible.builtin.command:
+        cmd: grep -iP '\snfs\S*\s+\S+\s+\S*(?:(?!sec=krb5)|sec=sys)' /etc/fstab
+      register: rhel_10_700115_missing
+      changed_when: false
+      failed_when: false
+      when: rhel_10_700115_nfs.rc == 0
+
+    - name: "RHEL-10-700115 | Assert NFS mounts use RPCSEC_GSS (krb5) or no NFS mounts exist"
+      ansible.builtin.assert:
+        that: >
+          rhel_10_700115_nfs.rc != 0 or
+          (rhel_10_700115_raw.stdout_lines | select('search', 'sec=') | list | length > 0 and
+           rhel_10_700115_raw.stdout_lines | select('search', 'sec=sys') | list | length == 0)
+        fail_msg: "result=FAIL stig_id=RHEL-10-700115 detail=NFS mount(s) found in /etc/fstab without a valid RPCSEC_GSS sec= option (krb5/krb5i/krb5p). Update /etc/fstab manually."
+        success_msg: "result=PASS stig_id=RHEL-10-700115 detail=No NFS mounts found or all NFS mounts use RPCSEC_GSS authentication."
+
+  rescue:
+    - name: "RHEL-10-700115 | RESCUE - record failure and continue"
+      ansible.builtin.debug:
+        msg: "result=ERROR stig_id=RHEL-10-700115 detail=Task failed unexpectedly — see prior error for details."

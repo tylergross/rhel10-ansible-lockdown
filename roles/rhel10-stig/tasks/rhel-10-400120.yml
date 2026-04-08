@@ -1,0 +1,77 @@
+---
+# =============================================================================
+# STIG ID  : RHEL-10-400120
+# Rule ID  : SV-281041r1165478_rule
+# Severity : medium
+# CCI      : CCI-001499
+# Title    : RHEL 10 must be configured so that library directories are owned by "root".
+#
+# Description:
+#   If RHEL 10 allowed any user to make changes to software libraries, those
+#   changes might be implemented without undergoing the appropriate testing
+#   and approvals that are part of a robust change management process. This
+#   requirement applies to RHEL 10 with software libraries that are
+#   accessible and configurable, as in the case of interpreted languages.
+#   Software libraries also include privileged programs that execute with
+#   escalated privileges.
+#
+# Check Text:
+#   Verify RHEL 10 is configured so that the systemwide shared library
+#   directories are owned by "root" with the following command:
+#
+#   $ sudo find /lib /lib64 /usr/lib /usr/lib64 ! -user root -type d -exec
+#   stat -c "%U %n" {} \;
+#
+#   If any systemwide shared library directory is not owned by "root", this
+#   is a finding.
+#
+# Fix Text:
+#   Configure RHEL 10 so that the systemwide shared library directories
+#   (/lib, /lib64, /usr/lib, and /usr/lib64) are protected from unauthorized
+#   access.
+#
+#   Run the following command, replacing "[DIRECTORY]" with any library
+#   directory not owned by "root".
+#
+#   $ sudo chown root [DIRECTORY]
+# =============================================================================
+
+- name: "RHEL-10-400120 | RHEL 10 must be configured so that library directories are owned by root."
+  when: rhel_10_400120 | bool
+  tags:
+    - RHEL-10-400120
+    - medium
+    - CCI-001499
+  block:
+    - name: "RHEL-10-400120 | Find library directories not owned by root"
+      ansible.builtin.command:
+        cmd: find /lib /lib64 /usr/lib /usr/lib64 ! -user root -type d -print
+      register: rhel_10_400120_check
+      changed_when: false
+      failed_when: false
+
+    - name: "RHEL-10-400120 | Set root ownership on library directories not owned by root"
+      ansible.builtin.file:
+        path: "{{ item }}"
+        owner: root
+      loop: "{{ rhel_10_400120_check.stdout_lines }}"
+      when: rhel_10_400120_check.stdout_lines | length > 0
+
+    - name: "RHEL-10-400120 | Re-check library directories not owned by root"
+      ansible.builtin.command:
+        cmd: find /lib /lib64 /usr/lib /usr/lib64 ! -user root -type d -print
+      register: rhel_10_400120_verify
+      changed_when: false
+      failed_when: false
+
+    - name: "RHEL-10-400120 | Assert all library directories are owned by root"
+      ansible.builtin.assert:
+        that:
+          - rhel_10_400120_verify.stdout_lines | length == 0
+        fail_msg: "result=FAIL stig_id=RHEL-10-400120 detail=Library directories not owned by root: {{ rhel_10_400120_verify.stdout_lines | join(', ') }}."
+        success_msg: "result=PASS stig_id=RHEL-10-400120 detail=All library directories are owned by root."
+
+  rescue:
+    - name: "RHEL-10-400120 | RESCUE - record failure and continue"
+      ansible.builtin.debug:
+        msg: "result=ERROR stig_id=RHEL-10-400120 detail=Task failed unexpectedly — see prior error for details."

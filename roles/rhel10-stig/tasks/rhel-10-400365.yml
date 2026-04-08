@@ -1,0 +1,64 @@
+---
+# =============================================================================
+# STIG ID  : RHEL-10-400365
+# Rule ID  : SV-281090r1165625_rule
+# Severity : medium
+# CCI      : CCI-000213
+# Title    : RHEL 10 must prevent code from being executed on file systems that contain user home directories.
+#
+# Description:
+#   The "noexec" mount option causes the system to not execute binary files.
+#   This option must be used for mounting any file system not containing
+#   approved binary files, as they may be incompatible. Executing files from
+#   untrusted file systems increases the opportunity for nonprivileged users
+#   to attain unauthorized administrative access.
+#
+# Check Text:
+#   Verify RHEL 10 is configured so that "/home" is mounted with the "noexec"
+#   option with the following command:
+#
+#   Note: If a separate file system has not been created for the user home
+#   directories (user home directories are mounted under "/"), this is
+#   automatically a finding, as the "noexec" option cannot be used on the "/"
+#   system.
+#
+#   $ mount | grep /home
+#   /dev/mapper/luks-ca2261ed-7b00-4b7b-84cd-8cd6d8fa4b28 on /home type xfs
+#   (rw,nodev,nosuid,noexec,seclabel)
+#
+#   If the "/home" file system is mounted without the "noexec" option, this
+#   is a finding.
+#
+# Fix Text:
+#   Configure RHEL 10 to prevent code from being executed on file systems
+#   that contain user home directories.
+#
+#   Modify "/etc/fstab" to use the "noexec" option on the "/home" directory.
+# =============================================================================
+
+- name: "RHEL-10-400365 | RHEL 10 must prevent code from being executed on file systems that contain user home directories."
+  when: rhel_10_400365 | bool
+  tags:
+    - RHEL-10-400365
+    - medium
+    - CCI-000213
+  block:
+    - name: "RHEL-10-400365 | Check mount options for /home"
+      ansible.builtin.command:
+        cmd: findmnt --noheadings --mountpoint /home --output OPTIONS
+      register: rhel_10_400365_mount
+      changed_when: false
+      failed_when: false
+
+    - name: "RHEL-10-400365 | Assert noexec is set on /home"
+      ansible.builtin.assert:
+        that:
+          - rhel_10_400365_mount.rc == 0
+          - "'noexec' in rhel_10_400365_mount.stdout"
+        fail_msg: "result=FAIL stig_id=RHEL-10-400365 detail=/home is not mounted with noexec (options={{ rhel_10_400365_mount.stdout | trim }}). Fix: add noexec to /etc/fstab and remount."
+        success_msg: "result=PASS stig_id=RHEL-10-400365 detail=/home is mounted with noexec."
+
+  rescue:
+    - name: "RHEL-10-400365 | RESCUE - record failure and continue"
+      ansible.builtin.debug:
+        msg: "result=ERROR stig_id=RHEL-10-400365 detail=Task failed unexpectedly — see prior error for details."

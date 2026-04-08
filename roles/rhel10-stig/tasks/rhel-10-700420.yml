@@ -1,0 +1,103 @@
+---
+# =============================================================================
+# STIG ID  : RHEL-10-700420
+# Rule ID  : SV-281251r1166705_rule
+# Severity : medium
+# CCI      : CCI-002696
+# Title    : RHEL 10 must use a Linux Security Module configured to enforce limits on system services.
+#
+# Description:
+#   Without verification of the security functions, security functions may
+#   not operate correctly and the failure may go unnoticed. Security function
+#   is defined as the hardware, software, and/or firmware of the information
+#   system responsible for enforcing the system security policy and
+#   supporting the isolation of code and data on which the protection is
+#   based. Security functionality includes, but is not limited to,
+#   establishing system accounts, configuring access authorizations (i.e.,
+#   permissions, privileges), setting events to be audited, and setting
+#   intrusion detection parameters. This requirement applies to operating
+#   systems performing security function verification/testing and/or systems
+#   and environments that require this functionality. Satisfies:
+#   SRG-OS-000445-GPOS-00199, SRG-OS-000134-GPOS-00068
+#
+# Check Text:
+#   Verify RHEL 10 enforces correct operation of security functions through
+#   the use of SELinux with the following command:
+#
+#   $ getenforce
+#   Enforcing
+#
+#   If SELINUX is not set to "Enforcing", this is a finding.
+#
+#   Verify SELinux is configured to be enforcing at boot.
+#
+#   $ sudo grep "SELINUX=" /etc/selinux/config | grep -v '#'
+#   SELINUX=enforcing
+#
+#   If an uncommented SELinux line is missing or not set to "enforcing", this
+#   is a finding.
+#
+# Fix Text:
+#   Configure RHEL 10 to enforce correct operation of security functions.
+#
+#   Edit the file "/etc/selinux/config" and add or modify the following line:
+#
+#   SELINUX=enforcing
+#
+#   A reboot is required for the changes to take effect.
+# =============================================================================
+
+- name: "RHEL-10-700420 | RHEL 10 must use a Linux Security Module configured to enforce limits on system services."
+  when: rhel_10_700420 | bool
+  tags:
+    - RHEL-10-700420
+    - medium
+    - CCI-002696
+  block:
+    - name: "RHEL-10-700420 | Check SELinux enforcement status"
+      ansible.builtin.command:
+        cmd: getenforce
+      register: rhel_10_700420_getenforce
+      changed_when: false
+      failed_when: false
+
+    - name: "RHEL-10-700420 | Backup /etc/selinux/config before modification"
+      ansible.builtin.copy:
+        src: /etc/selinux/config
+        dest: "/etc/selinux/config.bak.{{ ansible_date_time.epoch }}"
+        remote_src: true
+        mode: preserve
+      when: rhel_10_700420_getenforce.stdout | lower != 'enforcing'
+
+    - name: "RHEL-10-700420 | Set SELINUX=enforcing in /etc/selinux/config"
+      ansible.builtin.lineinfile:
+        path: /etc/selinux/config
+        regexp: '^#?SELINUX='
+        line: 'SELINUX=enforcing'
+        state: present
+      when: rhel_10_700420_getenforce.stdout | lower != 'enforcing'
+
+    - name: "RHEL-10-700420 | Set SELinux to enforcing mode immediately"
+      ansible.builtin.command:
+        cmd: setenforce 1
+      when: rhel_10_700420_getenforce.stdout | lower != 'enforcing'
+      changed_when: true
+      failed_when: false
+
+    - name: "RHEL-10-700420 | Re-check SELinux enforcement status"
+      ansible.builtin.command:
+        cmd: getenforce
+      register: rhel_10_700420_verify
+      changed_when: false
+      failed_when: false
+
+    - name: "RHEL-10-700420 | Assert SELinux is in Enforcing mode"
+      ansible.builtin.assert:
+        that: rhel_10_700420_verify.stdout | lower == 'enforcing'
+        fail_msg: "result=FAIL stig_id=RHEL-10-700420 detail=SELinux is not in Enforcing mode (current={{ rhel_10_700420_verify.stdout }})."
+        success_msg: "result=PASS stig_id=RHEL-10-700420 detail=SELinux is in Enforcing mode."
+
+  rescue:
+    - name: "RHEL-10-700420 | RESCUE - record failure and continue"
+      ansible.builtin.debug:
+        msg: "result=ERROR stig_id=RHEL-10-700420 detail=Task failed unexpectedly — see prior error for details."

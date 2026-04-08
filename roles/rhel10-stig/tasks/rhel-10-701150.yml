@@ -1,0 +1,92 @@
+---
+# =============================================================================
+# STIG ID  : RHEL-10-701150
+# Rule ID  : SV-281317r1167101_rule
+# Severity : medium
+# CCI      : CCI-000381
+# Title    : RHEL 10 must disable core dump backtraces.
+#
+# Description:
+#   A core dump includes a memory image taken at the time the operating
+#   system terminates an application. The memory image could contain
+#   sensitive data and is generally useful only for developers or system
+#   operators trying to debug problems. Enabling core dumps on production
+#   systems is not recommended; however, there may be overriding operational
+#   requirements to enable advanced debugging. Permitting temporary
+#   enablement of core dumps during such situations must be reviewed through
+#   local needs and policy.
+#
+# Check Text:
+#   Note: If kernel dumps are disabled in accordance with RHEL-10-701090,
+#   this requirement is not applicable.
+#
+#   Verify RHEL 10 disables core dump backtraces by issuing the following
+#   command:
+#
+#   $ sudo grep -ir ProcessSizeMax /etc/systemd/ | grep -v '#'
+#   /etc/systemd/coredump.conf:ProcessSizeMax=0
+#
+#   If the "ProcessSizeMax" item is missing or the value is anything other
+#   than "0", and the need for core dumps is not documented with the
+#   information system security officer as an operational requirement for all
+#   domains that have the "core" item assigned, this is a finding.
+#
+# Fix Text:
+#   Configure RHEL 10 to disable core dump backtraces.
+#
+#   Create or edit the setting in a drop-in configuration file:
+#
+#   $ sudo vi /etc/systemd/coredump.conf:
+#
+#   Add the following line:
+#
+#   ProcessSizeMax=0
+# =============================================================================
+
+- name: "RHEL-10-701150 | RHEL 10 must disable core dump backtraces."
+  when: rhel_10_701150 | bool
+  tags:
+    - RHEL-10-701150
+    - medium
+    - CCI-000381
+  block:
+    - name: "RHEL-10-701150 | Check current ProcessSizeMax setting"
+      ansible.builtin.command:
+        cmd: grep -ir ProcessSizeMax /etc/systemd/coredump.conf /etc/systemd/coredump.conf.d/ 2>/dev/null || true
+      register: rhel_10_701150_check
+      changed_when: false
+      failed_when: false
+
+    - name: "RHEL-10-701150 | Backup coredump.conf before modification"
+      ansible.builtin.copy:
+        src: /etc/systemd/coredump.conf
+        dest: "/etc/systemd/coredump.conf.bak.{{ ansible_date_time.epoch }}"
+        remote_src: true
+        mode: preserve
+      when: "'ProcessSizeMax=0' not in (rhel_10_701150_check.stdout | default(''))"
+
+    - name: "RHEL-10-701150 | Set ProcessSizeMax=0 in coredump.conf"
+      ansible.builtin.lineinfile:
+        path: /etc/systemd/coredump.conf
+        regexp: '^#?\s*ProcessSizeMax\s*='
+        line: 'ProcessSizeMax=0'
+        state: present
+      when: "'ProcessSizeMax=0' not in (rhel_10_701150_check.stdout | default(''))"
+
+    - name: "RHEL-10-701150 | Re-check ProcessSizeMax setting"
+      ansible.builtin.command:
+        cmd: grep -ir ProcessSizeMax /etc/systemd/coredump.conf /etc/systemd/coredump.conf.d/ 2>/dev/null || true
+      register: rhel_10_701150_verify
+      changed_when: false
+      failed_when: false
+
+    - name: "RHEL-10-701150 | Assert ProcessSizeMax is set to 0"
+      ansible.builtin.assert:
+        that: "'ProcessSizeMax=0' in (rhel_10_701150_verify.stdout | default(''))"
+        fail_msg: "result=FAIL stig_id=RHEL-10-701150 detail=ProcessSizeMax is not set to 0 in coredump configuration."
+        success_msg: "result=PASS stig_id=RHEL-10-701150 detail=ProcessSizeMax=0 is correctly configured."
+
+  rescue:
+    - name: "RHEL-10-701150 | RESCUE - record failure and continue"
+      ansible.builtin.debug:
+        msg: "result=ERROR stig_id=RHEL-10-701150 detail=Task failed unexpectedly — see prior error for details."

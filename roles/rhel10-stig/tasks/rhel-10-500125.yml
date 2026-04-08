@@ -1,0 +1,87 @@
+---
+# =============================================================================
+# STIG ID  : RHEL-10-500125
+# Rule ID  : SV-281111r1166285_rule
+# Severity : medium
+# CCI      : CCI-000154
+# Title    : RHEL 10 must periodically flush audit records to disk to ensure that audit records are not lost.
+#
+# Description:
+#   If option "freq" is not set to a value that requires audit records to be
+#   written to disk after a threshold number is reached, audit records may be
+#   lost.
+#
+# Check Text:
+#   Verify RHEL 10 is configured to flush audit records to disk after every
+#   100 records with the following command:
+#
+#   $ sudo grep freq /etc/audit/auditd.conf
+#   freq = 100
+#
+#   If "freq" is not set to a value of "100" or greater, the value is
+#   missing, or the line is commented out, this is a finding.
+#
+# Fix Text:
+#   Configure RHEL 10 to flush audit records to disk by adding or updating
+#   the following rule in "/etc/audit/rules.d/audit.rules":
+#
+#   freq = 100
+#
+#   Restart the audit daemon with the following command for changes to take
+#   effect:
+#
+#   $ sudo service auditd restart
+# =============================================================================
+
+- name: "RHEL-10-500125 | RHEL 10 must periodically flush audit records to disk to ensure that audit records are not lost."
+  when: rhel_10_500125 | bool
+  tags:
+    - RHEL-10-500125
+    - medium
+    - CCI-000154
+  block:
+    - name: "RHEL-10-500125 | Check freq in /etc/audit/auditd.conf"
+      ansible.builtin.command:
+        cmd: grep -E '^\s*freq\s*=' /etc/audit/auditd.conf
+      register: rhel_10_500125_check
+      changed_when: false
+      failed_when: false
+
+    - name: "RHEL-10-500125 | Backup /etc/audit/auditd.conf before modification"
+      ansible.builtin.copy:
+        src: /etc/audit/auditd.conf
+        dest: "/etc/audit/auditd.conf.bak.{{ ansible_date_time.epoch }}"
+        remote_src: true
+        mode: preserve
+      when: >
+        rhel_10_500125_check.rc != 0 or
+        (rhel_10_500125_check.stdout | regex_search('\d+') | default('0') | int) < 100
+
+    - name: "RHEL-10-500125 | Set freq = 100 in /etc/audit/auditd.conf"
+      ansible.builtin.lineinfile:
+        path: /etc/audit/auditd.conf
+        regexp: '^\s*freq\s*='
+        line: 'freq = 100'
+        state: present
+      when: >
+        rhel_10_500125_check.rc != 0 or
+        (rhel_10_500125_check.stdout | regex_search('\d+') | default('0') | int) < 100
+      notify: restart auditd
+
+    - name: "RHEL-10-500125 | Re-check freq in /etc/audit/auditd.conf"
+      ansible.builtin.command:
+        cmd: grep -E '^\s*freq\s*=' /etc/audit/auditd.conf
+      register: rhel_10_500125_verify
+      changed_when: false
+      failed_when: false
+
+    - name: "RHEL-10-500125 | Assert freq >= 100 is configured"
+      ansible.builtin.assert:
+        that: (rhel_10_500125_verify.stdout | regex_search('\d+') | default('0') | int) >= 100
+        fail_msg: "result=FAIL stig_id=RHEL-10-500125 detail=freq is not set to 100 or greater in /etc/audit/auditd.conf (current={{ rhel_10_500125_verify.stdout | trim }})."
+        success_msg: "result=PASS stig_id=RHEL-10-500125 detail=freq is set to 100 or greater in /etc/audit/auditd.conf."
+
+  rescue:
+    - name: "RHEL-10-500125 | RESCUE - record failure and continue"
+      ansible.builtin.debug:
+        msg: "result=ERROR stig_id=RHEL-10-500125 detail=Task failed unexpectedly — see prior error for details."

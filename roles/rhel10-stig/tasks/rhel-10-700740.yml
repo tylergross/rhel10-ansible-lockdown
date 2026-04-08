@@ -1,0 +1,115 @@
+---
+# =============================================================================
+# STIG ID  : RHEL-10-700740
+# Rule ID  : SV-281277r1166783_rule
+# Severity : medium
+# CCI      : CCI-000056
+# Title    : RHEL 10 must prevent a user from overriding the screensaver lock-enabled setting for the graphical user interface.
+#
+# Description:
+#   A session timeout lock is a temporary action taken when a user stops work
+#   and moves away from the immediate physical vicinity of the information
+#   system but does not log out because of the temporary nature of the
+#   absence. Rather than relying on the user to manually lock their operating
+#   system session prior to vacating the vicinity, operating systems must be
+#   able to identify when a user's session has idled and take action to
+#   initiate the session lock. The session lock is implemented at the point
+#   where session activity can be determined and/or controlled. Implementing
+#   session settings will have little value if a user is able to manipulate
+#   these settings from the defaults prescribed in the other requirements of
+#   this implementation guide. Satisfies: SRG-OS-000028-GPOS-00009,
+#   SRG-OS-000030-GPOS-00011
+#
+# Check Text:
+#   Note: This requirement assumes the use of the RHEL 10 default graphical
+#   user interface, Gnome Shell. If the system does not have any graphical
+#   user interface installed, this requirement is not applicable.
+#
+#   Verify RHEL 10 prevents a user from overriding the screensaver
+#   lock-enabled setting with the following command:
+#
+#   $ gsettings writable org.gnome.desktop.screensaver lock-enabled
+#   false
+#
+#   If "lock-enabled" is writable, and the result is "true", this is a
+#   finding.
+#
+# Fix Text:
+#   Configure RHEL 10 to prevent a user from overriding settings for
+#   graphical user interfaces.
+#
+#   Create a database to contain the systemwide screensaver settings (if it
+#   does not already exist) with the following command:
+#
+#   Note: The example below is using the database "local" for the system. If
+#   the system is using another database in "/etc/dconf/profile/user", the
+#   file should be created under the appropriate subdirectory.
+#
+#   Update the "/etc/dconf/db/local.d/locks/session" file to prevent
+#   nonprivileged users from modifying the screensaver lock:
+#
+#   $ sudo vi /etc/dconf/db/local.d/locks/session
+#
+#   /org/gnome/desktop/screensaver/lock-enabled
+#
+#   Run the following command to update the database:
+#
+#   $ sudo dconf update
+# =============================================================================
+
+- name: "RHEL-10-700740 | RHEL 10 must prevent a user from overriding the screensaver lock-enabled setting for the graphical user interface."
+  when: rhel_10_700740 | bool
+  tags:
+    - RHEL-10-700740
+    - medium
+    - CCI-000056
+  block:
+    - name: "RHEL-10-700740 | Ensure dconf locks directory exists"
+      ansible.builtin.file:
+        path: /etc/dconf/db/local.d/locks
+        state: directory
+        mode: '0755'
+        owner: root
+        group: root
+
+    - name: "RHEL-10-700740 | Check screensaver lock-enabled lock in dconf locks file"
+      ansible.builtin.command:
+        cmd: grep -r 'lock-enabled' /etc/dconf/db/local.d/locks/
+      register: rhel_10_700740_check
+      changed_when: false
+      failed_when: false
+
+    - name: "RHEL-10-700740 | Set screensaver lock-enabled lock in dconf locks file"
+      ansible.builtin.lineinfile:
+        path: /etc/dconf/db/local.d/locks/session
+        line: '/org/gnome/desktop/screensaver/lock-enabled'
+        state: present
+        create: true
+        mode: '0644'
+        owner: root
+        group: root
+      when: rhel_10_700740_check.rc != 0
+
+    - name: "RHEL-10-700740 | Update dconf database"
+      ansible.builtin.command:
+        cmd: dconf update
+      when: rhel_10_700740_check.rc != 0
+      changed_when: true
+
+    - name: "RHEL-10-700740 | Re-check screensaver lock-enabled lock in dconf"
+      ansible.builtin.command:
+        cmd: grep -r 'lock-enabled' /etc/dconf/db/local.d/locks/
+      register: rhel_10_700740_verify
+      changed_when: false
+      failed_when: false
+
+    - name: "RHEL-10-700740 | Assert screensaver lock-enabled is locked in dconf"
+      ansible.builtin.assert:
+        that: rhel_10_700740_verify.rc == 0
+        fail_msg: "result=FAIL stig_id=RHEL-10-700740 detail=screensaver lock-enabled is not locked in dconf."
+        success_msg: "result=PASS stig_id=RHEL-10-700740 detail=screensaver lock-enabled is locked in dconf."
+
+  rescue:
+    - name: "RHEL-10-700740 | RESCUE - record failure and continue"
+      ansible.builtin.debug:
+        msg: "result=ERROR stig_id=RHEL-10-700740 detail=Task failed unexpectedly — see prior error for details."

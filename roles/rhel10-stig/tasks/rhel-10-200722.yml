@@ -1,0 +1,59 @@
+---
+# =============================================================================
+# STIG ID  : RHEL-10-200722
+# Rule ID  : SV-281003r1195393_rule
+# Severity : medium
+# CCI      : CCI-000381
+# Title    : RHEL 10 must have the "openssh-clients" package installed.
+#
+# Description:
+#   This package includes utilities to make encrypted connections and
+#   transfer files securely to Secure Shell (SSH) servers.
+#
+# Check Text:
+#   Verify RHEL 10 has the "openssh-clients" package installed with the
+#   following command:
+#
+#   $ sudo dnf list --installed openssh-clients
+#   Installed Packages
+#   openssh-clients.x86_64 9.9p1-7.el10_0 @anaconda
+#
+#   If the "openssh-clients" package is not installed, this is a finding.
+#
+# Fix Text:
+#   Configure RHEL 10 to have the "openssh-clients" package installed with
+#   the following command:
+#
+#   $ sudo dnf -y install openssh-clients
+# =============================================================================
+
+- name: "RHEL-10-200722 | RHEL 10 must have the openssh-clients package installed."
+  when: rhel_10_200722 | bool
+  tags:
+    - RHEL-10-200722
+    - medium
+    - CCI-000381
+  block:
+    - name: "RHEL-10-200722 | Ensure openssh-clients is installed"
+      ansible.builtin.package:
+        name: openssh-clients
+        state: present
+
+    - name: "RHEL-10-200722 | Verify openssh-clients is installed"
+      ansible.builtin.command: rpm -q openssh-clients
+      register: rhel_10_200722_check
+      changed_when: false
+      failed_when: false
+
+    - name: "RHEL-10-200722 | Assert openssh-clients is installed"
+      ansible.builtin.assert:
+        that: rhel_10_200722_check.rc == 0
+        fail_msg: >-
+          result=FAIL stig_id=RHEL-10-200722
+          detail=Package openssh-clients is not installed.
+          Install with: dnf -y install openssh-clients
+        success_msg: "result=PASS stig_id=RHEL-10-200722 detail=Package openssh-clients is installed."
+  rescue:
+    - name: "RHEL-10-200722 | RESCUE - record failure and continue"
+      ansible.builtin.debug:
+        msg: "result=ERROR stig_id=RHEL-10-200722 detail=Task failed unexpectedly — see prior error for details."

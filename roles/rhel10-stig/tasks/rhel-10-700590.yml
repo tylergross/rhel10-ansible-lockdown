@@ -1,0 +1,97 @@
+---
+# =============================================================================
+# STIG ID  : RHEL-10-700590
+# Rule ID  : SV-281262r1184762_rule
+# Severity : medium
+# CCI      : CCI-000213
+# Title    : RHEL 10 must be configured so that Secure Shell (SSH) server configuration files' permissions are not modified.
+#
+# Description:
+#   Service configuration files enable or disable features of their
+#   respective services, which if configured incorrectly can lead to insecure
+#   and vulnerable configurations. Therefore, service configuration files
+#   must be owned by the correct group to prevent unauthorized changes.
+#   OpenSSH uses the first occurrence of a keyword it sees, and drop-in files
+#   are read in lexicographical order at the start of the configuration. Red
+#   Hat recommends using drop-in files rather than changing base
+#   configuration files.
+#
+# Check Text:
+#   Verify RHEL 10 is configured so that SSH server configuration files'
+#   permissions are not modified.
+#
+#   Check the permissions of the "/etc/ssh/sshd_config" file with the
+#   following command:
+#
+#   $ sudo rpm --verify openssh-server | awk '! ($2 == "c" && $1 ~
+#   /^.\..\.\.\.\..\./) {print $0}'
+#
+#   If the command returns any output, this is a finding.
+#
+# Fix Text:
+#   Configure RHEL 10 so that SSH server configuration files' permissions are
+#   not modified.
+#
+#   Run the following commands to restore the correct permissions of OpenSSH
+#   server configuration files:
+#
+#   $ sudo rpm --setugids openssh-server
+#   $ sudo rpm --setperms openssh-server
+# =============================================================================
+
+- name: "RHEL-10-700590 | RHEL 10 must be configured so that Secure Shell (SSH) server configuration files' permissions are not modified."
+  when: rhel_10_700590 | bool
+  tags:
+    - RHEL-10-700590
+    - medium
+    - CCI-000213
+  block:
+    - name: "RHEL-10-700590 | Check openssh-server config file permissions via rpm --verify"
+      ansible.builtin.command:
+        cmd: rpm --verify openssh-server
+      register: rhel_10_700590_rpm
+      changed_when: false
+      failed_when: false
+
+    - name: "RHEL-10-700590 | Filter for non-config permission deviations"
+      ansible.builtin.set_fact:
+        rhel_10_700590_violations: >-
+          {{ rhel_10_700590_rpm.stdout_lines |
+             reject('match', '^.\..\.\.\.\..\..*\sc\s') |
+             select('match', '^[^.]*[UP][^.]*\s') |
+             list }}
+
+    - name: "RHEL-10-700590 | Restore openssh-server file permissions"
+      ansible.builtin.command:
+        cmd: "{{ item }}"
+      loop:
+        - rpm --setugids openssh-server
+        - rpm --setperms openssh-server
+      changed_when: true
+      when: rhel_10_700590_violations | length > 0
+
+    - name: "RHEL-10-700590 | Re-check openssh-server config file permissions"
+      ansible.builtin.command:
+        cmd: rpm --verify openssh-server
+      register: rhel_10_700590_verify
+      changed_when: false
+      failed_when: false
+
+    - name: "RHEL-10-700590 | Filter re-check for non-config permission deviations"
+      ansible.builtin.set_fact:
+        rhel_10_700590_verify_violations: >-
+          {{ rhel_10_700590_verify.stdout_lines |
+             reject('match', '^.\..\.\.\.\..\..*\sc\s') |
+             select('match', '^[^.]*[UP][^.]*\s') |
+             list }}
+
+    - name: "RHEL-10-700590 | Assert openssh-server config file permissions are unmodified"
+      ansible.builtin.assert:
+        that: rhel_10_700590_verify_violations | length == 0
+        fail_msg: "result=FAIL stig_id=RHEL-10-700590 detail=openssh-server has files with modified permissions or ownership: {{ rhel_10_700590_verify_violations | join('; ') }}."
+        success_msg: "result=PASS stig_id=RHEL-10-700590 detail=All openssh-server configuration file permissions match package expectations."
+
+  rescue:
+    - name: "RHEL-10-700590 | RESCUE - record failure and continue"
+      ansible.builtin.debug:
+        msg: "result=ERROR stig_id=RHEL-10-700590 detail=Task failed unexpectedly — see prior error for details."

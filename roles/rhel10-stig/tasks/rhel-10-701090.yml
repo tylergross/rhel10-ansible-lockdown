@@ -1,0 +1,77 @@
+---
+# =============================================================================
+# STIG ID  : RHEL-10-701090
+# Rule ID  : SV-281311r1167083_rule
+# Severity : medium
+# CCI      : CCI-000381
+# Title    : RHEL 10 must disable the "kernel.core_pattern".
+#
+# Description:
+#   A core dump includes a memory image taken at the time the operating
+#   system terminates an application. The memory image could contain
+#   sensitive data and is generally useful only for developers trying to
+#   debug problems.
+#
+# Check Text:
+#   Verify RHEL 10 disables storing core dumps.
+#
+#   Check the status of the "kernel.core_pattern" kernel parameter with the
+#   following command:
+#
+#   $ sudo sysctl kernel.core_pattern
+#   kernel.core_pattern = |/bin/false
+#
+#   If "kernel.core_pattern" is not set to "|/bin/false", or a line is not
+#   returned and the need for core dumps is not documented with the
+#   information system security officer as an operational requirement, this
+#   is a finding.
+#
+# Fix Text:
+#   Configure RHEL 10 to disable storing core dumps.
+#
+#   Create a drop-in if it does not already exist:
+#
+#   $ sudo vi /etc/sysctl.d/99-kernel_core_pattern.conf
+#
+#   Add the following to the file:
+#
+#   kernel.core_pattern = |/bin/false
+#
+#   Reload settings from all system configuration files with the following
+#   command:
+#
+#   $ sudo sysctl --system
+# =============================================================================
+
+- name: "RHEL-10-701090 | RHEL 10 must disable the kernel.core_pattern."
+  when: rhel_10_701090 | bool
+  tags:
+    - RHEL-10-701090
+    - medium
+    - CCI-000381
+  block:
+    - name: "RHEL-10-701090 | Set sysctl kernel.core_pattern = |/bin/false"
+      ansible.posix.sysctl:
+        name: kernel.core_pattern
+        value: '|/bin/false'
+        state: present
+        reload: true
+        sysctl_file: /etc/sysctl.d/rhel10-stig.conf
+
+    - name: "RHEL-10-701090 | Verify kernel.core_pattern"
+      ansible.builtin.command:
+        cmd: sysctl kernel.core_pattern
+      register: rhel_10_701090_sysctl
+      changed_when: false
+      failed_when: false
+
+    - name: "RHEL-10-701090 | Assert kernel.core_pattern = |/bin/false"
+      ansible.builtin.assert:
+        that: "'|/bin/false' in rhel_10_701090_sysctl.stdout"
+        fail_msg: "result=FAIL stig_id=RHEL-10-701090 detail=kernel.core_pattern is not set to |/bin/false (output={{ rhel_10_701090_sysctl.stdout | trim }})."
+        success_msg: "result=PASS stig_id=RHEL-10-701090 detail=kernel.core_pattern is set to |/bin/false."
+
+  rescue:
+    - name: "RHEL-10-701090 | RESCUE - record failure and continue"
+      ansible.builtin.debug:
+        msg: "result=ERROR stig_id=RHEL-10-701090 detail=Task failed unexpectedly — see prior error for details."

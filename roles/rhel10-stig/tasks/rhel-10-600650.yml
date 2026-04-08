@@ -1,0 +1,85 @@
+---
+# =============================================================================
+# STIG ID  : RHEL-10-600650
+# Rule ID  : SV-281217r1195450_rule
+# Severity : medium
+# CCI      : CCI-004062
+# Title    : RHEL 10 must ensure that the pam_unix.so module is configured in the password-auth file to use a FIPS 140-3-approved cryptographic hashing algorithm for system authentication.
+#
+# Description:
+#   Unapproved mechanisms that are used for authentication to the
+#   cryptographic module are not verified; therefore, they cannot be relied
+#   on to provide confidentiality or integrity, and DOD data may be
+#   compromised. RHEL 10 systems using encryption are required to use
+#   FIPS-compliant mechanisms for authenticating to cryptographic modules.
+#   FIPS 140-3 is the current standard for validating that mechanisms used to
+#   access cryptographic modules use authentication that meets DOD
+#   requirements. This allows for Security Levels 1, 2, 3, or 4 for use on a
+#   general-purpose computing system. Satisfies: SRG-OS-000073-GPOS-00041,
+#   SRG-OS-000120-GPOS-00061
+#
+# Check Text:
+#   Verify RHEL 10 configures the pam_unix.so module to use sha512 in
+#   "/etc/pam.d/password-auth" with the following command:
+#
+#   $ sudo grep "^password.*pam_unix.so.*sha512" /etc/pam.d/password-auth
+#   password sufficient pam_unix.so sha512
+#
+#   If "sha512" is missing, or the line is commented out, this is a finding.
+#
+# Fix Text:
+#   Configure RHEL 10 to use the sha512 cryptographic hashing algorithm for
+#   local account passwords.
+#
+#   Edit/modify the following line in the "/etc/pam.d/password-auth" file to
+#   include the sha512 option for pam_unix.so:
+#
+#   password sufficient pam_unix.so sha512
+# =============================================================================
+
+- name: "RHEL-10-600650 | RHEL 10 must ensure that the pam_unix.so module is configured in the password-auth file to use a FIPS 140-3-approved cryptographic hashing algorithm for system authentication."
+  when: rhel_10_600650 | bool
+  tags:
+    - RHEL-10-600650
+    - medium
+    - CCI-004062
+  block:
+    - name: "RHEL-10-600650 | Check pam_unix.so sha512 in /etc/pam.d/password-auth"
+      ansible.builtin.command:
+        cmd: grep -E '^password.*pam_unix\.so.*sha512' /etc/pam.d/password-auth
+      register: rhel_10_600650_check
+      changed_when: false
+      failed_when: false
+
+    - name: "RHEL-10-600650 | Backup /etc/pam.d/password-auth"
+      ansible.builtin.copy:
+        src: /etc/pam.d/password-auth
+        dest: "/etc/pam.d/password-auth.bak.{{ ansible_date_time.epoch }}"
+        remote_src: true
+        mode: preserve
+      when: rhel_10_600650_check.rc != 0
+
+    - name: "RHEL-10-600650 | Add sha512 to pam_unix.so line in /etc/pam.d/password-auth"
+      ansible.builtin.replace:
+        path: /etc/pam.d/password-auth
+        regexp: '^(password\s+sufficient\s+pam_unix\.so(?!.*sha512).*)$'
+        replace: '\1 sha512'
+      when: rhel_10_600650_check.rc != 0
+
+    - name: "RHEL-10-600650 | Re-check pam_unix.so sha512 in /etc/pam.d/password-auth"
+      ansible.builtin.command:
+        cmd: grep -E '^password.*pam_unix\.so.*sha512' /etc/pam.d/password-auth
+      register: rhel_10_600650_verify
+      changed_when: false
+      failed_when: false
+
+    - name: "RHEL-10-600650 | Assert pam_unix.so sha512 is set in password-auth"
+      ansible.builtin.assert:
+        that: rhel_10_600650_verify.rc == 0
+        fail_msg: "result=FAIL stig_id=RHEL-10-600650 detail=pam_unix.so sha512 is not configured in /etc/pam.d/password-auth."
+        success_msg: "result=PASS stig_id=RHEL-10-600650 detail=pam_unix.so sha512 is configured in /etc/pam.d/password-auth."
+
+  rescue:
+    - name: "RHEL-10-600650 | RESCUE - record failure and continue"
+      ansible.builtin.debug:
+        msg: "result=ERROR stig_id=RHEL-10-600650 detail=Task failed unexpectedly — see prior error for details."

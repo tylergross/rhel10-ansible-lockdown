@@ -1,0 +1,103 @@
+---
+# =============================================================================
+# STIG ID  : RHEL-10-400185
+# Rule ID  : SV-281054r1197224_rule
+# Severity : medium
+# CCI      : CCI-000162
+# Title    : RHEL 10 must set mode "0600" or less permissive for the audit logs file to prevent unauthorized access to the audit log.
+#
+# Description:
+#   Only authorized personnel should be aware of errors and the details of
+#   the errors. Error messages are an indicator of an organization's
+#   operational state or can identify the RHEL 10 system or platform.
+#   Additionally, personally identifiable information (PII) and operational
+#   information must not be revealed through error messages to unauthorized
+#   personnel or their designated representatives. The structure and content
+#   of error messages must be carefully considered by the organization and
+#   development team. The extent to which the information system is able to
+#   identify and handle error conditions is guided by organizational policy
+#   and operational requirements. Satisfies: SRG-OS-000057-GPOS-00027,
+#   SRG-OS-000058-GPOS-00028, SRG-OS-000059-GPOS-00029,
+#   SRG-OS-000206-GPOS-00084
+#
+# Check Text:
+#   Verify RHEL 10 audit logs have a mode of "0600".
+#
+#   Determine where the audit logs are stored with the following command:
+#
+#   $ sudo grep "^log_file" /etc/audit/auditd.conf
+#   log_file = /var/log/audit/audit.log
+#
+#   Using the location of the audit log file, determine the mode of each
+#   audit log with the following command:
+#
+#   $ sudo find /var/log/audit/ -type f -exec stat -c '%a %n' {} \;
+#   600 /var/log/audit/audit.log
+#
+#   If the audit logs have a mode more permissive than "0600", this is a
+#   finding.
+#
+# Fix Text:
+#   Configure RHEL 10 audit logs to have a mode of "0600" with the following
+#   command:
+#
+#   Replace "[audit_log_file]" with the path to each audit log file. By
+#   default, these logs are located in "/var/log/audit/":
+#
+#   $ sudo chmod 0600 /var/log/audit/[audit_log_file]
+#
+#   Check the group that owns the system audit logs:
+#
+#   $ sudo grep -iw log_group /etc/audit/auditd.conf
+#
+#   If "log_group" is set to a user other than "root", configure the
+#   permissions the following way:
+#
+#   $ sudo chmod 0640 $log_file
+#   $ sudo chmod 0440 $log_file.*
+#
+#   Otherwise, configure the permissions the following way:
+#
+#   $ sudo chmod 0600 $log_file
+#   $ sudo chmod 0400 $log_file.*
+# =============================================================================
+
+- name: "RHEL-10-400185 | RHEL 10 must set mode 0600 or less permissive for the audit logs file to prevent unauthorized access to the audit log."
+  when: rhel_10_400185 | bool
+  tags:
+    - RHEL-10-400185
+    - medium
+    - CCI-000162
+  block:
+    - name: "RHEL-10-400185 | Find audit log files with mode more permissive than 0600"
+      ansible.builtin.command:
+        cmd: find /var/log/audit -type f -perm /177 -print
+      register: rhel_10_400185_check
+      changed_when: false
+      failed_when: false
+
+    - name: "RHEL-10-400185 | Set mode 0600 on audit log files"
+      ansible.builtin.file:
+        path: "{{ item }}"
+        mode: '0600'
+      loop: "{{ rhel_10_400185_check.stdout_lines }}"
+      when: rhel_10_400185_check.stdout_lines | length > 0
+
+    - name: "RHEL-10-400185 | Re-check audit log files with mode more permissive than 0600"
+      ansible.builtin.command:
+        cmd: find /var/log/audit -type f -perm /177 -print
+      register: rhel_10_400185_verify
+      changed_when: false
+      failed_when: false
+
+    - name: "RHEL-10-400185 | Assert all audit log files have mode 0600 or less permissive"
+      ansible.builtin.assert:
+        that:
+          - rhel_10_400185_verify.stdout_lines | length == 0
+        fail_msg: "result=FAIL stig_id=RHEL-10-400185 detail=Audit log files with mode more permissive than 0600: {{ rhel_10_400185_verify.stdout_lines | join(', ') }}."
+        success_msg: "result=PASS stig_id=RHEL-10-400185 detail=All audit log files have mode 0600 or less permissive."
+
+  rescue:
+    - name: "RHEL-10-400185 | RESCUE - record failure and continue"
+      ansible.builtin.debug:
+        msg: "result=ERROR stig_id=RHEL-10-400185 detail=Task failed unexpectedly — see prior error for details."

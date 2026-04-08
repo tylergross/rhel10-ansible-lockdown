@@ -1,0 +1,91 @@
+---
+# =============================================================================
+# STIG ID  : RHEL-10-001030
+# Rule ID  : SV-280932r1197215_rule
+# Severity : high
+# CCI      : CCI-003992
+# Title    : RHEL 10 must check the GNU Privacy Guard (GPG) signature of software packages originating from external software repositories before installation.
+#
+# Description:
+#   Changes to any software components can have significant effects on the
+#   overall security of the operating system. This requirement ensures the
+#   software has not been tampered with and has been provided by a trusted
+#   vendor. All software packages must be signed with a cryptographic key
+#   recognized and approved by the organization. Verifying the authenticity
+#   of software prior to installation validates the integrity of the software
+#   package received from a vendor.
+#
+# Check Text:
+#   Verify RHEL 10 dnf always checks the GPG signature of software packages
+#   originating from external software repositories before installation with
+#   the following command:
+#
+#   $ sudo grep -w gpgcheck /etc/dnf/dnf.conf
+#   gpgcheck=1
+#
+#   If "gpgcheck" is not set to "1", or if the option is missing or commented
+#   out, ask the system administrator how the GPG signatures of software
+#   packages are being verified.
+#
+#   If no process to verify GPG signatures has been approved by the
+#   organization, this is a finding.
+#
+# Fix Text:
+#   Configure RHEL 10 dnf to always check the GPG signature of software
+#   packages originating from external software repositories before
+#   installation.
+#
+#   Add or update the following line in the [main] section of the
+#   "/etc/dnf/dnf.conf" file:
+#
+#   gpgcheck=1
+# =============================================================================
+
+- name: "RHEL-10-001030 | RHEL 10 must check the GNU Privacy Guard (GPG) signature of software packages originating from external software repositories before installation."
+  when: rhel_10_001030 | bool
+  tags:
+    - RHEL-10-001030
+    - high
+    - CCI-003992
+  block:
+    - name: "RHEL-10-001030 | Check gpgcheck setting in dnf.conf"
+      ansible.builtin.command:
+        cmd: grep -Pw 'gpgcheck\s*=\s*\d' /etc/dnf/dnf.conf
+      register: rhel_10_001030_gpgcheck
+      changed_when: false
+      failed_when: false
+
+    - name: "RHEL-10-001030 | Backup /etc/dnf/dnf.conf before modification"
+      ansible.builtin.copy:
+        src: /etc/dnf/dnf.conf
+        dest: "/etc/dnf/dnf.conf.{{ ansible_date_time.epoch }}.bak"
+        remote_src: true
+        owner: root
+        group: root
+        mode: '0644'
+      when: rhel_10_001030_gpgcheck.stdout is not search('gpgcheck\s*=\s*1')
+
+    - name: "RHEL-10-001030 | Ensure gpgcheck=1 in dnf.conf"
+      ansible.builtin.lineinfile:
+        path: /etc/dnf/dnf.conf
+        regexp: '^\s*gpgcheck\s*='
+        line: 'gpgcheck=1'
+        insertafter: '^\[main\]'
+        state: present
+      when: rhel_10_001030_gpgcheck.stdout is not search('gpgcheck\s*=\s*1')
+
+    - name: "RHEL-10-001030 | Re-check gpgcheck setting after remediation"
+      ansible.builtin.command:
+        cmd: grep -Pw 'gpgcheck\s*=\s*\d' /etc/dnf/dnf.conf
+      register: rhel_10_001030_gpgcheck_final
+      changed_when: false
+      failed_when: false
+
+    - name: "RHEL-10-001030 | Assert gpgcheck=1 is set in dnf.conf"
+      ansible.builtin.assert:
+        that: rhel_10_001030_gpgcheck_final.stdout is search('gpgcheck\s*=\s*1')
+        fail_msg: >-
+          result=FAIL stig_id=RHEL-10-001030
+          detail=gpgcheck is not set to 1 in /etc/dnf/dnf.conf
+          (found={{ rhel_10_001030_gpgcheck_final.stdout | trim | default('missing') }}).
+        success_msg: "result=PASS stig_id=RHEL-10-001030 detail=gpgcheck=1 is set in /etc/dnf/dnf.conf."

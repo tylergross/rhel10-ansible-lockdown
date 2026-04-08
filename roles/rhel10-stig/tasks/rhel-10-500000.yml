@@ -1,0 +1,60 @@
+---
+# =============================================================================
+# STIG ID  : RHEL-10-500000
+# Rule ID  : SV-281096r1165643_rule
+# Severity : medium
+# CCI      : CCI-001665
+# Title    : RHEL 10 must enable the systemd-journald service.
+#
+# Description:
+#   In the event of a system failure, RHEL 10 must preserve any information
+#   necessary to determine cause of failure and return to operations with
+#   least disruption to system processes.
+#
+# Check Text:
+#   Verify RHEL 10 enables the systemd-journald service with the following
+#   command:
+#
+#   $ systemctl is-active systemd-journald
+#   active
+#
+#   If the systemd-journald service is not active, this is a finding.
+#
+# Fix Text:
+#   Configure RHEL 10 to enable the systemd-journald service.
+#
+#   To enable the systemd-journald service, run the following command:
+#
+#   $ sudo systemctl enable --now systemd-journald
+# =============================================================================
+
+- name: "RHEL-10-500000 | RHEL 10 must enable the systemd-journald service."
+  when: rhel_10_500000 | bool
+  tags:
+    - RHEL-10-500000
+    - medium
+    - CCI-001665
+  block:
+    - name: "RHEL-10-500000 | Enable and start systemd-journald"
+      ansible.builtin.service:
+        name: systemd-journald
+        state: started
+        enabled: true
+
+    - name: "RHEL-10-500000 | Verify systemd-journald is active"
+      ansible.builtin.command:
+        cmd: systemctl is-active systemd-journald
+      register: rhel_10_500000_svc
+      changed_when: false
+      failed_when: false
+
+    - name: "RHEL-10-500000 | Assert systemd-journald is active"
+      ansible.builtin.assert:
+        that: rhel_10_500000_svc.stdout | trim == 'active'
+        fail_msg: "result=FAIL stig_id=RHEL-10-500000 detail=systemd-journald is not active (status={{ rhel_10_500000_svc.stdout | trim }})."
+        success_msg: "result=PASS stig_id=RHEL-10-500000 detail=systemd-journald is active."
+
+  rescue:
+    - name: "RHEL-10-500000 | RESCUE - record failure and continue"
+      ansible.builtin.debug:
+        msg: "result=ERROR stig_id=RHEL-10-500000 detail=Task failed unexpectedly — see prior error for details."

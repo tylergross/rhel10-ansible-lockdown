@@ -1,0 +1,58 @@
+---
+# =============================================================================
+# STIG ID  : RHEL-10-600150
+# Rule ID  : SV-281174r1166474_rule
+# Severity : medium
+# CCI      : CCI-000764
+# Title    : RHEL 10 must assign a primary group to all interactive users.
+#
+# Description:
+#   If a user is assigned the group identifier (GID) of a group that does not
+#   exist on the system, and a group with the GID is subsequently created,
+#   the user may have unintended rights to any files associated with the
+#   group.
+#
+# Check Text:
+#   Verify RHEL 10 interactive users have a valid GID.
+#
+#   Check that the interactive users have a valid GID with the following
+#   command:
+#
+#   $ sudo pwck -r
+#
+#   If pwck reports "no group" for any interactive user, this is a finding.
+#
+# Fix Text:
+#   Configure RHEL 10 so that all GIDs referenced in "/etc/passwd" are
+#   defined in "/etc/group".
+#
+#   Edit the file "/etc/passwd" and ensure that every user's GID is a valid
+#   GID.
+# =============================================================================
+
+- name: "RHEL-10-600150 | RHEL 10 must assign a primary group to all interactive users."
+  when: rhel_10_600150 | bool
+  tags:
+    - RHEL-10-600150
+    - medium
+    - CCI-000764
+  block:
+    - name: "RHEL-10-600150 | Run pwck to check for users without valid groups"
+      ansible.builtin.command:
+        cmd: pwck -r -q
+      register: rhel_10_600150_check
+      changed_when: false
+      failed_when: false
+
+    - name: "RHEL-10-600150 | Assert all interactive users have a valid primary group"
+      ansible.builtin.assert:
+        that:
+          - rhel_10_600150_check.rc == 0
+          - '"no group" not in rhel_10_600150_check.stdout'
+          - '"no group" not in rhel_10_600150_check.stderr'
+        fail_msg: "result=FAIL stig_id=RHEL-10-600150 detail=pwck detected users without a valid group ({{ (rhel_10_600150_check.stdout + rhel_10_600150_check.stderr) | trim }}). Edit /etc/passwd to assign valid GIDs from /etc/group."
+        success_msg: "result=PASS stig_id=RHEL-10-600150 detail=All users have a valid primary group defined in /etc/group."
+  rescue:
+    - name: "RHEL-10-600150 | RESCUE - record failure and continue"
+      ansible.builtin.debug:
+        msg: "result=ERROR stig_id=RHEL-10-600150 detail=Task failed unexpectedly — see prior error for details."

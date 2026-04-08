@@ -1,0 +1,107 @@
+---
+# =============================================================================
+# STIG ID  : RHEL-10-701110
+# Rule ID  : SV-281313r1184770_rule
+# Severity : medium
+# CCI      : CCI-000381
+# Title    : RHEL 10 must disable the Stream Control Transmission Protocol (SCTP) kernel module.
+#
+# Description:
+#   It is detrimental for operating systems to provide, or install by
+#   default, functionality exceeding requirements or mission objectives.
+#   These unnecessary capabilities or services are often overlooked and
+#   therefore, may remain unsecured. They increase the risk to the platform
+#   by providing additional attack vectors. Failing to disconnect unused
+#   protocols can result in a system compromise. The SCTP is a transport
+#   layer protocol, designed to support the idea of message-oriented
+#   communication, with several streams of messages within one connection.
+#   Disabling SCTP protects the system against exploitation of any flaws in
+#   its implementation.
+#
+# Check Text:
+#   Verify RHEL 10 disables the ability to load the sctp kernel module with
+#   the following command:
+#
+#   $ sudo grep -rs sctp /etc/modprobe.conf /etc/modprobe.d/* | grep -v '#'
+#   /etc/modprobe.d/sctp-blacklist.conf:install sctp /bin/false
+#   /etc/modprobe.d/sctp-blacklist.conf:blacklist sctp
+#
+#   If the command does not return any output, or the lines are commented
+#   out, and use of sctp is not documented with the information system
+#   security officer as an operational requirement, this is a finding.
+#
+# Fix Text:
+#   Configure RHEL 10 to disable the ability to load the sctp kernel module.
+#
+#   Create a drop-in if it does not already exist:
+#
+#   $ sudo vi /etc/modprobe.d/sctp.conf
+#
+#   Add the following lines to the file:
+#
+#   install sctp /bin/false
+#   blacklist sctp
+# =============================================================================
+
+- name: "RHEL-10-701110 | RHEL 10 must disable the Stream Control Transmission Protocol (SCTP) kernel module."
+  when: rhel_10_701110 | bool
+  tags:
+    - RHEL-10-701110
+    - medium
+    - CCI-000381
+  block:
+    - name: "RHEL-10-701110 | Check sctp install rule in modprobe"
+      ansible.builtin.command:
+        cmd: grep -rs 'install sctp /bin/false' /etc/modprobe.conf /etc/modprobe.d/
+      register: rhel_10_701110_install_check
+      changed_when: false
+      failed_when: false
+
+    - name: "RHEL-10-701110 | Check sctp blacklist rule in modprobe"
+      ansible.builtin.command:
+        cmd: grep -rs 'blacklist sctp' /etc/modprobe.conf /etc/modprobe.d/
+      register: rhel_10_701110_blacklist_check
+      changed_when: false
+      failed_when: false
+
+    - name: "RHEL-10-701110 | Set sctp install rule in /etc/modprobe.d/sctp.conf"
+      ansible.builtin.lineinfile:
+        path: /etc/modprobe.d/sctp.conf
+        line: 'install sctp /bin/false'
+        state: present
+        create: true
+        mode: '0644'
+        owner: root
+        group: root
+      when: rhel_10_701110_install_check.rc != 0
+
+    - name: "RHEL-10-701110 | Set sctp blacklist rule in /etc/modprobe.d/sctp.conf"
+      ansible.builtin.lineinfile:
+        path: /etc/modprobe.d/sctp.conf
+        line: 'blacklist sctp'
+        state: present
+        create: true
+        mode: '0644'
+        owner: root
+        group: root
+      when: rhel_10_701110_blacklist_check.rc != 0
+
+    - name: "RHEL-10-701110 | Re-check sctp configuration in modprobe"
+      ansible.builtin.command:
+        cmd: grep -rs 'sctp' /etc/modprobe.conf /etc/modprobe.d/
+      register: rhel_10_701110_verify
+      changed_when: false
+      failed_when: false
+
+    - name: "RHEL-10-701110 | Assert sctp is disabled in modprobe"
+      ansible.builtin.assert:
+        that:
+          - "'install sctp /bin/false' in rhel_10_701110_verify.stdout"
+          - "'blacklist sctp' in rhel_10_701110_verify.stdout"
+        fail_msg: "result=FAIL stig_id=RHEL-10-701110 detail=sctp is not fully disabled in modprobe (install and/or blacklist missing)."
+        success_msg: "result=PASS stig_id=RHEL-10-701110 detail=sctp is disabled via modprobe install and blacklist rules."
+
+  rescue:
+    - name: "RHEL-10-701110 | RESCUE - record failure and continue"
+      ansible.builtin.debug:
+        msg: "result=ERROR stig_id=RHEL-10-701110 detail=Task failed unexpectedly — see prior error for details."

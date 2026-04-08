@@ -1,0 +1,80 @@
+---
+# =============================================================================
+# STIG ID  : RHEL-10-800270
+# Rule ID  : SV-281359r1167227_rule
+# Severity : medium
+# CCI      : CCI-002385
+# Title    : RHEL 10 must prevent Internet Protocol version 6 (IPv6) Internet Control Message Protocol (ICMP) redirect messages from being accepted.
+#
+# Description:
+#   ICMP redirect messages are used by routers to inform hosts that a more
+#   direct route exists for a particular destination. These messages modify
+#   the host's route table and are unauthenticated. An illicit ICMP redirect
+#   message could result in a man-in-the-middle attack. Satisfies:
+#   SRG-OS-000420-GPOS-00186, SRG-OS-000142-GPOS-00090
+#
+# Check Text:
+#   Note: If IPv6 is disabled on the system, this requirement is not
+#   applicable.
+#
+#   Verify RHEL 10 prevents IPv6 ICMP redirect messages from being accepted.
+#
+#   Check the value of the "net.ipv6.conf.default.accept_redirects" variables
+#   with the following command:
+#
+#   $ sudo sysctl net.ipv6.conf.default.accept_redirects
+#   net.ipv6.conf.default.accept_redirects = 0
+#
+#   If "net.ipv6.conf.default.accept_redirects" is not set to "0" or is
+#   missing, this is a finding.
+#
+# Fix Text:
+#   Configure RHEL 10 to prevent IPv6 ICMP redirect messages from being
+#   accepted.
+#
+#   Create a configuration file if it does not already exist:
+#
+#   $ sudo vi /etc/sysctl.d/ipv6_accept_redirects.conf
+#
+#   Add the following line to the file:
+#
+#   net.ipv6.conf.default.accept_redirects = 0
+#
+#   Reload settings from all system configuration files with the following
+#   command:
+#
+#   $ sudo sysctl --system
+# =============================================================================
+
+- name: "RHEL-10-800270 | RHEL 10 must prevent Internet Protocol version 6 (IPv6) Internet Control Message Protocol (ICMP) redirect messages from being accepted."
+  when: rhel_10_800270 | bool
+  tags:
+    - RHEL-10-800270
+    - medium
+    - CCI-002385
+  block:
+    - name: "RHEL-10-800270 | Set sysctl net.ipv6.conf.default.accept_redirects = 0"
+      ansible.posix.sysctl:
+        name: net.ipv6.conf.default.accept_redirects
+        value: '0'
+        state: present
+        reload: true
+        sysctl_file: /etc/sysctl.d/rhel10-stig.conf
+
+    - name: "RHEL-10-800270 | Verify net.ipv6.conf.default.accept_redirects"
+      ansible.builtin.command:
+        cmd: sysctl net.ipv6.conf.default.accept_redirects
+      register: rhel_10_800270_sysctl
+      changed_when: false
+      failed_when: false
+
+    - name: "RHEL-10-800270 | Assert net.ipv6.conf.default.accept_redirects = 0"
+      ansible.builtin.assert:
+        that: "'= 0' in rhel_10_800270_sysctl.stdout"
+        fail_msg: "result=FAIL stig_id=RHEL-10-800270 detail=net.ipv6.conf.default.accept_redirects is not set to 0 (output={{ rhel_10_800270_sysctl.stdout | trim }})."
+        success_msg: "result=PASS stig_id=RHEL-10-800270 detail=net.ipv6.conf.default.accept_redirects is set to 0."
+
+  rescue:
+    - name: "RHEL-10-800270 | RESCUE - record failure and continue"
+      ansible.builtin.debug:
+        msg: "result=ERROR stig_id=RHEL-10-800270 detail=Task failed unexpectedly — see prior error for details."

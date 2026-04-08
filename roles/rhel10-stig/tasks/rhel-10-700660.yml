@@ -1,0 +1,116 @@
+---
+# =============================================================================
+# STIG ID  : RHEL-10-700660
+# Rule ID  : SV-281269r1184769_rule
+# Severity : medium
+# CCI      : CCI-001133
+# Title    : RHEL 10 must be configured so that all network connections associated with Secure Shell (SSH) traffic terminate after becoming unresponsive.
+#
+# Description:
+#   Terminating an idle SSH session within a short time period reduces the
+#   window of opportunity for unauthorized personnel to take control of a
+#   management session enabled on the console or console port that has been
+#   left unattended. Quickly terminating an idle SSH session will also free
+#   up resources committed by the managed network element. Terminating
+#   network connections associated with communications sessions includes, for
+#   example, deallocating associated TCP/IP address/port pairs at the
+#   operating system level and deallocating networking assignments at the
+#   application level if multiple application sessions are using a single
+#   operating system-level network connection. This does not mean the
+#   operating system terminates all sessions or network access; it only ends
+#   the inactive session and releases the resources associated with that
+#   session. RHEL 10 uses "/etc/ssh/sshd_config" for configurations of
+#   OpenSSH. Within the sshd_config, the product of the values of
+#   "ClientAliveInterval" and "ClientAliveCountMax" are used to establish the
+#   inactivity threshold. The "ClientAliveInterval" is a timeout interval in
+#   seconds after which if no data has been received from the client, sshd
+#   will send a message through the encrypted channel to request a response
+#   from the client. The "ClientAliveCountMax" is the number of client alive
+#   messages that may be sent without sshd receiving any messages back from
+#   the client. If this threshold is met, sshd will disconnect the client.
+#   For more information on these settings and others, refer to the
+#   sshd_config man pages. OpenSSH uses the first occurrence of a keyword it
+#   sees, and drop-in files are read in lexicographical order at the start of
+#   the configuration. Red Hat recommends using drop-in files rather than
+#   changing base configuration files. Satisfies: SRG-OS-000163-GPOS-00072,
+#   SRG-OS-000279-GPOS-00109
+#
+# Check Text:
+#   Verify RHEL 10 network connections associated with SSH traffic terminate
+#   after becoming unresponsive.
+#
+#   Set the "ClientAliveCountMax" to "1" by performing the following command:
+#
+#   $ sudo /usr/sbin/sshd -dd 2>&1 | awk '/filename/ {print $4}' | tr -d '\r'
+#   | tr '\n' ' ' | xargs sudo grep -iH '^\s*clientalivecountmax'
+#   /etc/ssh/sshd_config.d/10-stig.conf:ClientAliveCountMax 1
+#
+#   Verify the runtime setting with the following command:
+#
+#   $ sudo sshd -T | grep -i clientalivecountmax
+#   clientalivecountmax 1
+#
+#   If the "ClientAliveCountMax" keyword is not set to a value of "1" in a
+#   drop-in that lexicographically precedes 50-redhat.conf, or if no output
+#   is returned, this is a finding.
+#
+# Fix Text:
+#   Configure RHEL 10 to automatically terminate all network connections
+#   associated with SSH traffic at the end of a session or after 10 minutes
+#   of inactivity.
+#
+#   In "/etc/ssh/sshd_config.d", create a drop file that will
+#   lexicographically precede 50-redhat.conf and add the following line:
+#
+#   ClientAliveCountMax 1
+#
+#   Restart the SSH daemon with the following command for the changes to take
+#   effect:
+#
+#   $ sudo systemctl restart sshd.service
+# =============================================================================
+
+- name: "RHEL-10-700660 | RHEL 10 must be configured so that all network connections associated with Secure Shell (SSH) traffic terminate after becoming unresponsive."
+  when: rhel_10_700660 | bool
+  tags:
+    - RHEL-10-700660
+    - medium
+    - CCI-001133
+  block:
+    - name: "RHEL-10-700660 | Check ClientAliveCountMax in sshd runtime config"
+      ansible.builtin.command:
+        cmd: sshd -T
+      register: rhel_10_700660_runtime
+      changed_when: false
+      failed_when: false
+
+    - name: "RHEL-10-700660 | Set ClientAliveCountMax in /etc/ssh/sshd_config.d/10-stig.conf"
+      ansible.builtin.lineinfile:
+        path: /etc/ssh/sshd_config.d/10-stig.conf
+        regexp: '^#?ClientAliveCountMax'
+        line: 'ClientAliveCountMax 1'
+        state: present
+        create: true
+        mode: '0600'
+        owner: root
+        group: root
+      when: "'clientalivecountmax 1' not in rhel_10_700660_runtime.stdout | lower"
+      notify: restart sshd
+
+    - name: "RHEL-10-700660 | Re-check ClientAliveCountMax in sshd runtime config"
+      ansible.builtin.command:
+        cmd: sshd -T
+      register: rhel_10_700660_verify
+      changed_when: false
+      failed_when: false
+
+    - name: "RHEL-10-700660 | Assert ClientAliveCountMax is set to 1"
+      ansible.builtin.assert:
+        that: "'clientalivecountmax 1' in rhel_10_700660_verify.stdout | lower"
+        fail_msg: "result=FAIL stig_id=RHEL-10-700660 detail=sshd runtime does not have ClientAliveCountMax 1."
+        success_msg: "result=PASS stig_id=RHEL-10-700660 detail=sshd ClientAliveCountMax is set to 1."
+
+  rescue:
+    - name: "RHEL-10-700660 | RESCUE - record failure and continue"
+      ansible.builtin.debug:
+        msg: "result=ERROR stig_id=RHEL-10-700660 detail=Task failed unexpectedly — see prior error for details."

@@ -1,0 +1,92 @@
+---
+# =============================================================================
+# STIG ID  : RHEL-10-700560
+# Rule ID  : SV-281259r1184759_rule
+# Severity : medium
+# CCI      : CCI-002696
+# Title    : RHEL 10 must be configured so that the Secure Shell (SSH) daemon performs strict mode checking of home directory configuration files.
+#
+# Description:
+#   If other users have access to modify user-specific SSH configuration
+#   files, they may be able to log in to the system as another user. OpenSSH
+#   uses the first occurrence of a keyword it sees, and drop-in files are
+#   read in lexicographical order at the start of the configuration. Red Hat
+#   recommends using drop-in files rather than changing base configuration
+#   files.
+#
+# Check Text:
+#   Verify RHEL 10 SSH daemons perform strict mode checking of home directory
+#   configuration files with the following command:
+#
+#   $ sudo /usr/sbin/sshd -dd 2>&1 | awk '/filename/ {print $4}' | tr -d '\r'
+#   | tr '\n' ' ' | xargs sudo grep -iH '^\s*strictmodes'
+#   /etc/ssh/sshd_config.d/10-stig.conf:StrictModes yes
+#
+#   Verify the runtime setting with the following command:
+#
+#   $ sudo sshd -T | grep -i strictmodes
+#   strictmodes yes
+#
+#   If the "StrictModes" keyword is not set to "yes" in a drop-in that
+#   lexicographically precedes 50-redhat.conf, or if no output is returned,
+#   this is a finding.
+#
+# Fix Text:
+#   Configure RHEL 10 SSH daemons to perform strict mode checking of home
+#   directory configuration files.
+#
+#   In "/etc/ssh/sshd_config.d", create a drop file that will
+#   lexicographically precede 50-redhat.conf and add the following line:
+#
+#   StrictModes yes
+#
+#   Restart the SSH service with the following command for the changes to
+#   take effect:
+#
+#   $ sudo systemctl restart sshd.service
+# =============================================================================
+
+- name: "RHEL-10-700560 | RHEL 10 must be configured so that the Secure Shell (SSH) daemon performs strict mode checking of home directory configuration files."
+  when: rhel_10_700560 | bool
+  tags:
+    - RHEL-10-700560
+    - medium
+    - CCI-002696
+  block:
+    - name: "RHEL-10-700560 | Check StrictModes in sshd runtime config"
+      ansible.builtin.command:
+        cmd: sshd -T
+      register: rhel_10_700560_runtime
+      changed_when: false
+      failed_when: false
+
+    - name: "RHEL-10-700560 | Set StrictModes yes in /etc/ssh/sshd_config.d/10-stig.conf"
+      ansible.builtin.lineinfile:
+        path: /etc/ssh/sshd_config.d/10-stig.conf
+        regexp: '^#?StrictModes'
+        line: 'StrictModes yes'
+        state: present
+        create: true
+        mode: '0600'
+        owner: root
+        group: root
+      when: "'strictmodes yes' not in rhel_10_700560_runtime.stdout | lower"
+      notify: restart sshd
+
+    - name: "RHEL-10-700560 | Re-check StrictModes in sshd runtime config"
+      ansible.builtin.command:
+        cmd: sshd -T
+      register: rhel_10_700560_verify
+      changed_when: false
+      failed_when: false
+
+    - name: "RHEL-10-700560 | Assert StrictModes is set to yes"
+      ansible.builtin.assert:
+        that: "'strictmodes yes' in rhel_10_700560_verify.stdout | lower"
+        fail_msg: "result=FAIL stig_id=RHEL-10-700560 detail=sshd runtime config does not have StrictModes yes."
+        success_msg: "result=PASS stig_id=RHEL-10-700560 detail=sshd StrictModes is set to yes."
+
+  rescue:
+    - name: "RHEL-10-700560 | RESCUE - record failure and continue"
+      ansible.builtin.debug:
+        msg: "result=ERROR stig_id=RHEL-10-700560 detail=Task failed unexpectedly — see prior error for details."

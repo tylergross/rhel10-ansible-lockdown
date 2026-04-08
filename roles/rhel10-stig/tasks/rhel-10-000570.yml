@@ -1,0 +1,52 @@
+---
+# =============================================================================
+# STIG ID  : RHEL-10-000570
+# Rule ID  : SV-280941r1184731_rule
+# Severity : medium
+# CCI      : CCI-002385
+# Title    : RHEL 10 must use a separate file system for "/var/tmp".
+#
+# Description:
+#   The "/var/tmp" partition is used as temporary storage by many programs.
+#   Placing "/var/tmp" in its own partition enables the setting of more
+#   restrictive mount options, which can help protect programs that use it.
+#
+# Check Text:
+#   Verify RHEL 10 uses a separate file system/partition for "/var/tmp" with
+#   the following command:
+#
+#   $ mount | grep /var/tmp
+#   /dev/mapper/luks-c98555c8-0462-4b97-9afa-6db8c4bfee3b on /var/tmp type
+#   xfs (rw,nosuid,nodev,noexec,relatime,seclabel,attr2)
+#   Note: Options displayed for mount may differ.
+#
+#   If a separate entry for "/var/tmp" is not in use, this is a finding.
+#
+# Fix Text:
+#   Configure RHEL 10 to use a separate file system for the "/var/tmp" path
+#   by migrating "/var/tmp" onto a separate file system.
+# =============================================================================
+
+- name: "RHEL-10-000570 | RHEL 10 must use a separate file system for /var/tmp."
+  when: rhel_10_000570 | bool
+  tags:
+    - RHEL-10-000570
+    - medium
+    - CCI-002385
+  block:
+    - name: "RHEL-10-000570 | Check /var/tmp is a distinct mountpoint"
+      ansible.builtin.command: findmnt --noheadings --mountpoint /var/tmp
+      register: rhel_10_000570_findmnt
+      changed_when: false
+      failed_when: false
+
+    - name: "RHEL-10-000570 | Assert /var/tmp is on a separate filesystem"
+      ansible.builtin.assert:
+        that: rhel_10_000570_findmnt.rc == 0
+        fail_msg: "result=FAIL stig_id=RHEL-10-000570 detail=/var/tmp is not mounted on a separate filesystem. Remediation requires migrating /var/tmp to a dedicated partition (typically requires offline partition work or a system reinstall)."
+        success_msg: "result=PASS stig_id=RHEL-10-000570 detail=/var/tmp is on a separate filesystem."
+
+  rescue:
+    - name: "RHEL-10-000570 | RESCUE - record failure and continue"
+      ansible.builtin.debug:
+        msg: "result=ERROR stig_id=RHEL-10-000570 detail=Task failed unexpectedly — see prior error for details."

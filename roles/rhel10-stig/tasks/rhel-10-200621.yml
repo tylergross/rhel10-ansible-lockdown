@@ -1,0 +1,80 @@
+---
+# =============================================================================
+# STIG ID  : RHEL-10-200621
+# Rule ID  : SV-280976r1165283_rule
+# Severity : medium
+# CCI      : CCI-000764
+# Title    : RHEL 10 must use the common access card (CAC) smart card driver.
+#
+# Description:
+#   Smart card login provides two-factor authentication stronger than that
+#   provided by a username and password combination. Smart cards leverage
+#   public key infrastructure to provide and verify credentials. Configuring
+#   the smart card driver helps to prevent the use of unauthorized smart
+#   cards. Satisfies: SRG-OS-000104-GPOS-00051, SRG-OS-000106-GPOS-00053,
+#   SRG-OS-000107-GPOS-00054, SRG-OS-000109-GPOS-00056,
+#   SRG-OS-000108-GPOS-00055
+#
+# Check Text:
+#   Verify RHEL 10 loads the CAC driver with the following command:
+#
+#   $ sudo opensc-tool --get-conf-entry app:default:card_drivers
+#   cac
+#
+#   If "cac" is not listed as a card driver, or no line is returned for
+#   "card_drivers", this is a finding.
+#
+# Fix Text:
+#   Configure RHEL 10 to load the CAC driver:
+#
+#   $ sudo opensc-tool --set-conf-entry app:default:card_drivers:cac
+#
+#   Restart the pcscd service with the following command for the changes to
+#   take effect:
+#
+#   $ sudo systemctl restart pcscd
+# =============================================================================
+
+- name: "RHEL-10-200621 | RHEL 10 must use the common access card (CAC) smart card driver."
+  when: rhel_10_200621 | bool
+  tags:
+    - RHEL-10-200621
+    - medium
+    - CCI-000764
+  block:
+    - name: "RHEL-10-200621 | Check current opensc CAC card driver setting"
+      ansible.builtin.command: opensc-tool --get-conf-entry app:default:card_drivers
+      register: rhel_10_200621_check
+      changed_when: false
+      failed_when: false
+
+    - name: "RHEL-10-200621 | Configure opensc to use CAC card driver"
+      ansible.builtin.command: opensc-tool --set-conf-entry app:default:card_drivers:cac
+      register: rhel_10_200621_set
+      changed_when: rhel_10_200621_set.rc == 0
+      when: rhel_10_200621_check.stdout is not search('cac')
+
+    - name: "RHEL-10-200621 | Restart pcscd after opensc configuration change"
+      ansible.builtin.service:
+        name: pcscd
+        state: restarted
+      when: rhel_10_200621_set is changed
+
+    - name: "RHEL-10-200621 | Re-check opensc CAC card driver setting"
+      ansible.builtin.command: opensc-tool --get-conf-entry app:default:card_drivers
+      register: rhel_10_200621_recheck
+      changed_when: false
+      failed_when: false
+
+    - name: "RHEL-10-200621 | Assert opensc uses CAC card driver"
+      ansible.builtin.assert:
+        that: rhel_10_200621_recheck.stdout is search('cac')
+        fail_msg: >-
+          result=FAIL stig_id=RHEL-10-200621
+          detail=opensc is not configured to use the CAC smart card driver.
+          Run: opensc-tool --set-conf-entry app:default:card_drivers:cac
+        success_msg: "result=PASS stig_id=RHEL-10-200621 detail=opensc is configured to use the CAC smart card driver."
+  rescue:
+    - name: "RHEL-10-200621 | RESCUE - record failure and continue"
+      ansible.builtin.debug:
+        msg: "result=ERROR stig_id=RHEL-10-200621 detail=Task failed unexpectedly — see prior error for details."

@@ -1,0 +1,64 @@
+---
+# =============================================================================
+# STIG ID  : RHEL-10-200640
+# Rule ID  : SV-280983r1195368_rule
+# Severity : medium
+# CCI      : CCI-001851
+# Title    : RHEL 10 must have the "rsyslog" package installed.
+#
+# Description:
+#   The "rsyslogd" is a system utility providing support for message logging.
+#   Support for both internet and Unix domain sockets enables this utility to
+#   support local and remote logging. Couple this utility with "gnutls"
+#   (which is a secure communications library implementing the Secure Sockets
+#   Layer [SSL], Transport Layer Security [TLS], and Datagram TLS [DTLS]
+#   protocols), to create a method to securely encrypt and off-load auditing.
+#   Satisfies: SRG-OS-000479-GPOS-00224, SRG-OS-000051-GPOS-00024
+#
+# Check Text:
+#   Verify RHEL 10 has the "rsyslogd" package installed with the following
+#   command:
+#
+#   $ sudo dnf list --installed rsyslog
+#   Installed Packages
+#   rsyslog.x86_64 8.2412.0-1.el10 @AppStream
+#
+#   If the "rsyslogd" package is not installed, this is a finding.
+#
+# Fix Text:
+#   Configure RHEL 10 to have the "rsyslogd" package installed with the
+#   following command:
+#
+#   $ sudo dnf -y install rsyslogd
+# =============================================================================
+
+- name: "RHEL-10-200640 | RHEL 10 must have the rsyslog package installed."
+  when: rhel_10_200640 | bool
+  tags:
+    - RHEL-10-200640
+    - medium
+    - CCI-001851
+  block:
+    - name: "RHEL-10-200640 | Ensure rsyslog is installed"
+      ansible.builtin.package:
+        name: rsyslog
+        state: present
+
+    - name: "RHEL-10-200640 | Verify rsyslog is installed"
+      ansible.builtin.command: rpm -q rsyslog
+      register: rhel_10_200640_check
+      changed_when: false
+      failed_when: false
+
+    - name: "RHEL-10-200640 | Assert rsyslog is installed"
+      ansible.builtin.assert:
+        that: rhel_10_200640_check.rc == 0
+        fail_msg: >-
+          result=FAIL stig_id=RHEL-10-200640
+          detail=Package rsyslog is not installed.
+          Install with: dnf -y install rsyslog
+        success_msg: "result=PASS stig_id=RHEL-10-200640 detail=Package rsyslog is installed."
+  rescue:
+    - name: "RHEL-10-200640 | RESCUE - record failure and continue"
+      ansible.builtin.debug:
+        msg: "result=ERROR stig_id=RHEL-10-200640 detail=Task failed unexpectedly — see prior error for details."

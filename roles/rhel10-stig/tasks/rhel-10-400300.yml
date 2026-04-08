@@ -1,0 +1,95 @@
+---
+# =============================================================================
+# STIG ID  : RHEL-10-400300
+# Rule ID  : SV-281077r1165586_rule
+# Severity : medium
+# CCI      : CCI-001493
+# Title    : RHEL 10 must be configured so that audit tools are owned by "root".
+#
+# Description:
+#   Protecting audit information also includes identifying and protecting the
+#   tools used to view and manipulate log data. Therefore, protecting audit
+#   tools is necessary to prevent unauthorized operation on audit
+#   information. RHEL 10 systems providing tools to interface with audit
+#   information will leverage user permissions and roles identifying the user
+#   accessing the tools, and the corresponding rights the user enjoys, to
+#   make access decisions regarding the access to audit tools. Audit tools
+#   include, but are not limited to, vendor-provided and open source audit
+#   tools needed to successfully view and manipulate audit information system
+#   activity and records. Audit tools include custom queries and report
+#   generators. Satisfies: SRG-OS-000256-GPOS-00097,
+#   SRG-OS-000257-GPOS-00098, SRG-OS-000258-GPOS-00099
+#
+# Check Text:
+#   Verify RHEL 10 audit tools are owned by "root" with the following
+#   command:
+#
+#   $ sudo stat -c "%U %n" /sbin/auditctl /sbin/aureport /sbin/ausearch
+#   /sbin/auditd /sbin/rsyslogd /sbin/augenrules
+#   root /sbin/auditctl
+#   root /sbin/aureport
+#   root /sbin/ausearch
+#   root /sbin/auditd
+#   root /sbin/rsyslogd
+#   root /sbin/augenrules
+#
+#   If any audit tools do not have an owner of "root", this is a finding.
+#
+# Fix Text:
+#   Configure RHEL 10 so that the audit tools are owned by "root" by running
+#   the following command:
+#
+#   $ sudo chown root [audit_tool]
+#
+#   Replace "[audit_tool]" with each audit tool not owned by "root".
+# =============================================================================
+
+- name: "RHEL-10-400300 | RHEL 10 must be configured so that audit tools are owned by root."
+  when: rhel_10_400300 | bool
+  tags:
+    - RHEL-10-400300
+    - medium
+    - CCI-001493
+  block:
+    - name: "RHEL-10-400300 | Set owner of audit tools to root"
+      ansible.builtin.file:
+        path: "{{ item }}"
+        owner: root
+      loop:
+        - /sbin/auditctl
+        - /sbin/aureport
+        - /sbin/ausearch
+        - /sbin/auditd
+        - /sbin/rsyslogd
+        - /sbin/augenrules
+      register: rhel_10_400300_fix
+      failed_when: false
+
+    - name: "RHEL-10-400300 | Verify owner of audit tools is root"
+      ansible.builtin.stat:
+        path: "{{ item }}"
+      register: rhel_10_400300_verify
+      loop:
+        - /sbin/auditctl
+        - /sbin/aureport
+        - /sbin/ausearch
+        - /sbin/auditd
+        - /sbin/rsyslogd
+        - /sbin/augenrules
+      changed_when: false
+
+    - name: "RHEL-10-400300 | Assert all audit tools are owned by root"
+      ansible.builtin.assert:
+        that:
+          - item.stat.exists
+          - item.stat.pw_name == 'root'
+        fail_msg: "result=FAIL stig_id=RHEL-10-400300 detail=Audit tool {{ item.item }} is not owned by root (owner={{ item.stat.pw_name | default('unknown') }})."
+        success_msg: "result=PASS stig_id=RHEL-10-400300 detail=Audit tool {{ item.item }} is owned by root."
+      loop: "{{ rhel_10_400300_verify.results }}"
+      loop_control:
+        label: "{{ item.item }}"
+
+  rescue:
+    - name: "RHEL-10-400300 | RESCUE - record failure and continue"
+      ansible.builtin.debug:
+        msg: "result=ERROR stig_id=RHEL-10-400300 detail=Task failed unexpectedly — see prior error for details."

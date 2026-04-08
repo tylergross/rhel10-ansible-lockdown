@@ -1,0 +1,92 @@
+---
+# =============================================================================
+# STIG ID  : RHEL-10-700570
+# Rule ID  : SV-281260r1184760_rule
+# Severity : medium
+# CCI      : CCI-002696
+# Title    : RHEL 10 must be configured so that the Secure Shell (SSH) daemon displays the date and time of the last successful account login upon an SSH login.
+#
+# Description:
+#   Providing users with feedback on when account accesses last occurred
+#   facilitates user recognition and reporting of unauthorized account use.
+#   OpenSSH uses the first occurrence of a keyword it sees, and drop-in files
+#   are read in lexicographical order at the start of the configuration. Red
+#   Hat recommends using drop-in files rather than changing base
+#   configuration files.
+#
+# Check Text:
+#   Verify RHEL 10 SSH daemons provide users with feedback on when account
+#   accesses last occurred with the following command:
+#
+#   $ sudo /usr/sbin/sshd -dd 2>&1 | awk '/filename/ {print $4}' | tr -d '\r'
+#   | tr '\n' ' ' | xargs sudo grep -iH '^\s*printlastlog'
+#   /etc/ssh/sshd_config.d/10-stig.conf:PrintLastLog yes
+#
+#   Verify the runtime setting with the following command:
+#
+#   $ sudo sshd -T | grep -i printlastlog
+#   printlastlog yes
+#
+#   If the "PrintLastLog" keyword is not set to "yes" in a drop-in that
+#   lexicographically precedes 50-redhat.conf, or if no output is returned,
+#   this is a finding.
+#
+# Fix Text:
+#   Configure RHEL 10 SSH daemons to provide users with feedback on when
+#   account accesses last occurred.
+#
+#   In "/etc/ssh/sshd_config.d", create a drop file that will
+#   lexicographically precede 50-redhat.conf and add the following line:
+#
+#   PrintLastLog yes
+#
+#   Restart the SSH service with the following command for the changes to
+#   take effect:
+#
+#   $ sudo systemctl restart sshd.service
+# =============================================================================
+
+- name: "RHEL-10-700570 | RHEL 10 must be configured so that the Secure Shell (SSH) daemon displays the date and time of the last successful account login upon an SSH login."
+  when: rhel_10_700570 | bool
+  tags:
+    - RHEL-10-700570
+    - medium
+    - CCI-002696
+  block:
+    - name: "RHEL-10-700570 | Check PrintLastLog in sshd runtime config"
+      ansible.builtin.command:
+        cmd: sshd -T
+      register: rhel_10_700570_runtime
+      changed_when: false
+      failed_when: false
+
+    - name: "RHEL-10-700570 | Set PrintLastLog yes in /etc/ssh/sshd_config.d/10-stig.conf"
+      ansible.builtin.lineinfile:
+        path: /etc/ssh/sshd_config.d/10-stig.conf
+        regexp: '^#?PrintLastLog'
+        line: 'PrintLastLog yes'
+        state: present
+        create: true
+        mode: '0600'
+        owner: root
+        group: root
+      when: "'printlastlog yes' not in rhel_10_700570_runtime.stdout | lower"
+      notify: restart sshd
+
+    - name: "RHEL-10-700570 | Re-check PrintLastLog in sshd runtime config"
+      ansible.builtin.command:
+        cmd: sshd -T
+      register: rhel_10_700570_verify
+      changed_when: false
+      failed_when: false
+
+    - name: "RHEL-10-700570 | Assert PrintLastLog is set to yes"
+      ansible.builtin.assert:
+        that: "'printlastlog yes' in rhel_10_700570_verify.stdout | lower"
+        fail_msg: "result=FAIL stig_id=RHEL-10-700570 detail=sshd runtime config does not have PrintLastLog yes."
+        success_msg: "result=PASS stig_id=RHEL-10-700570 detail=sshd PrintLastLog is set to yes."
+
+  rescue:
+    - name: "RHEL-10-700570 | RESCUE - record failure and continue"
+      ansible.builtin.debug:
+        msg: "result=ERROR stig_id=RHEL-10-700570 detail=Task failed unexpectedly — see prior error for details."

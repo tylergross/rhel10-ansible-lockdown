@@ -1,0 +1,78 @@
+---
+# =============================================================================
+# STIG ID  : RHEL-10-701070
+# Rule ID  : SV-281309r1184631_rule
+# Severity : medium
+# CCI      : CCI-002165
+# Title    : RHEL 10 must enable kernel parameters to enforce discretionary access control (DAC) on hardlinks.
+#
+# Description:
+#   By enabling the "fs.protected_hardlinks" kernel parameter, users can no
+#   longer create soft or hard links to files they do not own. Disallowing
+#   such hardlinks mitigates vulnerabilities based on insecure file systems
+#   accessed by privileged programs, avoiding an exploitation vector
+#   exploiting unsafe use of open() or creat(). Satisfies:
+#   SRG-OS-000312-GPOS-00122, SRG-OS-000312-GPOS-00123,
+#   SRG-OS-000324-GPOS-00125
+#
+# Check Text:
+#   Verify RHEL 10 is configured to enable DAC on hardlinks.
+#
+#   Check the status of the "fs.protected_hardlinks" kernel parameter with
+#   the following command:
+#
+#   $ sudo sysctl fs.protected_hardlinks
+#   fs.protected_hardlinks = 1
+#
+#   If "fs.protected_hardlinks" is not set to "1" or is missing, this is a
+#   finding.
+#
+# Fix Text:
+#   Configure RHEL 10 to enable DAC on hardlinks.
+#
+#   Create a drop-in if it does not already exist:
+#
+#   $ sudo vi /etc/sysctl.d/99-fs_protected_hardlinks.conf
+#
+#   Add the following to the file:
+#
+#   fs.protected_hardlinks = 1
+#
+#   Reload settings from all system configuration files with the following
+#   command:
+#
+#   $ sudo sysctl --system
+# =============================================================================
+
+- name: "RHEL-10-701070 | RHEL 10 must enable kernel parameters to enforce discretionary access control (DAC) on hardlinks."
+  when: rhel_10_701070 | bool
+  tags:
+    - RHEL-10-701070
+    - medium
+    - CCI-002165
+  block:
+    - name: "RHEL-10-701070 | Set sysctl fs.protected_hardlinks = 1"
+      ansible.posix.sysctl:
+        name: fs.protected_hardlinks
+        value: '1'
+        state: present
+        reload: true
+        sysctl_file: /etc/sysctl.d/rhel10-stig.conf
+
+    - name: "RHEL-10-701070 | Verify fs.protected_hardlinks"
+      ansible.builtin.command:
+        cmd: sysctl fs.protected_hardlinks
+      register: rhel_10_701070_sysctl
+      changed_when: false
+      failed_when: false
+
+    - name: "RHEL-10-701070 | Assert fs.protected_hardlinks = 1"
+      ansible.builtin.assert:
+        that: "'= 1' in rhel_10_701070_sysctl.stdout"
+        fail_msg: "result=FAIL stig_id=RHEL-10-701070 detail=fs.protected_hardlinks is not set to 1 (output={{ rhel_10_701070_sysctl.stdout | trim }})."
+        success_msg: "result=PASS stig_id=RHEL-10-701070 detail=fs.protected_hardlinks is set to 1."
+
+  rescue:
+    - name: "RHEL-10-701070 | RESCUE - record failure and continue"
+      ansible.builtin.debug:
+        msg: "result=ERROR stig_id=RHEL-10-701070 detail=Task failed unexpectedly — see prior error for details."

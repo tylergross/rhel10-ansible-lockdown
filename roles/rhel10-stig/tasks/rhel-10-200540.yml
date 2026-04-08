@@ -1,0 +1,62 @@
+---
+# =============================================================================
+# STIG ID  : RHEL-10-200540
+# Rule ID  : SV-280958r1195348_rule
+# Severity : medium
+# CCI      : CCI-004923
+# Title    : RHEL 10 must have the "chrony" package installed.
+#
+# Description:
+#   Inaccurate time stamps make it more difficult to correlate events and can
+#   lead to an inaccurate analysis. Determining the correct time a particular
+#   event occurred on a system is critical when conducting forensic analysis
+#   and investigating system events. Sources outside the configured
+#   acceptable allowance (drift) may be inaccurate.
+#
+# Check Text:
+#   Verify RHEL 10 has the "chrony" package installed with the following
+#   command:
+#
+#   $ sudo dnf list --installed chrony
+#   Installed Packages
+#   chrony.x86_64 4.6.1-1.el10 @anaconda
+#
+#   If the "chrony" package is not installed, this is a finding.
+#
+# Fix Text:
+#   Configure RHEL 10 to have the "chrony" package installed with the
+#   following command:
+#
+#   $ sudo dnf -y install chrony
+# =============================================================================
+
+- name: "RHEL-10-200540 | RHEL 10 must have the chrony package installed."
+  when: rhel_10_200540 | bool
+  tags:
+    - RHEL-10-200540
+    - medium
+    - CCI-004923
+  block:
+    - name: "RHEL-10-200540 | Ensure chrony is installed"
+      ansible.builtin.package:
+        name: chrony
+        state: present
+
+    - name: "RHEL-10-200540 | Verify chrony is installed"
+      ansible.builtin.command: rpm -q chrony
+      register: rhel_10_200540_check
+      changed_when: false
+      failed_when: false
+
+    - name: "RHEL-10-200540 | Assert chrony is installed"
+      ansible.builtin.assert:
+        that: rhel_10_200540_check.rc == 0
+        fail_msg: >-
+          result=FAIL stig_id=RHEL-10-200540
+          detail=Package chrony is not installed.
+          Install with: dnf -y install chrony
+        success_msg: "result=PASS stig_id=RHEL-10-200540 detail=Package chrony is installed."
+  rescue:
+    - name: "RHEL-10-200540 | RESCUE - record failure and continue"
+      ansible.builtin.debug:
+        msg: "result=ERROR stig_id=RHEL-10-200540 detail=Task failed unexpectedly — see prior error for details."

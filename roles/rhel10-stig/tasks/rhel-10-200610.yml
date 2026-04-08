@@ -1,0 +1,63 @@
+---
+# =============================================================================
+# STIG ID  : RHEL-10-200610
+# Rule ID  : SV-280972r1195360_rule
+# Severity : medium
+# CCI      : CCI-004046
+# Title    : RHEL 10 must have the "pcsc-lite" package installed.
+#
+# Description:
+#   The "pcsc-lite" package must be installed if it is to be available for
+#   multifactor authentication using smart cards.
+#
+# Check Text:
+#   Note: If the system administrator demonstrates the use of an approved
+#   alternate multifactor authentication method, this requirement is not
+#   applicable.
+#
+#   Verify RHEL 10 has the "pcsc-lite" package installed with the following
+#   command:
+#
+#   $ sudo dnf list --installed pcsc-lite
+#   Installed Packages
+#   pcsc-lite.x86_64 2.2.3-2.el10 @anaconda
+#
+#   If the "pcsc-lite" package is not installed, this is a finding.
+#
+# Fix Text:
+#   Configure RHEL 10 to have the "pcsc-lite" package installed with the
+#   following command:
+#
+#   $ sudo dnf -y install pcsc-lite
+# =============================================================================
+
+- name: "RHEL-10-200610 | RHEL 10 must have the pcsc-lite package installed."
+  when: rhel_10_200610 | bool
+  tags:
+    - RHEL-10-200610
+    - medium
+    - CCI-004046
+  block:
+    - name: "RHEL-10-200610 | Ensure pcsc-lite is installed"
+      ansible.builtin.package:
+        name: pcsc-lite
+        state: present
+
+    - name: "RHEL-10-200610 | Verify pcsc-lite is installed"
+      ansible.builtin.command: rpm -q pcsc-lite
+      register: rhel_10_200610_check
+      changed_when: false
+      failed_when: false
+
+    - name: "RHEL-10-200610 | Assert pcsc-lite is installed"
+      ansible.builtin.assert:
+        that: rhel_10_200610_check.rc == 0
+        fail_msg: >-
+          result=FAIL stig_id=RHEL-10-200610
+          detail=Package pcsc-lite is not installed.
+          Install with: dnf -y install pcsc-lite
+        success_msg: "result=PASS stig_id=RHEL-10-200610 detail=Package pcsc-lite is installed."
+  rescue:
+    - name: "RHEL-10-200610 | RESCUE - record failure and continue"
+      ansible.builtin.debug:
+        msg: "result=ERROR stig_id=RHEL-10-200610 detail=Task failed unexpectedly — see prior error for details."

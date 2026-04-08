@@ -1,0 +1,90 @@
+---
+# =============================================================================
+# STIG ID  : RHEL-10-700010
+# Rule ID  : SV-281224r1184753_rule
+# Severity : medium
+# CCI      : CCI-000213
+# Title    : RHEL 10 must display the Standard Mandatory DOD Notice and Consent Banner before granting local or remote access to the system via a Secure Shell (SSH) login.
+#
+# Description:
+#   The warning message reinforces policy awareness during the login process
+#   and facilitates possible legal action against attackers. Alternatively,
+#   systems whose ownership should not be obvious should ensure use of a
+#   banner that does not provide easy attribution. OpenSSH uses the first
+#   occurrence of a keyword it sees, and drop-in files are read in
+#   lexicographical order at the start of the configuration. Red Hat
+#   recommends using drop-in files rather than changing base configuration
+#   files.
+#
+# Check Text:
+#   Verify RHEL 10 is configured so that any SSH connection to the operating
+#   system displays the Standard Mandatory DOD Notice and Consent Banner
+#   before granting access to the system.
+#
+#   Check for the location of the banner file currently being used with the
+#   following command:
+#
+#   $ sudo /usr/sbin/sshd -dd 2>&1 | awk '/filename/ {print $4}' | tr -d '\r'
+#   | tr '\n' ' ' | xargs sudo grep -iH '^\s*banner'
+#   /etc/ssh/sshd_config.d/10-stig.conf:Banner /etc/issue
+#
+#   If the line is commented out or the file is missing, this is a finding.
+#
+# Fix Text:
+#   Configure RHEL 10 to display the Standard Mandatory DOD Notice and
+#   Consent Banner before granting access to the system via SSH.
+#
+#   Edit a file in "/etc/ssh/sshd_config.d" to uncomment or add the banner
+#   keyword and configure it to point to a file that will contain the login
+#   banner (this file may be named differently or be in a different location
+#   if using a version of SSH that is provided by a third-party vendor).
+#
+#   An example configuration line is:
+#
+#   Banner /etc/issue
+# =============================================================================
+
+- name: "RHEL-10-700010 | RHEL 10 must display the Standard Mandatory DOD Notice and Consent Banner before granting local or remote access to the system via a Secure Shell (SSH) login."
+  when: rhel_10_700010 | bool
+  tags:
+    - RHEL-10-700010
+    - medium
+    - CCI-000213
+  block:
+    - name: "RHEL-10-700010 | Check Banner setting in sshd runtime config"
+      ansible.builtin.command:
+        cmd: sshd -T
+      register: rhel_10_700010_runtime
+      changed_when: false
+      failed_when: false
+
+    - name: "RHEL-10-700010 | Set Banner /etc/issue in /etc/ssh/sshd_config.d/10-stig.conf"
+      ansible.builtin.lineinfile:
+        path: /etc/ssh/sshd_config.d/10-stig.conf
+        regexp: '^#?Banner'
+        line: 'Banner /etc/issue'
+        state: present
+        create: true
+        mode: '0600'
+        owner: root
+        group: root
+      when: "'banner /etc/issue' not in rhel_10_700010_runtime.stdout | lower"
+      notify: restart sshd
+
+    - name: "RHEL-10-700010 | Re-check Banner setting in sshd runtime config"
+      ansible.builtin.command:
+        cmd: sshd -T
+      register: rhel_10_700010_verify
+      changed_when: false
+      failed_when: false
+
+    - name: "RHEL-10-700010 | Assert Banner is set to /etc/issue"
+      ansible.builtin.assert:
+        that: "'banner /etc/issue' in rhel_10_700010_verify.stdout | lower"
+        fail_msg: "result=FAIL stig_id=RHEL-10-700010 detail=sshd runtime config does not have Banner set to /etc/issue."
+        success_msg: "result=PASS stig_id=RHEL-10-700010 detail=sshd Banner is set to /etc/issue."
+
+  rescue:
+    - name: "RHEL-10-700010 | RESCUE - record failure and continue"
+      ansible.builtin.debug:
+        msg: "result=ERROR stig_id=RHEL-10-700010 detail=Task failed unexpectedly — see prior error for details."

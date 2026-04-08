@@ -1,0 +1,64 @@
+---
+# =============================================================================
+# STIG ID  : RHEL-10-400195
+# Rule ID  : SV-281056r1165523_rule
+# Severity : medium
+# CCI      : CCI-000171
+# Title    : RHEL 10 must enforce root ownership of the "/etc/audit/" directory.
+#
+# Description:
+#   The "/etc/audit/" directory contains files that ensure the proper
+#   auditing of command execution, privilege escalation, file manipulation,
+#   and more. Protection of this directory is critical for system security.
+#
+# Check Text:
+#   Verify RHEL 10 enforces root ownership of the "/etc/audit/" directory
+#   with the following command:
+#
+#   $ sudo stat -c "%U %n" /etc/audit/
+#   root /etc/audit/
+#
+#   If the "/etc/audit/" directory does not have an owner of "root", this is
+#   a finding.
+#
+# Fix Text:
+#   Configure RHEL 10 so that the "/etc/audit/" directory is owned by "root"
+#   with the following command:
+#
+#   $ sudo chown root /etc/audit/
+# =============================================================================
+
+- name: "RHEL-10-400195 | RHEL 10 must enforce root ownership of the /etc/audit/ directory."
+  when: rhel_10_400195 | bool
+  tags:
+    - RHEL-10-400195
+    - medium
+    - CCI-000171
+  block:
+    - name: "RHEL-10-400195 | Check owner of /etc/audit/"
+      ansible.builtin.stat:
+        path: /etc/audit
+      register: rhel_10_400195_stat
+
+    - name: "RHEL-10-400195 | Set root ownership on /etc/audit/"
+      ansible.builtin.file:
+        path: /etc/audit
+        owner: root
+      when: rhel_10_400195_stat.stat.pw_name != 'root'
+
+    - name: "RHEL-10-400195 | Re-check owner of /etc/audit/"
+      ansible.builtin.stat:
+        path: /etc/audit
+      register: rhel_10_400195_verify
+
+    - name: "RHEL-10-400195 | Assert /etc/audit/ is owned by root"
+      ansible.builtin.assert:
+        that:
+          - rhel_10_400195_verify.stat.pw_name == 'root'
+        fail_msg: "result=FAIL stig_id=RHEL-10-400195 detail=/etc/audit/ is not owned by root (owner={{ rhel_10_400195_verify.stat.pw_name }})."
+        success_msg: "result=PASS stig_id=RHEL-10-400195 detail=/etc/audit/ is owned by root."
+
+  rescue:
+    - name: "RHEL-10-400195 | RESCUE - record failure and continue"
+      ansible.builtin.debug:
+        msg: "result=ERROR stig_id=RHEL-10-400195 detail=Task failed unexpectedly — see prior error for details."

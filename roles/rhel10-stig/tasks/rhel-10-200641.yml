@@ -1,0 +1,58 @@
+---
+# =============================================================================
+# STIG ID  : RHEL-10-200641
+# Rule ID  : SV-280984r1165307_rule
+# Severity : medium
+# CCI      : CCI-000133
+# Title    : RHEL 10 must have the rsyslog service set to active.
+#
+# Description:
+#   The rsyslog service must be running to provide logging services, which
+#   are essential to system administration.
+#
+# Check Text:
+#   Verify RHEL 10 rsyslog is active with the following command:
+#
+#   $ systemctl is-active rsyslog
+#   active
+#
+#   If the rsyslog service is not active, this is a finding.
+#
+# Fix Text:
+#   Configure RHEL 10 to enable the rsyslog service with the following
+#   command:
+#
+#   $ sudo systemctl enable --now rsyslog
+# =============================================================================
+
+- name: "RHEL-10-200641 | RHEL 10 must have the rsyslog service set to active."
+  when: rhel_10_200641 | bool
+  tags:
+    - RHEL-10-200641
+    - medium
+    - CCI-000133
+  block:
+    - name: "RHEL-10-200641 | Ensure rsyslog service is started and enabled"
+      ansible.builtin.service:
+        name: rsyslog
+        state: started
+        enabled: true
+
+    - name: "RHEL-10-200641 | Check rsyslog service is active"
+      ansible.builtin.command: systemctl is-active rsyslog
+      register: rhel_10_200641_check
+      changed_when: false
+      failed_when: false
+
+    - name: "RHEL-10-200641 | Assert rsyslog service is active"
+      ansible.builtin.assert:
+        that: rhel_10_200641_check.stdout == 'active'
+        fail_msg: >-
+          result=FAIL stig_id=RHEL-10-200641
+          detail=Service rsyslog is not active (got '{{ rhel_10_200641_check.stdout }}').
+          Enable with: systemctl enable --now rsyslog
+        success_msg: "result=PASS stig_id=RHEL-10-200641 detail=Service rsyslog is active and enabled."
+  rescue:
+    - name: "RHEL-10-200641 | RESCUE - record failure and continue"
+      ansible.builtin.debug:
+        msg: "result=ERROR stig_id=RHEL-10-200641 detail=Task failed unexpectedly — see prior error for details."

@@ -1,0 +1,59 @@
+---
+# =============================================================================
+# STIG ID  : RHEL-10-200700
+# Rule ID  : SV-281000r1195389_rule
+# Severity : medium
+# CCI      : CCI-000381
+# Title    : RHEL 10 must have the "cronie" package installed.
+#
+# Description:
+#   The "cronie" package must be installed if it is to be available for
+#   multifactor authentication using smart cards.
+#
+# Check Text:
+#   Verify RHEL 10 has the "cronie" package installed with the following
+#   command:
+#
+#   $ sudo dnf list --installed cronie
+#   Installed Packages
+#   cronie.x86_64 1.7.0-9.el10 @anaconda
+#
+#   If the "cronie" package is not installed, this is a finding.
+#
+# Fix Text:
+#   Configure RHEL 10 to have the "cronie" package installed with the
+#   following command:
+#
+#   $ sudo dnf -y install cronie
+# =============================================================================
+
+- name: "RHEL-10-200700 | RHEL 10 must have the cronie package installed."
+  when: rhel_10_200700 | bool
+  tags:
+    - RHEL-10-200700
+    - medium
+    - CCI-000381
+  block:
+    - name: "RHEL-10-200700 | Ensure cronie is installed"
+      ansible.builtin.package:
+        name: cronie
+        state: present
+
+    - name: "RHEL-10-200700 | Verify cronie is installed"
+      ansible.builtin.command: rpm -q cronie
+      register: rhel_10_200700_check
+      changed_when: false
+      failed_when: false
+
+    - name: "RHEL-10-200700 | Assert cronie is installed"
+      ansible.builtin.assert:
+        that: rhel_10_200700_check.rc == 0
+        fail_msg: >-
+          result=FAIL stig_id=RHEL-10-200700
+          detail=Package cronie is not installed.
+          Install with: dnf -y install cronie
+        success_msg: "result=PASS stig_id=RHEL-10-200700 detail=Package cronie is installed."
+  rescue:
+    - name: "RHEL-10-200700 | RESCUE - record failure and continue"
+      ansible.builtin.debug:
+        msg: "result=ERROR stig_id=RHEL-10-200700 detail=Task failed unexpectedly — see prior error for details."

@@ -1,0 +1,133 @@
+---
+# =============================================================================
+# STIG ID  : RHEL-10-400160
+# Rule ID  : SV-281049r1197223_rule
+# Severity : medium
+# CCI      : CCI-000213
+# Title    : RHEL 10 must ensure that all local interactive user home directories are group-owned by the home directory owner's primary group.
+#
+# Description:
+#   If the group identifier (GID) of a local interactive user's home
+#   directory is not the same as the primary GID of the user, this would
+#   allow unauthorized access to the user's files. Users who share the same
+#   group may not be able to access files that they legitimately should be
+#   able to access. Satisfies: SRG-OS-000080-GPOS-00048,
+#   SRG-OS-000420-GPOS-00186
+#
+# Check Text:
+#   Verify RHEL 10 interactive users' home directories are group-owned by the
+#   user's primary GID with the following command:
+#
+#   Note: This may miss local interactive users that have been assigned a
+#   privileged user identifier (UID). Evidence of interactive use may be
+#   obtained from several log files containing system login information. The
+#   returned directory "/home/disauser" is used as an example.
+#
+#   $ sudo ls -ld $(awk -F: '($3>=1000)&&($7 !~ /nologin/){print $6}'
+#   /etc/passwd)
+#   drwxr-x--- 2 disauser admin 4096 Jun 5 12:41 disauser
+#
+#   Check the user's primary group with the following command:
+#
+#   $ sudo grep $(grep disauser /etc/passwd | awk -F: '{print $4}')
+#   /etc/group
+#   admin:x:250:disauser,doduser,nsauser
+#
+#   If the user home directory referenced in "/etc/passwd" is not group-owned
+#   by that user's primary GID, this is a finding.
+#
+# Fix Text:
+#   Configure RHEL 10 interactive users' home directories to be group-owned
+#   by the user's primary GID.
+#
+#   Change the group owner of a local interactive user's home directory to
+#   the group found in "/etc/passwd". To change the group owner of a local
+#   interactive user's home directory, use the following command:
+#
+#   Note: The example will be for the user "disauser", who has a home
+#   directory of "/home/disauser" and has a primary group of users.
+#
+#   $ sudo chgrp users /home/disauser
+# =============================================================================
+
+- name: "RHEL-10-400160 | RHEL 10 must ensure that all local interactive user home directories are group-owned by the home directory owner's primary group."
+  when: rhel_10_400160 | bool
+  tags:
+    - RHEL-10-400160
+    - medium
+    - CCI-000213
+  block:
+    - name: "RHEL-10-400160 | Collect local interactive users and their primary groups"
+      ansible.builtin.getent:
+        database: passwd
+      register: rhel_10_400160_passwd
+
+    - name: "RHEL-10-400160 | Collect group information"
+      ansible.builtin.getent:
+        database: group
+      register: rhel_10_400160_groups
+
+    - name: "RHEL-10-400160 | Build list of home dirs with incorrect group ownership"
+      ansible.builtin.set_fact:
+        rhel_10_400160_bad_homes: >-
+          {{
+            ansible_facts.getent_passwd
+            | dict2items
+            | selectattr('value.3', 'match', '^[0-9]+$')
+            | selectattr('value.2', 'match', '^[0-9]+$')
+            | selectattr('value.2', 'ne', '0')
+            | selectattr('value.5', 'ne', '/root')
+            | selectattr('value.6', 'not', 'search', 'nologin')
+            | selectattr('value.6', 'not', 'search', 'false')
+            | list
+          }}
+
+    - name: "RHEL-10-400160 | Check home directory group ownership matches user primary group"
+      ansible.builtin.command:
+        cmd: >-
+          bash -c "awk -F: '($3>=1000)&&($7 !~ /nologin/)&&($7 !~ /false/){print $1\":\"$4\":\"$6}' /etc/passwd |
+          while IFS=: read user gid homedir; do
+            [ -d \"$homedir\" ] || continue;
+            actual_gid=$(stat -c '%g' \"$homedir\" 2>/dev/null);
+            [ \"$actual_gid\" = \"$gid\" ] || echo \"$user:$homedir:expected_gid=$gid:actual_gid=$actual_gid\";
+          done"
+      register: rhel_10_400160_check
+      changed_when: false
+      failed_when: false
+
+    - name: "RHEL-10-400160 | Correct group ownership on home directories"
+      ansible.builtin.command:
+        cmd: >-
+          bash -c "awk -F: '($3>=1000)&&($7 !~ /nologin/)&&($7 !~ /false/){print $1\":\"$4\":\"$6}' /etc/passwd |
+          while IFS=: read user gid homedir; do
+            [ -d \"$homedir\" ] || continue;
+            actual_gid=$(stat -c '%g' \"$homedir\" 2>/dev/null);
+            [ \"$actual_gid\" = \"$gid\" ] || chgrp \"$gid\" \"$homedir\";
+          done"
+      when: rhel_10_400160_check.stdout_lines | length > 0
+      changed_when: true
+
+    - name: "RHEL-10-400160 | Re-check home directory group ownership"
+      ansible.builtin.command:
+        cmd: >-
+          bash -c "awk -F: '($3>=1000)&&($7 !~ /nologin/)&&($7 !~ /false/){print $1\":\"$4\":\"$6}' /etc/passwd |
+          while IFS=: read user gid homedir; do
+            [ -d \"$homedir\" ] || continue;
+            actual_gid=$(stat -c '%g' \"$homedir\" 2>/dev/null);
+            [ \"$actual_gid\" = \"$gid\" ] || echo \"$user:$homedir:expected_gid=$gid:actual_gid=$actual_gid\";
+          done"
+      register: rhel_10_400160_verify
+      changed_when: false
+      failed_when: false
+
+    - name: "RHEL-10-400160 | Assert home directories are group-owned by user primary group"
+      ansible.builtin.assert:
+        that:
+          - rhel_10_400160_verify.stdout_lines | length == 0
+        fail_msg: "result=FAIL stig_id=RHEL-10-400160 detail=Home directories with incorrect group ownership: {{ rhel_10_400160_verify.stdout_lines | join('; ') }}."
+        success_msg: "result=PASS stig_id=RHEL-10-400160 detail=All local interactive user home directories are group-owned by the user's primary group."
+
+  rescue:
+    - name: "RHEL-10-400160 | RESCUE - record failure and continue"
+      ansible.builtin.debug:
+        msg: "result=ERROR stig_id=RHEL-10-400160 detail=Task failed unexpectedly — see prior error for details."

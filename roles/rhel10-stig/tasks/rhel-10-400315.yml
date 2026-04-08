@@ -1,0 +1,93 @@
+---
+# =============================================================================
+# STIG ID  : RHEL-10-400315
+# Rule ID  : SV-281080r1184687_rule
+# Severity : medium
+# CCI      : CCI-000213
+# Title    : RHEL 10 must define default permissions for the bash shell.
+#
+# Description:
+#   The "umask" controls the default access mode assigned to newly created
+#   files. A "umask" of "077" limits new files to mode "600" or less
+#   permissive. Although "umask" can be represented as a four-digit number,
+#   the first digit representing special access modes is typically ignored or
+#   required to be "0". This requirement applies to the globally configured
+#   system defaults and the local interactive user defaults for each account
+#   on the system.
+#
+# Check Text:
+#   Verify RHEL 10 "umask" setting is configured correctly in the
+#   "/etc/bashrc" file with the following command:
+#
+#   Note: If the value of the "umask" parameter is set to "000" in the
+#   "/etc/bashrc" file, the Severity is raised to a CAT I.
+#
+#   $ sudo grep umask /etc/bashrc
+#   [ `umask` -eq 0 ] && umask 077
+#
+#   If the value for the "umask" parameter is not "077", or the "umask"
+#   parameter is missing or is commented out, this is a finding.
+#
+# Fix Text:
+#   Configure RHEL 10 to define default permissions for all authenticated
+#   users using the bash shell.
+#
+#   Add or edit the lines for the "umask" parameter in the "/etc/bashrc" file
+#   to "077":
+#
+#   umask 077
+# =============================================================================
+
+- name: "RHEL-10-400315 | RHEL 10 must define default permissions for the bash shell."
+  when: rhel_10_400315 | bool
+  tags:
+    - RHEL-10-400315
+    - medium
+    - CCI-000213
+  block:
+    - name: "RHEL-10-400315 | Check umask setting in /etc/bashrc"
+      ansible.builtin.command:
+        cmd: grep -E '^\s*umask\s+077\b' /etc/bashrc
+      register: rhel_10_400315_check
+      changed_when: false
+      failed_when: false
+
+    - name: "RHEL-10-400315 | Backup /etc/bashrc"
+      ansible.builtin.copy:
+        src: /etc/bashrc
+        dest: "/etc/bashrc.bak.{{ ansible_date_time.epoch }}"
+        remote_src: true
+        mode: preserve
+      when: rhel_10_400315_check.rc != 0
+
+    - name: "RHEL-10-400315 | Remove existing umask lines from /etc/bashrc"
+      ansible.builtin.replace:
+        path: /etc/bashrc
+        regexp: '^\s*(\[\s*`umask`\s*-eq\s*0\s*\]\s*&&\s*)?umask\s+\d+'
+        replace: '# umask removed by STIG RHEL-10-400315'
+      when: rhel_10_400315_check.rc != 0
+
+    - name: "RHEL-10-400315 | Set umask 077 in /etc/bashrc"
+      ansible.builtin.lineinfile:
+        path: /etc/bashrc
+        line: 'umask 077'
+        state: present
+      when: rhel_10_400315_check.rc != 0
+
+    - name: "RHEL-10-400315 | Re-check umask setting in /etc/bashrc"
+      ansible.builtin.command:
+        cmd: grep -E '^\s*umask\s+077\b' /etc/bashrc
+      register: rhel_10_400315_verify
+      changed_when: false
+      failed_when: false
+
+    - name: "RHEL-10-400315 | Assert umask 077 is set in /etc/bashrc"
+      ansible.builtin.assert:
+        that: rhel_10_400315_verify.rc == 0
+        fail_msg: "result=FAIL stig_id=RHEL-10-400315 detail=umask 077 is not set in /etc/bashrc."
+        success_msg: "result=PASS stig_id=RHEL-10-400315 detail=umask 077 is correctly set in /etc/bashrc."
+
+  rescue:
+    - name: "RHEL-10-400315 | RESCUE - record failure and continue"
+      ansible.builtin.debug:
+        msg: "result=ERROR stig_id=RHEL-10-400315 detail=Task failed unexpectedly — see prior error for details."

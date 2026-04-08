@@ -1,0 +1,75 @@
+---
+# =============================================================================
+# STIG ID  : RHEL-10-400215
+# Rule ID  : SV-281060r1165535_rule
+# Severity : medium
+# CCI      : CCI-001499
+# Title    : RHEL 10 must enforce mode "755" or less permissive for library files.
+#
+# Description:
+#   If RHEL 10 allowed any user to make changes to software libraries, those
+#   changes might be implemented without undergoing the appropriate testing
+#   and approvals that are part of a robust change management process. This
+#   requirement applies to RHEL 10 with software libraries that are
+#   accessible and configurable, as in the case of interpreted languages.
+#   Software libraries also include privileged programs that execute with
+#   escalated privileges.
+#
+# Check Text:
+#   Verify RHEL 10 is configured so that the systemwide shared library files
+#   contained in the following directories have mode "755" or less permissive
+#   with the following command:
+#
+#   $ sudo find -L /lib /lib64 /usr/lib /usr/lib64 -perm /022 -type f -exec
+#   ls -l {} \;
+#
+#   If any systemwide shared library file is found to be group-writable or
+#   world-writable, this is a finding.
+#
+# Fix Text:
+#   Configure RHEL 10 so that the library files are protected from
+#   unauthorized access. Run the following command, replacing "[FILE]" with
+#   any library file with a mode more permissive than "755".
+#
+#   $ sudo chmod 755 [FILE]
+# =============================================================================
+
+- name: "RHEL-10-400215 | RHEL 10 must enforce mode 755 or less permissive for library files."
+  when: rhel_10_400215 | bool
+  tags:
+    - RHEL-10-400215
+    - medium
+    - CCI-001499
+  block:
+    - name: "RHEL-10-400215 | Find library files more permissive than 755"
+      ansible.builtin.command:
+        cmd: find -L /lib /lib64 /usr/lib /usr/lib64 -perm /022 -type f
+      register: rhel_10_400215_check
+      changed_when: false
+      failed_when: false
+
+    - name: "RHEL-10-400215 | Remediate library files more permissive than 755"
+      ansible.builtin.file:
+        path: "{{ item }}"
+        mode: "g-w,o-w"
+      loop: "{{ rhel_10_400215_check.stdout_lines }}"
+      when: rhel_10_400215_check.stdout_lines | length > 0
+
+    - name: "RHEL-10-400215 | Re-check library files more permissive than 755"
+      ansible.builtin.command:
+        cmd: find -L /lib /lib64 /usr/lib /usr/lib64 -perm /022 -type f
+      register: rhel_10_400215_verify
+      changed_when: false
+      failed_when: false
+
+    - name: "RHEL-10-400215 | Assert no library files are group- or world-writable"
+      ansible.builtin.assert:
+        that:
+          - rhel_10_400215_verify.stdout_lines | length == 0
+        fail_msg: "result=FAIL stig_id=RHEL-10-400215 detail=Library files with mode more permissive than 755 found: {{ rhel_10_400215_verify.stdout_lines | join(', ') }}."
+        success_msg: "result=PASS stig_id=RHEL-10-400215 detail=All library files have mode 755 or less permissive."
+
+  rescue:
+    - name: "RHEL-10-400215 | RESCUE - record failure and continue"
+      ansible.builtin.debug:
+        msg: "result=ERROR stig_id=RHEL-10-400215 detail=Task failed unexpectedly — see prior error for details."

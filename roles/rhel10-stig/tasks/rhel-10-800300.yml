@@ -1,0 +1,106 @@
+---
+# =============================================================================
+# STIG ID  : RHEL-10-800300
+# Rule ID  : SV-281362r1167236_rule
+# Severity : medium
+# CCI      : CCI-002385
+# Title    : RHEL 10 must configure a DNS processing mode in Network Manager to avoid conflicts with other Domain Name Server (DNS) managers and to not leak DNS queries to untrusted networks.
+#
+# Description:
+#   To ensure that DNS resolver settings are respected, a DNS mode in Network
+#   Manager must be configured. The following are common DNS values in
+#   "NetworkManager.conf [main]": - default: NetworkManager will update
+#   "/etc/resolv.conf" to reflect the nameservers provided by currently
+#   active connections. - none: NetworkManager will not modify
+#   "/etc/resolv.conf". Used when DNS is managed manually or by another
+#   service. - systemd-resolved: Uses "systemd-resolved" to manage DNS. -
+#   dnsmasq: Enables the internal "dnsmasq" plugin. Satisfies:
+#   SRG-OS-000420-GPOS-00186, SRG-OS-000142-GPOS-00091
+#
+# Check Text:
+#   Verify RHEL 10 has a DNS mode configured in Network Manager.
+#
+#   $ NetworkManager --print-config
+#   [main]
+#   dns=none
+#
+#   If the dns key under "main" does not exist or is set to "dnsmasq", this
+#   is a finding.
+#
+#   Note: If RHEL 10 is configured to use a DNS resolver other than Network
+#   Manager, the configuration must be documented and approved by the
+#   information system security officer.
+#
+# Fix Text:
+#   Configure RHEL 10 to use a DNS mode in Network Manager.
+#
+#   In "/etc/NetworkManager/NetworkManager.conf", add the following line in
+#   the "[main]" section:
+#
+#   dns = none
+#
+#   Where <dns processing mode> is default, none, or systemd-resolved.
+#
+#   Network Manager must be reloaded for the change to take effect:
+#
+#   $ sudo systemctl reload NetworkManager
+# =============================================================================
+
+- name: "RHEL-10-800300 | RHEL 10 must configure a DNS processing mode in Network Manager to avoid conflicts with other Domain Name Server (DNS) managers and to not leak DNS queries to untrusted networks."
+  when: rhel_10_800300 | bool
+  tags:
+    - RHEL-10-800300
+    - medium
+    - CCI-002385
+  block:
+    - name: "RHEL-10-800300 | Check dns setting in /etc/NetworkManager/NetworkManager.conf"
+      ansible.builtin.command:
+        cmd: grep -iE '^dns\s*=' /etc/NetworkManager/NetworkManager.conf
+      register: rhel_10_800300_check
+      changed_when: false
+      failed_when: false
+
+    - name: "RHEL-10-800300 | Backup NetworkManager.conf before modification"
+      ansible.builtin.copy:
+        src: /etc/NetworkManager/NetworkManager.conf
+        dest: "/etc/NetworkManager/NetworkManager.conf.bak.{{ ansible_date_time.epoch }}"
+        remote_src: true
+        mode: preserve
+      when: rhel_10_800300_check.rc != 0
+
+    - name: "RHEL-10-800300 | Ensure [main] section exists in NetworkManager.conf"
+      ansible.builtin.lineinfile:
+        path: /etc/NetworkManager/NetworkManager.conf
+        line: '[main]'
+        state: present
+      when: rhel_10_800300_check.rc != 0
+
+    - name: "RHEL-10-800300 | Set dns=none in NetworkManager.conf [main] section"
+      ansible.builtin.lineinfile:
+        path: /etc/NetworkManager/NetworkManager.conf
+        insertafter: '^\[main\]'
+        regexp: '^#?dns\s*='
+        line: 'dns=none'
+        state: present
+      when: rhel_10_800300_check.rc != 0
+      notify: reload NetworkManager
+
+    - name: "RHEL-10-800300 | Re-check dns setting in NetworkManager.conf"
+      ansible.builtin.command:
+        cmd: grep -iE '^dns\s*=' /etc/NetworkManager/NetworkManager.conf
+      register: rhel_10_800300_verify
+      changed_when: false
+      failed_when: false
+
+    - name: "RHEL-10-800300 | Assert DNS mode is configured in NetworkManager"
+      ansible.builtin.assert:
+        that:
+          - rhel_10_800300_verify.rc == 0
+          - "'dnsmasq' not in rhel_10_800300_verify.stdout | lower"
+        fail_msg: "result=FAIL stig_id=RHEL-10-800300 detail=NetworkManager dns mode is not configured or is set to dnsmasq (current={{ rhel_10_800300_verify.stdout | trim }})."
+        success_msg: "result=PASS stig_id=RHEL-10-800300 detail=NetworkManager dns mode is configured ({{ rhel_10_800300_verify.stdout | trim }})."
+
+  rescue:
+    - name: "RHEL-10-800300 | RESCUE - record failure and continue"
+      ansible.builtin.debug:
+        msg: "result=ERROR stig_id=RHEL-10-800300 detail=Task failed unexpectedly — see prior error for details."

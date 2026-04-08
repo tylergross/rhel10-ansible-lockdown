@@ -1,0 +1,82 @@
+---
+# =============================================================================
+# STIG ID  : RHEL-10-800280
+# Rule ID  : SV-281360r1167230_rule
+# Severity : medium
+# CCI      : CCI-002385
+# Title    : RHEL 10 must not forward Internet Protocol version 6 (IPv6) source-routed packets by default.
+#
+# Description:
+#   Source-routed packets allow the source of the packet to suggest that
+#   routers forward the packet along a different path than configured on the
+#   router, which can be used to bypass network security measures. This
+#   requirement applies only to the forwarding of source-routed traffic, such
+#   as when forwarding is enabled and the system is functioning as a router.
+#   Accepting source-routed packets in the IPv6 protocol has few legitimate
+#   uses. It must be disabled unless it is absolutely required. Satisfies:
+#   SRG-OS-000420-GPOS-00186, SRG-OS-000142-GPOS-00091
+#
+# Check Text:
+#   Note: If IPv6 is disabled on the system, this requirement is not
+#   applicable.
+#
+#   Verify RHEL 10 does not accept IPv6 source-routed packets by default.
+#
+#   Check the value of the "net.ipv6.conf.default.accept_source_route"
+#   variables with the following command:
+#
+#   $ sudo sysctl net.ipv6.conf.default.accept_source_route
+#   net.ipv6.conf.default.accept_source_route = 0
+#
+#   If "net.ipv6.conf.default.accept_source_route" is not set to "0" or is
+#   missing, this is a finding.
+#
+# Fix Text:
+#   Configure RHEL 10 to not accept IPv6 source-routed packets by default.
+#
+#   Create a configuration file if it does not already exist:
+#
+#   $ sudo vi /etc/sysctl.d/ipv6_accept_source_route.conf
+#
+#   Add the following line to the file:
+#
+#   net.ipv6.conf.default.accept_source_route = 0
+#
+#   Reload settings from all system configuration files with the following
+#   command:
+#
+#   $ sudo sysctl --system
+# =============================================================================
+
+- name: "RHEL-10-800280 | RHEL 10 must not forward Internet Protocol version 6 (IPv6) source-routed packets by default."
+  when: rhel_10_800280 | bool
+  tags:
+    - RHEL-10-800280
+    - medium
+    - CCI-002385
+  block:
+    - name: "RHEL-10-800280 | Set sysctl net.ipv6.conf.default.accept_source_route = 0"
+      ansible.posix.sysctl:
+        name: net.ipv6.conf.default.accept_source_route
+        value: '0'
+        state: present
+        reload: true
+        sysctl_file: /etc/sysctl.d/rhel10-stig.conf
+
+    - name: "RHEL-10-800280 | Verify net.ipv6.conf.default.accept_source_route"
+      ansible.builtin.command:
+        cmd: sysctl net.ipv6.conf.default.accept_source_route
+      register: rhel_10_800280_sysctl
+      changed_when: false
+      failed_when: false
+
+    - name: "RHEL-10-800280 | Assert net.ipv6.conf.default.accept_source_route = 0"
+      ansible.builtin.assert:
+        that: "'= 0' in rhel_10_800280_sysctl.stdout"
+        fail_msg: "result=FAIL stig_id=RHEL-10-800280 detail=net.ipv6.conf.default.accept_source_route is not set to 0 (output={{ rhel_10_800280_sysctl.stdout | trim }})."
+        success_msg: "result=PASS stig_id=RHEL-10-800280 detail=net.ipv6.conf.default.accept_source_route is set to 0."
+
+  rescue:
+    - name: "RHEL-10-800280 | RESCUE - record failure and continue"
+      ansible.builtin.debug:
+        msg: "result=ERROR stig_id=RHEL-10-800280 detail=Task failed unexpectedly — see prior error for details."

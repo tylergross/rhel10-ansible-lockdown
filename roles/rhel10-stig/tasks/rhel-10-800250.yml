@@ -1,0 +1,80 @@
+---
+# =============================================================================
+# STIG ID  : RHEL-10-800250
+# Rule ID  : SV-281357r1167221_rule
+# Severity : medium
+# CCI      : CCI-002385
+# Title    : RHEL 10 must not enable Internet Protocol version 6 (IPv6) packet forwarding unless the system is a router.
+#
+# Description:
+#   IP forwarding permits the kernel to forward packets from one network
+#   interface to another. The ability to forward packets between two networks
+#   is only appropriate for systems acting as routers. Satisfies:
+#   SRG-OS-000420-GPOS-00186, SRG-OS-000142-GPOS-00088
+#
+# Check Text:
+#   Note: If IPv6 is disabled on the system, this requirement is not
+#   applicable.
+#
+#   Verify RHEL 10 is not performing IPv6 packet forwarding unless the system
+#   is a router.
+#
+#   Check the value of the "net.ipv6.conf.all.forwarding" variable with the
+#   following command:
+#
+#   $ sudo sysctl net.ipv6.conf.all.forwarding
+#   net.ipv6.conf.all.forwarding = 0
+#
+#   If "net.ipv6.conf.all.forwarding" is not set to "0" or is missing, this
+#   is a finding.
+#
+# Fix Text:
+#   Configure RHEL 10 to not allow IPv6 packet forwarding unless the system
+#   is a router.
+#
+#   Create a configuration file if it does not already exist:
+#
+#   $ sudo vi /etc/sysctl.d/ipv6_forwarding.conf
+#
+#   Add the following line to the file:
+#
+#   net.ipv6.conf.all.forwarding = 0
+#
+#   Reload settings from all system configuration files with the following
+#   command:
+#
+#   $ sudo sysctl --system
+# =============================================================================
+
+- name: "RHEL-10-800250 | RHEL 10 must not enable Internet Protocol version 6 (IPv6) packet forwarding unless the system is a router."
+  when: rhel_10_800250 | bool
+  tags:
+    - RHEL-10-800250
+    - medium
+    - CCI-002385
+  block:
+    - name: "RHEL-10-800250 | Set sysctl net.ipv6.conf.all.forwarding = 0"
+      ansible.posix.sysctl:
+        name: net.ipv6.conf.all.forwarding
+        value: '0'
+        state: present
+        reload: true
+        sysctl_file: /etc/sysctl.d/rhel10-stig.conf
+
+    - name: "RHEL-10-800250 | Verify net.ipv6.conf.all.forwarding"
+      ansible.builtin.command:
+        cmd: sysctl net.ipv6.conf.all.forwarding
+      register: rhel_10_800250_sysctl
+      changed_when: false
+      failed_when: false
+
+    - name: "RHEL-10-800250 | Assert net.ipv6.conf.all.forwarding = 0"
+      ansible.builtin.assert:
+        that: "'= 0' in rhel_10_800250_sysctl.stdout"
+        fail_msg: "result=FAIL stig_id=RHEL-10-800250 detail=net.ipv6.conf.all.forwarding is not set to 0 (output={{ rhel_10_800250_sysctl.stdout | trim }}). Only set to 1 if this system is a documented router."
+        success_msg: "result=PASS stig_id=RHEL-10-800250 detail=net.ipv6.conf.all.forwarding is set to 0."
+
+  rescue:
+    - name: "RHEL-10-800250 | RESCUE - record failure and continue"
+      ansible.builtin.debug:
+        msg: "result=ERROR stig_id=RHEL-10-800250 detail=Task failed unexpectedly — see prior error for details."

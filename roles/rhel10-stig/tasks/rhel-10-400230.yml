@@ -1,0 +1,85 @@
+---
+# =============================================================================
+# STIG ID  : RHEL-10-400230
+# Rule ID  : SV-281063r1195403_rule
+# Severity : medium
+# CCI      : CCI-000381
+# Title    : RHEL 10 must be configured to prohibit modification of permissions for cron configuration files and directories from the operating system defaults.
+#
+# Description:
+#   If the permissions of cron configuration files or directories are
+#   modified from the operating system defaults, it may be possible for
+#   individuals to insert unauthorized cron jobs that perform unauthorized
+#   actions, including potentially escalating privileges.
+#
+# Check Text:
+#   Verify RHEL 10 is configured so that the owner, group, and mode of cron
+#   configuration files and directories match the operating system defaults
+#   with the following command:
+#
+#   $ rpm --verify cronie crontabs | awk '! ($2 == "c" && $1 ~
+#   /^.\..\.\.\.\..\./) {print $0}'
+#
+#   If the command returns any output, this is a finding.
+#
+# Fix Text:
+#   Configure RHEL 10 to prohibit modification of permissions for cron
+#   configuration files and directories from the operating system defaults
+#   with the following commands:
+#
+#   $ sudo dnf reinstall cronie crontabs
+#   $ rpm --setugids cronie crontabs
+#   $ rpm --setperms cronie crontabs
+# =============================================================================
+
+- name: "RHEL-10-400230 | RHEL 10 must be configured to prohibit modification of permissions for cron configuration files and directories from the operating system defaults."
+  when: rhel_10_400230 | bool
+  tags:
+    - RHEL-10-400230
+    - medium
+    - CCI-000381
+  block:
+    - name: "RHEL-10-400230 | Check cron package file permissions against RPM database"
+      ansible.builtin.command:
+        cmd: >
+          rpm --verify cronie crontabs
+      register: rhel_10_400230_check
+      changed_when: false
+      failed_when: false
+
+    - name: "RHEL-10-400230 | Filter cron RPM verify output for non-config permission changes"
+      ansible.builtin.set_fact:
+        rhel_10_400230_violations: >-
+          {{ rhel_10_400230_check.stdout_lines | select('match', '^(?!.{1}\.{1}\.{2}\.{3}\.{2} c )') | list }}
+
+    - name: "RHEL-10-400230 | Restore cron package permissions and ownership via rpm --setperms/setugids"
+      ansible.builtin.command:
+        cmd: "{{ item }}"
+      loop:
+        - rpm --setugids cronie crontabs
+        - rpm --setperms cronie crontabs
+      when: rhel_10_400230_violations | length > 0
+
+    - name: "RHEL-10-400230 | Re-check cron package file permissions against RPM database"
+      ansible.builtin.command:
+        cmd: rpm --verify cronie crontabs
+      register: rhel_10_400230_verify
+      changed_when: false
+      failed_when: false
+
+    - name: "RHEL-10-400230 | Filter re-check output for violations"
+      ansible.builtin.set_fact:
+        rhel_10_400230_violations_verify: >-
+          {{ rhel_10_400230_verify.stdout_lines | select('match', '^(?!.{1}\.{1}\.{2}\.{3}\.{2} c )') | list }}
+
+    - name: "RHEL-10-400230 | Assert cron file permissions match OS defaults"
+      ansible.builtin.assert:
+        that:
+          - rhel_10_400230_violations_verify | length == 0
+        fail_msg: "result=FAIL stig_id=RHEL-10-400230 detail=Cron config files/dirs have permissions deviating from OS defaults: {{ rhel_10_400230_violations_verify | join('; ') }}."
+        success_msg: "result=PASS stig_id=RHEL-10-400230 detail=Cron configuration files and directories match OS default permissions."
+
+  rescue:
+    - name: "RHEL-10-400230 | RESCUE - record failure and continue"
+      ansible.builtin.debug:
+        msg: "result=ERROR stig_id=RHEL-10-400230 detail=Task failed unexpectedly — see prior error for details."

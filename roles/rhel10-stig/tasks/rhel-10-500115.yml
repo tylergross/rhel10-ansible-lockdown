@@ -1,0 +1,96 @@
+---
+# =============================================================================
+# STIG ID  : RHEL-10-500115
+# Rule ID  : SV-281109r1184691_rule
+# Severity : medium
+# CCI      : CCI-001851
+# Title    : RHEL 10 must take appropriate action when the internal event queue is full.
+#
+# Description:
+#   The audit system must have an action set up in case the internal event
+#   queue becomes full so that no data is lost. Information stored in one
+#   location is vulnerable to accidental or incidental deletion or
+#   alteration. Off-loading is a common process in information systems with
+#   limited audit storage capacity. Satisfies: SRG-OS-000342-GPOS-00133,
+#   SRG-OS-000479-GPOS-00224
+#
+# Check Text:
+#   Verify the RHEL 10 audit system is configured to take an appropriate
+#   action when the internal event queue is full:
+#
+#   $ sudo grep overflow_action /etc/audit/auditd.conf
+#   overflow_action = syslog
+#
+#   If the value of the "overflow_action" option is not set to "syslog",
+#   "single", or "halt", or the line is commented out, ask the system
+#   administrator to indicate how the audit logs are off-loaded to a
+#   different system or media.
+#
+#   If there is no evidence that the audit system is configured to off-load
+#   the audit logs to another system or media, and if the overflow action is
+#   not set to take appropriate action if the internal event queue becomes
+#   full, this is a finding.
+#
+# Fix Text:
+#   Configure RHEL 10 to take appropriate action when the internal event
+#   queue is full.
+#
+#   Edit the "/etc/audit/auditd.conf" file and add or update the
+#   "overflow_action" option:
+#
+#   overflow_action = syslog
+#
+#   Restart the audit daemon with the following command for the changes to
+#   take effect:
+#
+#   $ sudo service auditd restart
+# =============================================================================
+
+- name: "RHEL-10-500115 | RHEL 10 must take appropriate action when the internal event queue is full."
+  when: rhel_10_500115 | bool
+  tags:
+    - RHEL-10-500115
+    - medium
+    - CCI-001851
+  block:
+    - name: "RHEL-10-500115 | Check overflow_action in /etc/audit/auditd.conf"
+      ansible.builtin.command:
+        cmd: grep -E '^\s*overflow_action\s*=\s*(syslog|single|halt)' /etc/audit/auditd.conf
+      register: rhel_10_500115_check
+      changed_when: false
+      failed_when: false
+
+    - name: "RHEL-10-500115 | Backup /etc/audit/auditd.conf before modification"
+      ansible.builtin.copy:
+        src: /etc/audit/auditd.conf
+        dest: "/etc/audit/auditd.conf.bak.{{ ansible_date_time.epoch }}"
+        remote_src: true
+        mode: preserve
+      when: rhel_10_500115_check.rc != 0
+
+    - name: "RHEL-10-500115 | Set overflow_action = syslog in /etc/audit/auditd.conf"
+      ansible.builtin.lineinfile:
+        path: /etc/audit/auditd.conf
+        regexp: '^\s*overflow_action\s*='
+        line: 'overflow_action = syslog'
+        state: present
+      when: rhel_10_500115_check.rc != 0
+      notify: restart auditd
+
+    - name: "RHEL-10-500115 | Re-check overflow_action in /etc/audit/auditd.conf"
+      ansible.builtin.command:
+        cmd: grep -E '^\s*overflow_action\s*=\s*(syslog|single|halt)' /etc/audit/auditd.conf
+      register: rhel_10_500115_verify
+      changed_when: false
+      failed_when: false
+
+    - name: "RHEL-10-500115 | Assert overflow_action is configured appropriately"
+      ansible.builtin.assert:
+        that: rhel_10_500115_verify.rc == 0
+        fail_msg: "result=FAIL stig_id=RHEL-10-500115 detail=overflow_action is not set to syslog/single/halt in /etc/audit/auditd.conf."
+        success_msg: "result=PASS stig_id=RHEL-10-500115 detail=overflow_action is configured correctly in /etc/audit/auditd.conf."
+
+  rescue:
+    - name: "RHEL-10-500115 | RESCUE - record failure and continue"
+      ansible.builtin.debug:
+        msg: "result=ERROR stig_id=RHEL-10-500115 detail=Task failed unexpectedly — see prior error for details."

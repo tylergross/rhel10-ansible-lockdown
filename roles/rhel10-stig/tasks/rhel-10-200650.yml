@@ -1,0 +1,59 @@
+---
+# =============================================================================
+# STIG ID  : RHEL-10-200650
+# Rule ID  : SV-280992r1195379_rule
+# Severity : medium
+# CCI      : CCI-000803
+# Title    : RHEL 10 must have the packages required for encrypting off-loaded audit logs installed.
+#
+# Description:
+#   The "rsyslog-gnutls" package provides Transport Layer Security (TLS)
+#   support for the rsyslog daemon, which enables secure remote logging.
+#
+# Check Text:
+#   Verify RHEL 10 has the "rsyslog-gnutls" package installed with the
+#   following command:
+#
+#   $ sudo dnf list --installed rsyslog-gnutls
+#   Installed Packages
+#   rsyslog-gnutls.x86_64 8.2412.0-1.el10 @AppStream
+#
+#   If the "rsyslog-gnutls" package is not installed, this is a finding.
+#
+# Fix Text:
+#   Configure RHEL 10 to have the "rsyslog-gnutls" package installed with the
+#   following command:
+#
+#   $ sudo dnf -y install rsyslog-gnutls
+# =============================================================================
+
+- name: "RHEL-10-200650 | RHEL 10 must have the packages required for encrypting off-loaded audit logs installed."
+  when: rhel_10_200650 | bool
+  tags:
+    - RHEL-10-200650
+    - medium
+    - CCI-000803
+  block:
+    - name: "RHEL-10-200650 | Ensure rsyslog-gnutls is installed"
+      ansible.builtin.package:
+        name: rsyslog-gnutls
+        state: present
+
+    - name: "RHEL-10-200650 | Verify rsyslog-gnutls is installed"
+      ansible.builtin.command: rpm -q rsyslog-gnutls
+      register: rhel_10_200650_check
+      changed_when: false
+      failed_when: false
+
+    - name: "RHEL-10-200650 | Assert rsyslog-gnutls is installed"
+      ansible.builtin.assert:
+        that: rhel_10_200650_check.rc == 0
+        fail_msg: >-
+          result=FAIL stig_id=RHEL-10-200650
+          detail=Package rsyslog-gnutls is not installed.
+          Install with: dnf -y install rsyslog-gnutls
+        success_msg: "result=PASS stig_id=RHEL-10-200650 detail=Package rsyslog-gnutls is installed."
+  rescue:
+    - name: "RHEL-10-200650 | RESCUE - record failure and continue"
+      ansible.builtin.debug:
+        msg: "result=ERROR stig_id=RHEL-10-200650 detail=Task failed unexpectedly — see prior error for details."

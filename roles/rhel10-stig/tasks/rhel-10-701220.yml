@@ -1,0 +1,108 @@
+---
+# =============================================================================
+# STIG ID  : RHEL-10-701220
+# Rule ID  : SV-281324r1167122_rule
+# Severity : medium
+# CCI      : CCI-004046
+# Title    : RHEL 10 must enable certificate-based smart card authentication.
+#
+# Description:
+#   Without the use of multifactor authentication, the ease of access to
+#   privileged functions is greatly increased. Multifactor authentication
+#   requires using two or more factors to achieve authentication. A
+#   privileged account is defined as an information system account with
+#   authorizations of a privileged user. The DOD Common Access Card (CAC)
+#   with DOD-approved public key infrastructure (PKI) is an example of
+#   multifactor authentication. Satisfies: SRG-OS-000375-GPOS-00160,
+#   SRG-OS-000105-GPOS-00052, SRG-OS-000106-GPOS-00053,
+#   SRG-OS-000107-GPOS-00054, SRG-OS-000108-GPOS-00055
+#
+# Check Text:
+#   Note: If the system administrator demonstrates the use of an approved
+#   alternate multifactor authentication method, this requirement is not
+#   applicable.
+#
+#   Verify RHEL 10 enables smart cards in the System Security Services Daemon
+#   (SSSD) with the following command:
+#
+#   $ sudo grep -ir pam_cert_auth /etc/sssd/sssd.conf /etc/sssd/conf.d/
+#   /etc/sssd/conf.d/sssd.conf:pam_cert_auth = True
+#
+#   If "pam_cert_auth" is not set to "True", the line is commented out, or
+#   the line is missing, this is a finding.
+#
+# Fix Text:
+#   Configure RHEL 10 to enable certificate-based smart card authentication.
+#
+#   Edit the file "/etc/sssd/sssd.conf" or a configuration file in
+#   "/etc/sssd/conf.d" and add or edit the following line:
+#
+#   pam_cert_auth = True
+# =============================================================================
+
+- name: "RHEL-10-701220 | RHEL 10 must enable certificate-based smart card authentication."
+  when: rhel_10_701220 | bool
+  tags:
+    - RHEL-10-701220
+    - medium
+    - CCI-004046
+  block:
+    - name: "RHEL-10-701220 | Check current pam_cert_auth setting"
+      ansible.builtin.command:
+        cmd: grep -ir pam_cert_auth /etc/sssd/sssd.conf /etc/sssd/conf.d/ 2>/dev/null || true
+      register: rhel_10_701220_check
+      changed_when: false
+      failed_when: false
+
+    - name: "RHEL-10-701220 | Check if 10-stig.conf already exists"
+      ansible.builtin.stat:
+        path: /etc/sssd/conf.d/10-stig.conf
+      register: rhel_10_701220_stig_conf_stat
+
+    - name: "RHEL-10-701220 | Backup 10-stig.conf if it exists and needs modification"
+      ansible.builtin.copy:
+        src: /etc/sssd/conf.d/10-stig.conf
+        dest: "/etc/sssd/conf.d/10-stig.conf.bak.{{ ansible_date_time.epoch }}"
+        remote_src: true
+        mode: preserve
+      when:
+        - rhel_10_701220_stig_conf_stat.stat.exists
+        - "'pam_cert_auth = True' not in (rhel_10_701220_check.stdout | default(''))"
+
+    - name: "RHEL-10-701220 | Set pam_cert_auth = True in sssd conf.d"
+      ansible.builtin.lineinfile:
+        path: /etc/sssd/conf.d/10-stig.conf
+        regexp: '^#?\s*pam_cert_auth\s*='
+        line: 'pam_cert_auth = True'
+        state: present
+        create: true
+        owner: root
+        group: root
+        mode: '0600'
+      when: "'pam_cert_auth = True' not in (rhel_10_701220_check.stdout | default(''))"
+      register: rhel_10_701220_changed
+
+    - name: "RHEL-10-701220 | Restart sssd after configuration change"
+      ansible.builtin.systemd:
+        name: sssd
+        state: restarted
+      when: rhel_10_701220_changed is changed
+      failed_when: false
+
+    - name: "RHEL-10-701220 | Re-check pam_cert_auth setting"
+      ansible.builtin.command:
+        cmd: grep -ir pam_cert_auth /etc/sssd/sssd.conf /etc/sssd/conf.d/ 2>/dev/null || true
+      register: rhel_10_701220_verify
+      changed_when: false
+      failed_when: false
+
+    - name: "RHEL-10-701220 | Assert pam_cert_auth is set to True"
+      ansible.builtin.assert:
+        that: "'pam_cert_auth = True' in (rhel_10_701220_verify.stdout | default(''))"
+        fail_msg: "result=FAIL stig_id=RHEL-10-701220 detail=pam_cert_auth is not set to True in sssd configuration."
+        success_msg: "result=PASS stig_id=RHEL-10-701220 detail=pam_cert_auth = True is correctly configured in sssd."
+
+  rescue:
+    - name: "RHEL-10-701220 | RESCUE - record failure and continue"
+      ansible.builtin.debug:
+        msg: "result=ERROR stig_id=RHEL-10-701220 detail=Task failed unexpectedly — see prior error for details."

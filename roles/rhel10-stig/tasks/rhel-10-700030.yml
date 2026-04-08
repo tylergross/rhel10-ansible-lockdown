@@ -1,0 +1,105 @@
+---
+# =============================================================================
+# STIG ID  : RHEL-10-700030
+# Rule ID  : SV-281226r1166630_rule
+# Severity : medium
+# CCI      : CCI-000048
+# Title    : RHEL 10 must prevent a user from overriding the banner-message-enable setting for the graphical user interface.
+#
+# Description:
+#   Display of a standardized and approved use notification before granting
+#   access to the operating system ensures privacy and security notification
+#   verbiage used is consistent with applicable federal laws, Executive
+#   Orders, directives, policies, regulations, standards, and guidance. For
+#   U.S. Government systems, system use notifications are required only for
+#   access via login interfaces with human users and are not required when
+#   such human interfaces do not exist. Satisfies: SRG-OS-000023-GPOS-00006,
+#   SRG-OS-000228-GPOS-00088
+#
+# Check Text:
+#   Note: This requirement assumes the use of the RHEL 10 default graphical
+#   user interface, the GNOME desktop environment. If the system does not
+#   have any graphical user interface installed, this requirement is not
+#   applicable.
+#
+#   Verify RHEL 10 prevents a user from overriding settings for graphical
+#   user interfaces with the following command:
+#
+#   $ gsettings writable org.gnome.login-screen banner-message-enable
+#   false
+#
+#   If "banner-message-enable" is writable, or the result is "true", this is
+#   a finding.
+#
+# Fix Text:
+#   Configure RHEL 10 to prevent a user from overriding the banner setting
+#   for graphical user interfaces.
+#
+#   Create a database to contain the systemwide graphical user login settings
+#   (if it does not already exist) with the following command:
+#
+#   $ sudo vi /etc/dconf/db/local.d/locks/session
+#
+#   Add the following setting to prevent nonprivileged users from modifying
+#   it:
+#
+#   /org/gnome/login-screen/banner-message-enable
+#
+#   Run the following command to update the database:
+#
+#   $ sudo dconf update
+# =============================================================================
+
+- name: "RHEL-10-700030 | RHEL 10 must prevent a user from overriding the banner-message-enable setting for the graphical user interface."
+  when: rhel_10_700030 | bool
+  tags:
+    - RHEL-10-700030
+    - medium
+    - CCI-000048
+  block:
+    - name: "RHEL-10-700030 | Check if GNOME is installed"
+      ansible.builtin.stat:
+        path: /usr/bin/gsettings
+      register: rhel_10_700030_gnome
+
+    - name: "RHEL-10-700030 | Ensure dconf locks directory exists"
+      ansible.builtin.file:
+        path: /etc/dconf/db/local.d/locks
+        state: directory
+        mode: '0755'
+        owner: root
+        group: root
+      when: rhel_10_700030_gnome.stat.exists
+
+    - name: "RHEL-10-700030 | Lock banner-message-enable setting in dconf"
+      ansible.builtin.lineinfile:
+        path: /etc/dconf/db/local.d/locks/session
+        line: '/org/gnome/login-screen/banner-message-enable'
+        state: present
+        create: true
+        mode: '0644'
+        owner: root
+        group: root
+      when: rhel_10_700030_gnome.stat.exists
+      notify: run dconf update
+
+    - name: "RHEL-10-700030 | Re-check that lock entry exists"
+      ansible.builtin.command:
+        cmd: grep -F '/org/gnome/login-screen/banner-message-enable' /etc/dconf/db/local.d/locks/session
+      register: rhel_10_700030_verify
+      changed_when: false
+      failed_when: false
+      when: rhel_10_700030_gnome.stat.exists
+
+    - name: "RHEL-10-700030 | Assert banner-message-enable is locked or GNOME not installed"
+      ansible.builtin.assert:
+        that: >
+          not rhel_10_700030_gnome.stat.exists or
+          rhel_10_700030_verify.rc == 0
+        fail_msg: "result=FAIL stig_id=RHEL-10-700030 detail=The banner-message-enable lock entry is missing from /etc/dconf/db/local.d/locks/session."
+        success_msg: "result=PASS stig_id=RHEL-10-700030 detail=The banner-message-enable setting is locked or GNOME is not installed (not applicable)."
+
+  rescue:
+    - name: "RHEL-10-700030 | RESCUE - record failure and continue"
+      ansible.builtin.debug:
+        msg: "result=ERROR stig_id=RHEL-10-700030 detail=Task failed unexpectedly — see prior error for details."

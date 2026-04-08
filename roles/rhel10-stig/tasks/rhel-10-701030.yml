@@ -1,0 +1,90 @@
+---
+# =============================================================================
+# STIG ID  : RHEL-10-701030
+# Rule ID  : SV-281305r1167065_rule
+# Severity : medium
+# CCI      : CCI-001082
+# Title    : RHEL 10 must restrict access to the kernel message buffer.
+#
+# Description:
+#   Preventing unauthorized information transfers mitigates the risk of
+#   information, including encrypted representations of information, produced
+#   by the actions of prior users/roles (or the actions of processes acting
+#   on behalf of prior users/roles) from being available to any current
+#   users/roles (or current processes) that obtain access to shared system
+#   resources (e.g., registers, main memory, hard disks) after those
+#   resources have been released back to information systems. The control of
+#   information in shared resources is also commonly referred to as object
+#   reuse and residual information protection. This requirement generally
+#   applies to the design of an information technology product, but it can
+#   also apply to the configuration of information system components that
+#   are, or use, such products. This can be verified by acceptance/validation
+#   processes in DOD or other government agencies. There may be shared
+#   resources with configurable protections (e.g., files in storage) that may
+#   be assessed on specific information system components. Restricting access
+#   to the kernel message buffer limits access to only root. This prevents
+#   attackers from gaining additional system information as a nonprivileged
+#   user. Satisfies: SRG-OS-000132-GPOS-00067, SRG-OS-000138-GPOS-00069
+#
+# Check Text:
+#   Verify RHEL 10 is configured to restrict access to the kernel message
+#   buffer.
+#
+#   Check the status of the "kernel.dmesg_restrict" kernel parameter with the
+#   following command:
+#
+#   $ sudo sysctl kernel.dmesg_restrict
+#   kernel.dmesg_restrict = 1
+#
+#   If "kernel.dmesg_restrict" is not set to "1" or is missing, this is a
+#   finding.
+#
+# Fix Text:
+#   Configure RHEL 10 to restrict access to the kernel message buffer.
+#
+#   Create a drop-in if it does not already exist:
+#
+#   $ sudo vi /etc/sysctl.d/99-dmesg_restrict.conf
+#
+#   Add the following to the file:
+#
+#   kernel.dmesg_restrict = 1
+#
+#   Reload settings from all system configuration files with the following
+#   command:
+#
+#   $ sudo sysctl --system
+# =============================================================================
+
+- name: "RHEL-10-701030 | RHEL 10 must restrict access to the kernel message buffer."
+  when: rhel_10_701030 | bool
+  tags:
+    - RHEL-10-701030
+    - medium
+    - CCI-001082
+  block:
+    - name: "RHEL-10-701030 | Set sysctl kernel.dmesg_restrict = 1"
+      ansible.posix.sysctl:
+        name: kernel.dmesg_restrict
+        value: '1'
+        state: present
+        reload: true
+        sysctl_file: /etc/sysctl.d/rhel10-stig.conf
+
+    - name: "RHEL-10-701030 | Verify kernel.dmesg_restrict"
+      ansible.builtin.command:
+        cmd: sysctl kernel.dmesg_restrict
+      register: rhel_10_701030_sysctl
+      changed_when: false
+      failed_when: false
+
+    - name: "RHEL-10-701030 | Assert kernel.dmesg_restrict = 1"
+      ansible.builtin.assert:
+        that: "'= 1' in rhel_10_701030_sysctl.stdout"
+        fail_msg: "result=FAIL stig_id=RHEL-10-701030 detail=kernel.dmesg_restrict is not set to 1 (output={{ rhel_10_701030_sysctl.stdout | trim }})."
+        success_msg: "result=PASS stig_id=RHEL-10-701030 detail=kernel.dmesg_restrict is set to 1."
+
+  rescue:
+    - name: "RHEL-10-701030 | RESCUE - record failure and continue"
+      ansible.builtin.debug:
+        msg: "result=ERROR stig_id=RHEL-10-701030 detail=Task failed unexpectedly — see prior error for details."

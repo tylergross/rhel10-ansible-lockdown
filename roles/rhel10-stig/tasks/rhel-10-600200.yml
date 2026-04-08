@@ -1,0 +1,86 @@
+---
+# =============================================================================
+# STIG ID  : RHEL-10-600200
+# Rule ID  : SV-281179r1166489_rule
+# Severity : medium
+# CCI      : CCI-002238
+# Title    : RHEL 10 must enforce a delay of at least four seconds between login prompts following a failed login attempt.
+#
+# Description:
+#   Increasing the time between a failed authentication attempt and
+#   reprompting to enter credentials helps to slow a single-threaded
+#   brute-force attack.
+#
+# Check Text:
+#   Verify RHEL 10 enforces a delay of at least four seconds between console
+#   login prompts following a failed login attempt with the following
+#   command:
+#
+#   $ sudo grep -i fail_delay /etc/login.defs
+#   FAIL_DELAY 4
+#
+#   If the value of "FAIL_DELAY" is not set to "4" or greater, or the line is
+#   commented out, this is a finding.
+#
+# Fix Text:
+#   Configure RHEL 10 to enforce a delay of at least four seconds between
+#   login prompts following a failed console login attempt.
+#
+#   Modify the "/etc/login.defs" file to set the "FAIL_DELAY" parameter to
+#   "4" or greater:
+#
+#   FAIL_DELAY 4
+# =============================================================================
+
+- name: "RHEL-10-600200 | RHEL 10 must enforce a delay of at least four seconds between login prompts following a failed login attempt."
+  when: rhel_10_600200 | bool
+  tags:
+    - RHEL-10-600200
+    - medium
+    - CCI-002238
+  block:
+    - name: "RHEL-10-600200 | Check FAIL_DELAY in /etc/login.defs"
+      ansible.builtin.command:
+        cmd: grep -i "^FAIL_DELAY" /etc/login.defs
+      register: rhel_10_600200_check
+      changed_when: false
+      failed_when: false
+
+    - name: "RHEL-10-600200 | Backup /etc/login.defs before modification"
+      ansible.builtin.copy:
+        src: /etc/login.defs
+        dest: "/etc/login.defs.bak.{{ ansible_date_time.epoch }}"
+        remote_src: true
+        mode: preserve
+      when: >
+        rhel_10_600200_check.rc != 0 or
+        (rhel_10_600200_check.stdout | regex_search('FAIL_DELAY\s+(\d+)', '\1') | first | int) < 4
+
+    - name: "RHEL-10-600200 | Set FAIL_DELAY to 4 in /etc/login.defs"
+      ansible.builtin.lineinfile:
+        path: /etc/login.defs
+        regexp: '^#?\s*FAIL_DELAY'
+        line: 'FAIL_DELAY      4'
+        state: present
+      when: >
+        rhel_10_600200_check.rc != 0 or
+        (rhel_10_600200_check.stdout | regex_search('FAIL_DELAY\s+(\d+)', '\1') | first | int) < 4
+
+    - name: "RHEL-10-600200 | Re-check FAIL_DELAY"
+      ansible.builtin.command:
+        cmd: grep -i "^FAIL_DELAY" /etc/login.defs
+      register: rhel_10_600200_verify
+      changed_when: false
+      failed_when: false
+
+    - name: "RHEL-10-600200 | Assert FAIL_DELAY is 4 or greater"
+      ansible.builtin.assert:
+        that:
+          - rhel_10_600200_verify.rc == 0
+          - (rhel_10_600200_verify.stdout | regex_search('FAIL_DELAY\s+(\d+)', '\1') | first | int) >= 4
+        fail_msg: "result=FAIL stig_id=RHEL-10-600200 detail=FAIL_DELAY is not set to 4 or greater in /etc/login.defs (current={{ rhel_10_600200_verify.stdout | trim }})."
+        success_msg: "result=PASS stig_id=RHEL-10-600200 detail=FAIL_DELAY is set to 4 or greater in /etc/login.defs ({{ rhel_10_600200_verify.stdout | trim }})."
+  rescue:
+    - name: "RHEL-10-600200 | RESCUE - record failure and continue"
+      ansible.builtin.debug:
+        msg: "result=ERROR stig_id=RHEL-10-600200 detail=Task failed unexpectedly — see prior error for details."

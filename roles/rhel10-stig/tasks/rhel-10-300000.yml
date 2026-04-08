@@ -1,0 +1,63 @@
+---
+# =============================================================================
+# STIG ID  : RHEL-10-300000
+# Rule ID  : SV-281007r1195399_rule
+# Severity : high
+# CCI      : CCI-002450
+# Title    : RHEL 10 must have the "crypto-policies" package installed.
+#
+# Description:
+#   Centralized cryptographic policies simplify applying secure ciphers
+#   across an operating system and the applications that run on that
+#   operating system. Use of weak or untested encryption algorithms
+#   undermines the purposes of using encryption to protect data. Satisfies:
+#   SRG-OS-000396-GPOS-00176, SRG-OS-000393-GPOS-00173,
+#   SRG-OS-000394-GPOS-00174
+#
+# Check Text:
+#   Verify RHEL 10 has the "crypto-policies" package installed with the
+#   following command:
+#
+#   $ sudo dnf list --installed crypto-policies
+#   Installed Packages
+#   crypto-policies.noarch 20250214-1.gitfd9b9b9.el10_0.1
+#   @rhel-10-for-x86_64-baseos-rpms
+#
+#   If the "crypto-policies" package is not installed, this is a finding.
+#
+# Fix Text:
+#   Configure RHEL 10 to have the "crypto-policies" package installed with
+#   the following command:
+#
+#   $ sudo dnf -y install crypto-policies
+# =============================================================================
+
+- name: "RHEL-10-300000 | RHEL 10 must have the crypto-policies package installed."
+  when: rhel_10_300000 | bool
+  tags:
+    - RHEL-10-300000
+    - high
+    - CCI-002450
+  block:
+    - name: "RHEL-10-300000 | Install crypto-policies package"
+      ansible.builtin.package:
+        name: crypto-policies
+        state: present
+
+    - name: "RHEL-10-300000 | Verify crypto-policies package is installed"
+      ansible.builtin.command:
+        cmd: rpm -q crypto-policies
+      register: rhel_10_300000_rpm
+      changed_when: false
+      failed_when: false
+
+    - name: "RHEL-10-300000 | Assert crypto-policies is installed"
+      ansible.builtin.assert:
+        that: rhel_10_300000_rpm.rc == 0
+        fail_msg: "result=FAIL stig_id=RHEL-10-300000 detail=Package crypto-policies is not installed (rc={{ rhel_10_300000_rpm.rc }})."
+        success_msg: "result=PASS stig_id=RHEL-10-300000 detail=Package crypto-policies is installed."
+
+  rescue:
+    - name: "RHEL-10-300000 | RESCUE - record failure and continue"
+      ansible.builtin.debug:
+        msg: "result=ERROR stig_id=RHEL-10-300000 detail=Task failed unexpectedly — see prior error for details."

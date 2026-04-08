@@ -1,0 +1,100 @@
+---
+# =============================================================================
+# STIG ID  : RHEL-10-700600
+# Rule ID  : SV-281263r1184763_rule
+# Severity : medium
+# CCI      : CCI-000765
+# Title    : RHEL 10 must be configured so that SSHD accepts public key authentication.
+#
+# Description:
+#   Without the use of multifactor authentication, the ease of access to
+#   privileged functions is greatly increased. Multifactor authentication
+#   requires using two or more factors to achieve authentication. A
+#   privileged account is defined as an information system account with
+#   authorizations of a privileged user. A DOD common access card (CAC) with
+#   DOD-approved PKI is an example of multifactor authentication. OpenSSH
+#   uses the first occurrence of a keyword it sees, and drop-in files are
+#   read in lexicographical order at the start of the configuration. Red Hat
+#   recommends using drop-in files rather than changing base configuration
+#   files. Satisfies: SRG-OS-000105-GPOS-00052, SRG-OS-000106-GPOS-00053,
+#   SRG-OS-000107-GPOS-00054, SRG-OS-000108-GPOS-00055
+#
+# Check Text:
+#   Note: If the system administrator demonstrates the use of an approved
+#   alternate multifactor authentication method, this requirement is not
+#   applicable.
+#
+#   Verify RHEL 10 SSH daemons accept public key encryption with the
+#   following command:
+#
+#   $ sudo /usr/sbin/sshd -dd 2>&1 | awk '/filename/ {print $4}' | tr -d '\r'
+#   | tr '\n' ' ' | xargs sudo grep -iH '^\s*pubkeyauthentication'
+#   /etc/ssh/sshd_config.d/10-stig.conf:PubkeyAuthentication yes
+#
+#   Verify the runtime setting with the following command:
+#
+#   $ sudo sshd -T | grep -i pubkeyauthentication
+#   pubkeyauthentication yes
+#
+#   If the "PubkeyAuthentication" keyword is not set to "yes" in a drop-in
+#   that lexicographically precedes 50-redhat.conf, or if no output is
+#   returned, this is a finding.
+#
+# Fix Text:
+#   Configure RHEL 10 to accept public key authentication.
+#
+#   In "/etc/ssh/sshd_config.d", create a drop file that will
+#   lexicographically precede 50-redhat.conf and add the following line:
+#
+#   PubkeyAuthentication yes
+#
+#   Restart the SSH daemon with the following command for the settings to
+#   take effect:
+#
+#   $ sudo systemctl restart sshd.service
+# =============================================================================
+
+- name: "RHEL-10-700600 | RHEL 10 must be configured so that SSHD accepts public key authentication."
+  when: rhel_10_700600 | bool
+  tags:
+    - RHEL-10-700600
+    - medium
+    - CCI-000765
+  block:
+    - name: "RHEL-10-700600 | Check PubkeyAuthentication in sshd runtime config"
+      ansible.builtin.command:
+        cmd: sshd -T
+      register: rhel_10_700600_runtime
+      changed_when: false
+      failed_when: false
+
+    - name: "RHEL-10-700600 | Set PubkeyAuthentication in /etc/ssh/sshd_config.d/10-stig.conf"
+      ansible.builtin.lineinfile:
+        path: /etc/ssh/sshd_config.d/10-stig.conf
+        regexp: '^#?PubkeyAuthentication'
+        line: 'PubkeyAuthentication yes'
+        state: present
+        create: true
+        mode: '0600'
+        owner: root
+        group: root
+      when: "'pubkeyauthentication yes' not in rhel_10_700600_runtime.stdout | lower"
+      notify: restart sshd
+
+    - name: "RHEL-10-700600 | Re-check PubkeyAuthentication in sshd runtime config"
+      ansible.builtin.command:
+        cmd: sshd -T
+      register: rhel_10_700600_verify
+      changed_when: false
+      failed_when: false
+
+    - name: "RHEL-10-700600 | Assert PubkeyAuthentication is set to yes"
+      ansible.builtin.assert:
+        that: "'pubkeyauthentication yes' in rhel_10_700600_verify.stdout | lower"
+        fail_msg: "result=FAIL stig_id=RHEL-10-700600 detail=sshd runtime does not have PubkeyAuthentication yes."
+        success_msg: "result=PASS stig_id=RHEL-10-700600 detail=sshd PubkeyAuthentication is set to yes."
+
+  rescue:
+    - name: "RHEL-10-700600 | RESCUE - record failure and continue"
+      ansible.builtin.debug:
+        msg: "result=ERROR stig_id=RHEL-10-700600 detail=Task failed unexpectedly — see prior error for details."

@@ -1,0 +1,71 @@
+---
+# =============================================================================
+# STIG ID  : RHEL-10-600190
+# Rule ID  : SV-281178r1195418_rule
+# Severity : medium
+# CCI      : CCI-002385
+# Title    : RHEL 10 must ensure that all local interactive user home directories defined in the "/etc/passwd" file must exist.
+#
+# Description:
+#   If a local interactive user has a home directory defined that does not
+#   exist, the user may be given access to the / directory as the current
+#   working directory upon login. This could create a denial of service
+#   because the user would not be able to access their login configuration
+#   files, and it may give them visibility to system files they normally
+#   would not be able to access.
+#
+# Check Text:
+#   Verify RHEL 10 interactive users' home directories exist on the system
+#   with the following command:
+#
+#   $ sudo pwck -r
+#   user 'mailnull': directory 'var/spool/mqueue' does not exist
+#
+#   The output should not return any interactive users.
+#
+#   If an interactive user's home directory does not exist, this is a
+#   finding.
+#
+# Fix Text:
+#   Configure RHEL 10 interactive users' home directories to exist on the
+#   system.
+#
+#   Create home directories to all local interactive users that do not have a
+#   home directory assigned. Use the following commands to create the user
+#   home directory assigned in "/etc/ passwd":
+#
+#   Note: The example will be for the user "disauser", who has a home
+#   directory of "/home/disauser", a user identifier (UID) of "disauser", and
+#   a group identifier (GID) of "users assigned" in "/etc/passwd".
+#
+#   $ sudo mkdir /home/disauser
+#   $ sudo chown disauser /home/disauser
+#   $ sudo chgrp users /home/disauser
+#   $ sudo chmod 0750 /home/disauser
+# =============================================================================
+
+- name: "RHEL-10-600190 | RHEL 10 must ensure that all local interactive user home directories defined in the /etc/passwd file must exist."
+  when: rhel_10_600190 | bool
+  tags:
+    - RHEL-10-600190
+    - medium
+    - CCI-002385
+  block:
+    - name: "RHEL-10-600190 | Run pwck to check for users whose home directories do not exist"
+      ansible.builtin.command:
+        cmd: pwck -r -q
+      register: rhel_10_600190_check
+      changed_when: false
+      failed_when: false
+
+    - name: "RHEL-10-600190 | Assert all interactive user home directories exist"
+      ansible.builtin.assert:
+        that:
+          - '"does not exist" not in rhel_10_600190_check.stdout'
+          - '"does not exist" not in rhel_10_600190_check.stderr'
+        fail_msg: "result=FAIL stig_id=RHEL-10-600190 detail=pwck detected users whose home directories do not exist ({{ (rhel_10_600190_check.stdout + rhel_10_600190_check.stderr) | trim }}). Create missing home directories and assign correct ownership/permissions."
+        success_msg: "result=PASS stig_id=RHEL-10-600190 detail=All interactive user home directories defined in /etc/passwd exist on the system."
+  rescue:
+    - name: "RHEL-10-600190 | RESCUE - record failure and continue"
+      ansible.builtin.debug:
+        msg: "result=ERROR stig_id=RHEL-10-600190 detail=Task failed unexpectedly — see prior error for details."

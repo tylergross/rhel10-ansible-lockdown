@@ -1,0 +1,88 @@
+---
+# =============================================================================
+# STIG ID  : RHEL-10-500100
+# Rule ID  : SV-281106r1166270_rule
+# Severity : low
+# CCI      : CCI-001849
+# Title    : RHEL 10 must allocate audit record storage capacity to store at least one week's worth of audit records.
+#
+# Description:
+#   To ensure RHEL 10 systems have a sufficient storage capacity in which to
+#   write the audit logs, RHEL 10 must be able to allocate audit record
+#   storage capacity. The task of allocating audit record storage capacity is
+#   usually performed during initial installation of RHEL 10. Satisfies:
+#   SRG-OS-000341-GPOS-00132, SRG-OS-000342-GPOS-00133
+#
+# Check Text:
+#   Verify RHEL 10 allocates audit record storage capacity to store at least
+#   one week of audit records when audit records are not immediately sent to
+#   a central audit record storage facility.
+#
+#   Note: The partition size needed to capture a week of audit records is
+#   based on the activity level of the system and the total storage capacity
+#   available. Typically 10GB of storage space for audit records should be
+#   sufficient.
+#
+#   Determine which partition the audit records are being written to with the
+#   following command:
+#
+#   $ sudo grep -w log_file /etc/audit/auditd.conf
+#   log_file = /var/log/audit/audit.log
+#
+#   Check the size of the partition that audit records are written to with
+#   the following command and verify whether it is sufficiently large:
+#
+#   $ df -h /var/log/audit/
+#   Filesystem Size Used Avail Use% Mounted on
+#   /dev/mapper/luks-4e45e1ad-5337-42c4-a19f-ee12ccc1d502 10G 263M 9.7G 3%
+#   /var/log/audit
+#
+#   If the audit record partition is not allocated for sufficient storage
+#   capacity, this is a finding.
+#
+# Fix Text:
+#   Configure RHEL 10 to allocate enough storage capacity for at least one
+#   week of audit records when audit records are not immediately sent to a
+#   central audit record storage facility.
+#
+#   If audit records are stored on a partition made specifically for audit
+#   records, resize the partition with sufficient space to contain one week
+#   of audit records.
+#
+#   If audit records are not stored on a partition made specifically for
+#   audit records, a new partition with sufficient space must be created.
+# =============================================================================
+
+- name: "RHEL-10-500100 | RHEL 10 must allocate audit record storage capacity to store at least one week's worth of audit records."
+  when: rhel_10_500100 | bool
+  tags:
+    - RHEL-10-500100
+    - low
+    - CCI-001849
+  block:
+    - name: "RHEL-10-500100 | Check log_file path in /etc/audit/auditd.conf"
+      ansible.builtin.command:
+        cmd: grep -w log_file /etc/audit/auditd.conf
+      register: rhel_10_500100_log_file
+      changed_when: false
+      failed_when: false
+
+    - name: "RHEL-10-500100 | Check size of audit log partition"
+      ansible.builtin.command:
+        cmd: df -BG /var/log/audit/
+      register: rhel_10_500100_df
+      changed_when: false
+      failed_when: false
+
+    - name: "RHEL-10-500100 | Assert audit log partition has sufficient space (>=10G)"
+      ansible.builtin.assert:
+        that: >
+          rhel_10_500100_df.stdout_lines | select('match', '^/') | list | length > 0 and
+          (rhel_10_500100_df.stdout_lines | select('match', '^/') | list | first).split()[1] | regex_replace('G','') | int >= 10
+        fail_msg: "result=FAIL stig_id=RHEL-10-500100 detail=Audit log partition may be insufficient for one week of logs (less than 10G). Review partition size."
+        success_msg: "result=PASS stig_id=RHEL-10-500100 detail=Audit log partition appears to have sufficient capacity."
+
+  rescue:
+    - name: "RHEL-10-500100 | RESCUE - record failure and continue"
+      ansible.builtin.debug:
+        msg: "result=ERROR stig_id=RHEL-10-500100 detail=Task failed unexpectedly — see prior error for details."

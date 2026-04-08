@@ -1,0 +1,96 @@
+---
+# =============================================================================
+# STIG ID  : RHEL-10-600280
+# Rule ID  : SV-281187r1195436_rule
+# Severity : medium
+# CCI      : CCI-004066
+# Title    : RHEL 10 must require the maximum number of repeating characters of the same character class to be limited to four when passwords are changed.
+#
+# Description:
+#   Use of a complex password helps to increase the time and resources
+#   required to compromise the password. Password complexity, or strength, is
+#   a measure of the effectiveness of a password in resisting attempts at
+#   guessing and brute-force attacks. Password complexity is one factor of
+#   several that determines how long it takes to crack a password. The more
+#   complex a password is, the greater the number of possible combinations
+#   that must be tested before the password is compromised. Satisfies:
+#   SRG-OS-000072-GPOS-00040, SRG-OS-000730-GPOS-00190
+#
+# Check Text:
+#   Verify RHEL 10 limits the value of the "maxclassrepeat" option in
+#   "/etc/security/pwquality.conf" with the following command:
+#
+#   $ sud grep -s maxclassrepeat /etc/security/pwquality.conf
+#   /etc/security/pwquality.conf.d/*.conf
+#   /etc/security/pwquality.conf:maxclassrepeat = 4
+#
+#   If the value of "maxclassrepeat" is set to "0" or more than "4" or is
+#   commented out, this is a finding.
+#
+# Fix Text:
+#   Configure RHEL 10 to require the change of the number of repeating
+#   characters of the same character class when passwords are changed by
+#   setting the "maxclassrepeat" option.
+#
+#   Add or update the following line in the "/etc/security/pwquality.conf"
+#   file or a configuration file in the "/etc/security/pwquality.conf.d/"
+#   directory to contain the "maxclassrepeat" parameter:
+#
+#   maxclassrepeat = 4
+# =============================================================================
+
+- name: "RHEL-10-600280 | RHEL 10 must require the maximum number of repeating characters of the same character class to be limited to four when passwords are changed."
+  when: rhel_10_600280 | bool
+  tags:
+    - RHEL-10-600280
+    - medium
+    - CCI-004066
+  block:
+    - name: "RHEL-10-600280 | Check maxclassrepeat in /etc/security/pwquality.conf"
+      ansible.builtin.command:
+        cmd: grep -s "^maxclassrepeat" /etc/security/pwquality.conf
+      register: rhel_10_600280_check
+      changed_when: false
+      failed_when: false
+
+    - name: "RHEL-10-600280 | Backup /etc/security/pwquality.conf before modification"
+      ansible.builtin.copy:
+        src: /etc/security/pwquality.conf
+        dest: "/etc/security/pwquality.conf.bak.{{ ansible_date_time.epoch }}"
+        remote_src: true
+        mode: preserve
+      when: >
+        rhel_10_600280_check.rc != 0 or
+        (rhel_10_600280_check.stdout | regex_search('maxclassrepeat\s*=\s*(\d+)', '\1') | first | int) == 0 or
+        (rhel_10_600280_check.stdout | regex_search('maxclassrepeat\s*=\s*(\d+)', '\1') | first | int) > 4
+
+    - name: "RHEL-10-600280 | Set maxclassrepeat = 4 in /etc/security/pwquality.conf"
+      ansible.builtin.lineinfile:
+        path: /etc/security/pwquality.conf
+        regexp: '^#?\s*maxclassrepeat\s*='
+        line: 'maxclassrepeat = 4'
+        state: present
+      when: >
+        rhel_10_600280_check.rc != 0 or
+        (rhel_10_600280_check.stdout | regex_search('maxclassrepeat\s*=\s*(\d+)', '\1') | first | int) == 0 or
+        (rhel_10_600280_check.stdout | regex_search('maxclassrepeat\s*=\s*(\d+)', '\1') | first | int) > 4
+
+    - name: "RHEL-10-600280 | Re-check maxclassrepeat"
+      ansible.builtin.command:
+        cmd: grep -s "^maxclassrepeat" /etc/security/pwquality.conf
+      register: rhel_10_600280_verify
+      changed_when: false
+      failed_when: false
+
+    - name: "RHEL-10-600280 | Assert maxclassrepeat is between 1 and 4"
+      ansible.builtin.assert:
+        that:
+          - rhel_10_600280_verify.rc == 0
+          - (rhel_10_600280_verify.stdout | regex_search('maxclassrepeat\s*=\s*(\d+)', '\1') | first | int) > 0
+          - (rhel_10_600280_verify.stdout | regex_search('maxclassrepeat\s*=\s*(\d+)', '\1') | first | int) <= 4
+        fail_msg: "result=FAIL stig_id=RHEL-10-600280 detail=maxclassrepeat is not set to a value between 1 and 4 in /etc/security/pwquality.conf (current={{ rhel_10_600280_verify.stdout | trim }})."
+        success_msg: "result=PASS stig_id=RHEL-10-600280 detail=maxclassrepeat is set correctly in /etc/security/pwquality.conf ({{ rhel_10_600280_verify.stdout | trim }})."
+  rescue:
+    - name: "RHEL-10-600280 | RESCUE - record failure and continue"
+      ansible.builtin.debug:
+        msg: "result=ERROR stig_id=RHEL-10-600280 detail=Task failed unexpectedly — see prior error for details."

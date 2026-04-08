@@ -1,0 +1,90 @@
+---
+# =============================================================================
+# STIG ID  : RHEL-10-600405
+# Rule ID  : SV-281193r1166531_rule
+# Severity : medium
+# CCI      : CCI-004066
+# Title    : RHEL 10 must enforce password complexity rules for the "root" account.
+#
+# Description:
+#   Use of a complex password helps to increase the time and resources
+#   required to compromise the password. Password complexity, or strength, is
+#   a measure of the effectiveness of a password in resisting attempts at
+#   guessing and brute-force attacks. Password complexity is one factor of
+#   several that determines how long it takes to crack a password. The more
+#   complex the password, the greater the number of possible combinations
+#   that must be tested before the password is compromised. Satisfies:
+#   SRG-OS-000072-GPOS-00040, SRG-OS-000071-GPOS-00039,
+#   SRG-OS-000070-GPOS-00038, SRG-OS-000266-GPOS-00101,
+#   SRG-OS-000078-GPOS-00046, SRG-OS-000480-GPOS-00225,
+#   SRG-OS-000069-GPOS-00037
+#
+# Check Text:
+#   Verify RHEL 10 enforces password complexity rules for the "root" account.
+#
+#   Check if "root" user is required to use complex passwords with the
+#   following command:
+#
+#   $ sudo grep enforce_for_root /etc/security/pwquality.conf
+#   /etc/security/pwquality.conf.d/*.conf
+#   /etc/security/pwquality.conf:enforce_for_root
+#
+#   If "enforce_for_root" is commented out or is missing, this is a finding.
+#
+# Fix Text:
+#   Configure RHEL 10 to enforce password complexity on the "root" account.
+#
+#   Add or update the following line in the "/etc/security/pwquality.conf"
+#   file or a configuration file in the "/etc/security/pwquality.conf.d/"
+#   directory to contain the "enforce_for_root" parameter:
+#
+#   enforce_for_root
+# =============================================================================
+
+- name: "RHEL-10-600405 | RHEL 10 must enforce password complexity rules for the root account."
+  when: rhel_10_600405 | bool
+  tags:
+    - RHEL-10-600405
+    - medium
+    - CCI-004066
+  block:
+    - name: "RHEL-10-600405 | Check enforce_for_root in /etc/security/pwquality.conf"
+      ansible.builtin.command:
+        cmd: grep -s "^enforce_for_root" /etc/security/pwquality.conf
+      register: rhel_10_600405_check
+      changed_when: false
+      failed_when: false
+
+    - name: "RHEL-10-600405 | Backup /etc/security/pwquality.conf before modification"
+      ansible.builtin.copy:
+        src: /etc/security/pwquality.conf
+        dest: "/etc/security/pwquality.conf.bak.{{ ansible_date_time.epoch }}"
+        remote_src: true
+        mode: preserve
+      when: rhel_10_600405_check.rc != 0
+
+    - name: "RHEL-10-600405 | Set enforce_for_root in /etc/security/pwquality.conf"
+      ansible.builtin.lineinfile:
+        path: /etc/security/pwquality.conf
+        regexp: '^#?\s*enforce_for_root'
+        line: 'enforce_for_root'
+        state: present
+      when: rhel_10_600405_check.rc != 0
+
+    - name: "RHEL-10-600405 | Re-check enforce_for_root"
+      ansible.builtin.command:
+        cmd: grep -s "^enforce_for_root" /etc/security/pwquality.conf
+      register: rhel_10_600405_verify
+      changed_when: false
+      failed_when: false
+
+    - name: "RHEL-10-600405 | Assert enforce_for_root is present"
+      ansible.builtin.assert:
+        that:
+          - rhel_10_600405_verify.rc == 0
+        fail_msg: "result=FAIL stig_id=RHEL-10-600405 detail=enforce_for_root is not set in /etc/security/pwquality.conf."
+        success_msg: "result=PASS stig_id=RHEL-10-600405 detail=enforce_for_root is configured in /etc/security/pwquality.conf."
+  rescue:
+    - name: "RHEL-10-600405 | RESCUE - record failure and continue"
+      ansible.builtin.debug:
+        msg: "result=ERROR stig_id=RHEL-10-600405 detail=Task failed unexpectedly — see prior error for details."

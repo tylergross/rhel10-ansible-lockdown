@@ -1,0 +1,59 @@
+---
+# =============================================================================
+# STIG ID  : RHEL-10-400405
+# Rule ID  : SV-281092r1165631_rule
+# Severity : medium
+# CCI      : CCI-001764
+# Title    : RHEL 10 must mount "/var/log/audit" with the "noexec" option.
+#
+# Description:
+#   The "noexec" mount option causes the system to not execute binary files.
+#   This option must be used for mounting any file system not containing
+#   approved binary files, as they may be incompatible. Executing files from
+#   untrusted file systems increases the opportunity for nonprivileged users
+#   to attain unauthorized administrative access.
+#
+# Check Text:
+#   Verify RHEL 10 is configured so that "/var/log/audit" is mounted with the
+#   "noexec" option:
+#
+#   $ mount | grep /var/log/audit
+#   /dev/mapper/luks-4e45e1ad-5337-42c4-a19f-ee12ccc1d502 on /var/log/audit
+#   type xfs (rw,nodev,nosuid,noexec,seclabel)
+#
+#   If the "/var/log/audit" file system is mounted without the "noexec"
+#   option, this is a finding.
+#
+# Fix Text:
+#   Configure RHEL 10 to mount "/var/log/audit" with the "noexec" option.
+#
+#   Modify "/etc/fstab" to use the "noexec" option on the "/var/log/audit"
+#   directory.
+# =============================================================================
+
+- name: "RHEL-10-400405 | RHEL 10 must mount /var/log/audit with the noexec option."
+  when: rhel_10_400405 | bool
+  tags:
+    - RHEL-10-400405
+    - medium
+    - CCI-001764
+  block:
+    - name: "RHEL-10-400405 | Check mount options for /var/log/audit"
+      ansible.builtin.command:
+        cmd: findmnt --noheadings --mountpoint /var/log/audit --output OPTIONS
+      register: rhel_10_400405_mount
+      changed_when: false
+      failed_when: false
+
+    - name: "RHEL-10-400405 | Assert noexec is set on /var/log/audit"
+      ansible.builtin.assert:
+        that:
+          - rhel_10_400405_mount.rc == 0
+          - "'noexec' in rhel_10_400405_mount.stdout"
+        fail_msg: "result=FAIL stig_id=RHEL-10-400405 detail=/var/log/audit is not mounted with noexec (options={{ rhel_10_400405_mount.stdout | trim }}). Fix: add noexec to /etc/fstab and remount."
+        success_msg: "result=PASS stig_id=RHEL-10-400405 detail=/var/log/audit is mounted with noexec."
+
+  rescue:
+    - name: "RHEL-10-400405 | RESCUE - record failure and continue"
+      ansible.builtin.debug:
+        msg: "result=ERROR stig_id=RHEL-10-400405 detail=Task failed unexpectedly — see prior error for details."

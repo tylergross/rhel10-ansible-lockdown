@@ -1,0 +1,60 @@
+---
+# =============================================================================
+# STIG ID  : RHEL-10-200080
+# Rule ID  : SV-280950r1165205_rule
+# Severity : medium
+# CCI      : CCI-000381
+# Title    : RHEL 10 must not have the "gdm" package installed.
+#
+# Description:
+#   Unnecessary service packages must not be installed to decrease the attack
+#   surface of the system. A graphical environment is unnecessary for certain
+#   types of systems including a virtualization hypervisor.
+#
+# Check Text:
+#   Verify RHEL 10 does not have the "gdm" package installed with the
+#   following command:
+#
+#   $ sudo dnf list --installed gdm
+#   Error: No matching Packages to list
+#
+#   If the "gdm" package is installed and the need for a GUI interface has
+#   not been documented with the information system security officer, this is
+#   a finding.
+#
+# Fix Text:
+#   Configure RHEL 10 to not have the "gdm" package installed with the
+#   following command:
+#
+#   $ sudo dnf -y remove gdm
+# =============================================================================
+
+- name: "RHEL-10-200080 | RHEL 10 must not have the gdm package installed."
+  when: rhel_10_200080 | bool
+  tags:
+    - RHEL-10-200080
+    - medium
+    - CCI-000381
+  block:
+    - name: "RHEL-10-200080 | Remove gdm if installed"
+      ansible.builtin.package:
+        name: gdm
+        state: absent
+
+    - name: "RHEL-10-200080 | Verify gdm is not installed"
+      ansible.builtin.command: rpm -q gdm
+      register: rhel_10_200080_check
+      changed_when: false
+      failed_when: false
+
+    - name: "RHEL-10-200080 | Assert gdm is not installed"
+      ansible.builtin.assert:
+        that: rhel_10_200080_check.rc != 0
+        fail_msg: >-
+          result=FAIL stig_id=RHEL-10-200080
+          detail=Package gdm is still installed. Remove with: dnf -y remove gdm
+        success_msg: "result=PASS stig_id=RHEL-10-200080 detail=Package gdm is not installed."
+  rescue:
+    - name: "RHEL-10-200080 | RESCUE - record failure and continue"
+      ansible.builtin.debug:
+        msg: "result=ERROR stig_id=RHEL-10-200080 detail=Task failed unexpectedly — see prior error for details."

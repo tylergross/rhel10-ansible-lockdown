@@ -1,0 +1,97 @@
+---
+# =============================================================================
+# STIG ID  : RHEL-10-500540
+# Rule ID  : SV-281140r1197229_rule
+# Severity : medium
+# CCI      : CCI-000130
+# Title    : RHEL 10 must generate audit records for successful and unsuccessful uses of the "su" command.
+#
+# Description:
+#   Without generating audit records specific to the security and mission
+#   needs of the organization, it would be difficult to establish, correlate,
+#   and investigate the events relating to an incident or identify those
+#   responsible for one. Audit records can be generated from various
+#   components within the information system (e.g., module or policy filter).
+#   When a user logs on, the auid is set to the uid of the account being
+#   authenticated. Daemons are not user sessions and have the loginuid set to
+#   -1. The auid representation is an unsigned 32-bit integer, which equals
+#   4294967295. The audit system interprets -1, 4294967295, and "unset" in
+#   the same way. The system call rules are loaded into a matching engine
+#   that intercepts each system call made by all programs on the system.
+#   Therefore, it is very important to use system call rules only when
+#   absolutely necessary because these affect performance. More rules lead to
+#   poorer performance. The performance can be helped, however, by combining
+#   system calls into one rule whenever possible. Satisfies:
+#   SRG-OS-000037-GPOS-00015, SRG-OS-000042-GPOS-00020,
+#   SRG-OS-000062-GPOS-00031, SRG-OS-000064-GPOS-00033,
+#   SRG-OS-000392-GPOS-00172, SRG-OS-000462-GPOS-00206,
+#   SRG-OS-000471-GPOS-00215, SRG-OS-000466-GPOS-00210,
+#   SRG-OS-000755-GPOS-00220
+#
+# Check Text:
+#   Verify RHEL 10 is configured to audit the execution of the "su" command
+#   with the following command:
+#
+#   $ sudo auditctl -l | grep '/usr/bin/su\b'
+#   -a always,exit -S all -F path=/usr/bin/su -F perm=x -F auid>=1000 -F
+#   auid!=-1 -F key=privileged-priv_change
+#
+#   If the command does not return a line, or the line is commented out, this
+#   is a finding.
+#
+# Fix Text:
+#   Configure RHEL 10 to generate audit records upon successful and
+#   unsuccessful attempts to use the "su" command by adding or updating the
+#   following rule in "/etc/audit/rules.d/audit.rules":
+#
+#   -a always,exit -F path=/usr/bin/su -F perm=x -F auid>=1000 -F auid!=unset
+#   -k privileged-priv_change
+#
+#   Restart the audit daemon with the following command for the changes to
+#   take effect:
+#
+#   $ sudo service auditd restart
+# =============================================================================
+
+- name: "RHEL-10-500540 | RHEL 10 must generate audit records for successful and unsuccessful uses of the su command."
+  when: rhel_10_500540 | bool
+  tags:
+    - RHEL-10-500540
+    - medium
+    - CCI-000130
+  block:
+    - name: "RHEL-10-500540 | Check audit rule for su command"
+      ansible.builtin.command:
+        cmd: auditctl -l
+      register: rhel_10_500540_rules
+      changed_when: false
+      failed_when: false
+
+    - name: "RHEL-10-500540 | Add audit rule for su command"
+      ansible.builtin.lineinfile:
+        path: /etc/audit/rules.d/rhel10-stig.rules
+        line: "-a always,exit -F path=/usr/bin/su -F perm=x -F auid>=1000 -F auid!=unset -k privileged-priv_change"
+        create: true
+        mode: '0640'
+        owner: root
+        group: root
+      when: "'privileged-priv_change' not in rhel_10_500540_rules.stdout"
+      notify: restart auditd
+
+    - name: "RHEL-10-500540 | Re-check audit rule for su command"
+      ansible.builtin.command:
+        cmd: auditctl -l
+      register: rhel_10_500540_verify
+      changed_when: false
+      failed_when: false
+
+    - name: "RHEL-10-500540 | Assert audit rule for su command is present"
+      ansible.builtin.assert:
+        that: "'privileged-priv_change' in rhel_10_500540_verify.stdout"
+        fail_msg: "result=FAIL stig_id=RHEL-10-500540 detail=Audit rule for /usr/bin/su (key=privileged-priv_change) is missing."
+        success_msg: "result=PASS stig_id=RHEL-10-500540 detail=Audit rule for /usr/bin/su (key=privileged-priv_change) is present."
+
+  rescue:
+    - name: "RHEL-10-500540 | RESCUE - record failure and continue"
+      ansible.builtin.debug:
+        msg: "result=ERROR stig_id=RHEL-10-500540 detail=Task failed unexpectedly — see prior error for details."

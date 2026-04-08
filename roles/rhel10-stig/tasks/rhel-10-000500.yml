@@ -1,0 +1,60 @@
+---
+# =============================================================================
+# STIG ID  : RHEL-10-000500
+# Rule ID  : SV-281009r1184724_rule
+# Severity : high
+# CCI      : CCI-000068
+# Title    : RHEL 10 must enable FIPS mode.
+#
+# Description:
+#   Use of weak or untested encryption algorithms undermines the purposes of
+#   using encryption to protect data. The operating system must implement
+#   cryptographic modules adhering to the higher standards approved by the
+#   federal government because this provides assurance they have been tested
+#   and validated. Satisfies: SRG-OS-000033-GPOS-00014,
+#   SRG-OS-000125-GPOS-00065, SRG-OS-000250-GPOS-00093,
+#   SRG-OS-000393-GPOS-00173, SRG-OS-000394-GPOS-00174,
+#   SRG-OS-000396-GPOS-00176, SRG-OS-000423-GPOS-00187,
+#   SRG-OS-000478-GPOS-00223
+#
+# Check Text:
+#   Verify RHEL 10 is in FIPS mode with the following command:
+#
+#   $ cat /proc/sys/crypto/fips_enabled
+#   1
+#
+#   If the command does not return "1", this is a finding.
+#
+# Fix Text:
+#   Configure RHEL 10 to implement FIPS mode.
+#
+#   If this check fails on an installed system, it is a permanent finding
+#   until the system is reinstalled with "fips=1" during installation.
+#
+#   Red Hat 10 does not support switching to strict FIPS mode after
+#   installation.
+# =============================================================================
+
+- name: "RHEL-10-000500 | RHEL 10 must enable FIPS mode."
+  when: rhel_10_000500 | bool
+  tags:
+    - RHEL-10-000500
+    - high
+    - CCI-000068
+  block:
+    - name: "RHEL-10-000500 | Read FIPS mode kernel flag"
+      ansible.builtin.command: cat /proc/sys/crypto/fips_enabled
+      register: rhel_10_000500_fips_status
+      changed_when: false
+      failed_when: false
+
+    - name: "RHEL-10-000500 | Assert FIPS mode is enabled"
+      ansible.builtin.assert:
+        that: rhel_10_000500_fips_status.stdout | trim == "1"
+        fail_msg: "result=FAIL stig_id=RHEL-10-000500 detail=FIPS mode is not enabled (fips_enabled={{ rhel_10_000500_fips_status.stdout | trim }}). Remediation requires reinstalling the system with fips=1 on the kernel command line."
+        success_msg: "result=PASS stig_id=RHEL-10-000500 detail=FIPS mode is enabled (fips_enabled=1)."
+
+  rescue:
+    - name: "RHEL-10-000500 | RESCUE - record failure and continue"
+      ansible.builtin.debug:
+        msg: "result=ERROR stig_id=RHEL-10-000500 detail=Task failed unexpectedly — see prior error for details."

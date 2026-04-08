@@ -1,0 +1,71 @@
+---
+# =============================================================================
+# STIG ID  : RHEL-10-200030
+# Rule ID  : SV-280945r1184750_rule
+# Severity : medium
+# CCI      : CCI-000381
+# Title    : RHEL 10 must not have the "gssproxy" package installed.
+#
+# Description:
+#   It is detrimental for operating systems to provide, or install by
+#   default, functionality exceeding requirements or mission objectives.
+#   These unnecessary capabilities or services are often overlooked and
+#   therefore, may remain unsecured. They increase the risk to the platform
+#   by providing additional attack vectors. Operating systems are capable of
+#   providing a wide variety of functions and services. Some of the functions
+#   and services provided by default may not be necessary to support
+#   essential organizational operations (e.g., key missions, functions). The
+#   gssproxy package is a proxy for GSS API credential handling and could
+#   expose secrets on some networks. It is not needed for normal function of
+#   the operating system.
+#
+# Check Text:
+#   Note: If Network File System (NFS) mounts are authorized and in use on
+#   the system, this control is not applicable.
+#
+#   Verify RHEL 10 does not have the "gssproxy" package installed with the
+#   following command:
+#
+#   $ sudo dnf list --installed gssproxy
+#   Error: No matching Packages to list
+#
+#   If the "gssproxy" package is installed and is not documented with the
+#   information system security officer as an operational requirement, this
+#   is a finding.
+#
+# Fix Text:
+#   Configure RHEL 10 to not have the "gssproxy" package installed with the
+#   following command:
+#
+#   $ sudo dnf -y remove gssproxy
+# =============================================================================
+
+- name: "RHEL-10-200030 | RHEL 10 must not have the gssproxy package installed."
+  when: rhel_10_200030 | bool
+  tags:
+    - RHEL-10-200030
+    - medium
+    - CCI-000381
+  block:
+    - name: "RHEL-10-200030 | Remove gssproxy if installed"
+      ansible.builtin.package:
+        name: gssproxy
+        state: absent
+
+    - name: "RHEL-10-200030 | Verify gssproxy is not installed"
+      ansible.builtin.command: rpm -q gssproxy
+      register: rhel_10_200030_check
+      changed_when: false
+      failed_when: false
+
+    - name: "RHEL-10-200030 | Assert gssproxy is not installed"
+      ansible.builtin.assert:
+        that: rhel_10_200030_check.rc != 0
+        fail_msg: >-
+          result=FAIL stig_id=RHEL-10-200030
+          detail=Package gssproxy is still installed. Remove with: dnf -y remove gssproxy
+        success_msg: "result=PASS stig_id=RHEL-10-200030 detail=Package gssproxy is not installed."
+  rescue:
+    - name: "RHEL-10-200030 | RESCUE - record failure and continue"
+      ansible.builtin.debug:
+        msg: "result=ERROR stig_id=RHEL-10-200030 detail=Task failed unexpectedly — see prior error for details."

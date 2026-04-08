@@ -1,0 +1,1335 @@
+---
+# rhel10-stig | default variable overrides
+# All controls are enabled (true) by default.
+# To skip a control, set its variable to false in vars/main.yml
+# or in your host/group vars.
+
+# RHEL-10-001000 | HIGH | RHEL 10 must be a vendor-supported release.
+rhel_10_001000: true
+# End of Maintenance Support date for RHEL 10 (31 May 2035). Update if Red Hat extends support.
+rhel_10_001000_eol_date: "2035-05-31"
+
+# RHEL-10-001020 | MEDIUM | RHEL 10 must ensure cryptographic verification of vendor software packages.
+rhel_10_001020: true
+
+# RHEL-10-001030 | HIGH | RHEL 10 must check the GNU Privacy Guard (GPG) signature of software packages originating from external software repositories before installation.
+rhel_10_001030: true
+
+# RHEL-10-001040 | HIGH | RHEL 10 must check the GNU Privacy Guard (GPG) signature of locally installed software packages before installation.
+rhel_10_001040: true
+
+# RHEL-10-001050 | HIGH | RHEL 10 must have GNU Privacy Guard (GPG) signature verification enabled for all software repositories.
+rhel_10_001050: true
+
+# RHEL-10-000510 | HIGH | RHEL 10 must implement cryptographic mechanisms to prevent unauthorized disclosure or modification of all information on local disk partitions that requires at-rest protection.
+rhel_10_000510: true
+
+# RHEL-10-000520 | LOW | RHEL 10 must use a separate file system for the system audit data path.
+rhel_10_000520: true
+
+# RHEL-10-000530 | MEDIUM | RHEL 10 must use a separate file system for user home directories (such as "/home" or an equivalent).
+rhel_10_000530: true
+
+# RHEL-10-000540 | MEDIUM | RHEL 10 must use a separate file system for "/tmp".
+rhel_10_000540: true
+
+# RHEL-10-000550 | MEDIUM | RHEL 10 must use a separate file system for "/var".
+rhel_10_000550: true
+
+# RHEL-10-000560 | MEDIUM | RHEL 10 must use a separate file system for "/var/log".
+rhel_10_000560: true
+
+# RHEL-10-000570 | MEDIUM | RHEL 10 must use a separate file system for "/var/tmp".
+rhel_10_000570: true
+
+# RHEL-10-200000 | MEDIUM | RHEL 10 must remove all software components after updated versions have been installed.
+rhel_10_200000: true
+
+# RHEL-10-200010 | MEDIUM | RHEL 10 must not have the "nfs-utils" package installed.
+# Set to false by default — NFS may be an operational requirement; enable explicitly if removal is required.
+rhel_10_200010: false
+
+# RHEL-10-200020 | HIGH | RHEL 10 must not have the "telnet-server" package installed.
+rhel_10_200020: true
+
+# RHEL-10-200030 | MEDIUM | RHEL 10 must not have the "gssproxy" package installed.
+# Set to false by default — gssproxy may be required if NFS is in use; enable explicitly if removal is required.
+rhel_10_200030: false
+
+# RHEL-10-200040 | MEDIUM | RHEL 10 must not have the tuned package installed.
+rhel_10_200040: true
+
+# RHEL-10-200050 | MEDIUM | RHEL 10 must not have a Trivial File Transfer Protocol (TFTP) server package installed unless it is required by the mission, and if required, the TFTP daemon must be configured to operate in secure mode.
+rhel_10_200050: true
+
+# RHEL-10-200060 | MEDIUM | RHEL 10 must not have the unbound package installed.
+rhel_10_200060: true
+
+# RHEL-10-200070 | HIGH | RHEL 10 must not have the "tftp" package installed.
+rhel_10_200070: true
+
+# RHEL-10-200080 | MEDIUM | RHEL 10 must not have the "gdm" package installed.
+# Set to false by default — GUI may be an operational requirement; enable explicitly if removal is required.
+rhel_10_200080: false
+
+# RHEL-10-200090 | HIGH | RHEL 10 must not have a File Transfer Protocol (FTP) server package installed.
+rhel_10_200090: true
+
+# RHEL-10-200500 | MEDIUM | RHEL 10 must have the "subscription-manager" package installed.
+rhel_10_200500: true
+
+# RHEL-10-200510 | MEDIUM | RHEL 10 must have the "nss-tools" package installed.
+rhel_10_200510: true
+
+# RHEL-10-200520 | MEDIUM | RHEL 10 must have the "s-nail" package installed.
+rhel_10_200520: true
+
+# RHEL-10-200530 | MEDIUM | RHEL 10 must have the "firewalld" package installed.
+rhel_10_200530: true
+
+# RHEL-10-200531 | MEDIUM | RHEL 10 must have the "firewalld" service set to active.
+rhel_10_200531: true
+
+# RHEL-10-200532 | MEDIUM | RHEL 10 must employ a deny-all, allow-by-exception policy for allowing connections to other systems.
+rhel_10_200532: true
+
+# RHEL-10-200540 | MEDIUM | RHEL 10 must have the "chrony" package installed.
+rhel_10_200540: true
+
+# RHEL-10-200541 | MEDIUM | RHEL 10 must enable the chronyd service.
+rhel_10_200541: true
+
+# RHEL-10-200542 | MEDIUM | RHEL 10 must disable the chrony daemon from acting as a server.
+rhel_10_200542: true
+
+# RHEL-10-200543 | MEDIUM | RHEL 10 must disable network management of the chrony daemon.
+rhel_10_200543: true
+
+# RHEL-10-200560 | MEDIUM | RHEL 10 must have the USBGuard package installed.
+rhel_10_200560: true
+
+# RHEL-10-200561 | MEDIUM | RHEL 10 must have the USBGuard package enabled.
+rhel_10_200561: true
+
+# RHEL-10-200562 | MEDIUM | RHEL 10 must block unauthorized peripherals before establishing a connection.
+rhel_10_200562: true
+
+# RHEL-10-200563 | MEDIUM | RHEL 10 must enable audit logging for the USBGuard daemon.
+rhel_10_200563: true
+
+# RHEL-10-200570 | MEDIUM | RHEL 10 must have the "policycoreutils" package installed.
+rhel_10_200570: true
+
+# RHEL-10-200580 | MEDIUM | RHEL 10 must have the "policycoreutils-python-utils" package installed.
+rhel_10_200580: true
+
+# RHEL-10-200590 | MEDIUM | RHEL 10 must have the "sudo" package installed.
+rhel_10_200590: true
+
+# RHEL-10-200600 | MEDIUM | RHEL 10 must have the "fapolicy" module installed.
+rhel_10_200600: true
+
+# RHEL-10-200601 | MEDIUM | RHEL 10 must enable the "fapolicy" module.
+rhel_10_200601: true
+
+# RHEL-10-200602 | MEDIUM | RHEL 10 must be configured to employ a deny-all, permit-by-exception policy to allow the execution of authorized software programs.
+rhel_10_200602: true
+
+# RHEL-10-200610 | MEDIUM | RHEL 10 must have the "pcsc-lite" package installed.
+rhel_10_200610: true
+
+# RHEL-10-200611 | MEDIUM | RHEL 10 must have the "pcscd" service set to active.
+rhel_10_200611: true
+
+# RHEL-10-200612 | MEDIUM | RHEL 10 must have the "pcsc-lite-ccid" package installed.
+rhel_10_200612: true
+
+# RHEL-10-200620 | MEDIUM | RHEL 10 must have the "opensc" package installed.
+rhel_10_200620: true
+
+# RHEL-10-200621 | MEDIUM | RHEL 10 must use the common access card (CAC) smart card driver.
+rhel_10_200621: true
+
+# RHEL-10-200630 | MEDIUM | RHEL 10 must have the Advanced Intrusion Detection Environment (AIDE) package installed.
+rhel_10_200630: true
+
+# RHEL-10-200631 | HIGH | RHEL 10 must use cryptographic mechanisms to protect the integrity of audit tools.
+rhel_10_200631: true
+
+# RHEL-10-200632 | MEDIUM | RHEL 10 must use a file integrity tool that is configured to use FIPS 140-3-approved cryptographic hashes for validating file contents and directories.
+rhel_10_200632: true
+
+# RHEL-10-200633 | MEDIUM | RHEL 10 must routinely check the baseline configuration for unauthorized changes and notify the system administrator when anomalies in the operation of any security functions are discovered.
+rhel_10_200633: true
+
+# RHEL-10-200634 | MEDIUM | RHEL 10 must be configured so that the file integrity tool verifies Access Control Lists (ACLs).
+rhel_10_200634: true
+
+# RHEL-10-200635 | MEDIUM | RHEL 10 must be configured so that the file integrity tool verifies extended attributes.
+rhel_10_200635: true
+
+# Shared rsyslog remote logging server for 200642/200644/200645/200646.
+# Override in host_vars or group_vars with the actual log aggregation server address.
+rhel_10_rsyslog_remote_server: "127.0.0.1"
+
+# RHEL-10-200640 | MEDIUM | RHEL 10 must have the "rsyslog" package installed.
+rhel_10_200640: true
+
+# RHEL-10-200641 | MEDIUM | RHEL 10 must have the rsyslog service set to active.
+rhel_10_200641: true
+
+# RHEL-10-200642 | MEDIUM | RHEL 10 must be configured to forward audit records via Transmission Control Protocol (TCP) to a different system or media from the system being audited via rsyslog.
+rhel_10_200642: true
+
+# RHEL-10-200643 | MEDIUM | RHEL 10 must be configured so that the rsyslog daemon does not accept log messages from other servers unless the server is being used for log aggregation.
+rhel_10_200643: true
+
+# RHEL-10-200644 | MEDIUM | RHEL 10 must authenticate the remote logging server for off-loading audit logs via "rsyslog".
+rhel_10_200644: true
+
+# RHEL-10-200645 | MEDIUM | RHEL 10 must encrypt the transfer of audit records off-loaded onto a different system or media from the system being audited via rsyslog.
+rhel_10_200645: true
+
+# RHEL-10-200646 | MEDIUM | RHEL 10 must encrypt, via the gtls driver, the transfer of audit records off-loaded onto a different system or media from the system being audited via rsyslog.
+rhel_10_200646: true
+
+# RHEL-10-200647 | MEDIUM | RHEL 10 must monitor all remote access methods.
+rhel_10_200647: true
+
+# RHEL-10-200648 | MEDIUM | RHEL 10 must use cron logging.
+rhel_10_200648: true
+
+# RHEL-10-200650 | MEDIUM | RHEL 10 must have the packages required for encrypting off-loaded audit logs installed.
+rhel_10_200650: true
+
+# RHEL-10-200660 | MEDIUM | RHEL 10 must have the "audit" package installed.
+rhel_10_200660: true
+
+# RHEL-10-200661 | MEDIUM | RHEL 10 must enable the audit service.
+rhel_10_200661: true
+
+# RHEL-10-200662 | LOW | RHEL 10 must have the "audispd-plugins" package installed.
+rhel_10_200662: true
+
+# RHEL-10-200680 | MEDIUM | RHEL 10 must have the "libreswan" package installed.
+rhel_10_200680: true
+
+# RHEL-10-200690 | MEDIUM | RHEL 10 must notify designated personnel if baseline configurations are changed in an unauthorized manner.
+rhel_10_200690: true
+
+# RHEL-10-200691 | MEDIUM | RHEL 10 must have mail aliases to notify the information system security officer (ISSO) and system administrator (SA) (at a minimum) of an audit processing failure.
+rhel_10_200691: true
+
+# Destination address for root mail alias (ISSO/SA contact). Override with actual address.
+rhel_10_200691_root_alias_dest: "root"
+
+# RHEL-10-200692 | MEDIUM | RHEL 10 must be configured to prevent unrestricted mail relaying.
+rhel_10_200692: true
+
+# RHEL-10-200700 | MEDIUM | RHEL 10 must have the "cronie" package installed.
+rhel_10_200700: true
+
+# RHEL-10-200720 | MEDIUM | RHEL 10 must have a Secure Shell (SSH) server installed for all networked systems.
+rhel_10_200720: true
+
+# RHEL-10-200721 | MEDIUM | RHEL 10 must, for all networked systems, have and implement Secure Shell (SSH) to protect the confidentiality and integrity of transmitted and received information.
+rhel_10_200721: true
+
+# RHEL-10-200722 | MEDIUM | RHEL 10 must have the "openssh-clients" package installed.
+rhel_10_200722: true
+
+# RHEL-10-200730 | MEDIUM | RHEL 10 must have the "pkcs11-provider" package installed.
+rhel_10_200730: true
+
+# RHEL-10-200740 | MEDIUM | RHEL 10 must have the "gnutls-utils" package installed.
+rhel_10_200740: true
+
+# RHEL-10-300000 | HIGH | RHEL 10 must have the "crypto-policies" package installed.
+rhel_10_300000: true
+
+# RHEL-10-300010 | HIGH | RHEL 10 must implement a FIPS 140-3-compliant systemwide cryptographic policy.
+rhel_10_300010: true
+
+# RHEL-10-000500 | HIGH | RHEL 10 must enable FIPS mode.
+rhel_10_000500: true
+
+# RHEL-10-300030 | HIGH | RHEL 10 must be configured so that Secure Shell (SSH) clients use only DOD-approved encryption ciphers employing FIPS 140-3-validated cryptographic hash algorithms to protect the confidentiality of SSH client connections.
+rhel_10_300030: true
+
+# RHEL-10-300040 | HIGH | RHEL 10 must be configured so that Secure Shell (SSH) servers use only DOD-approved encryption ciphers employing FIPS 140-3-validated cryptographic hash algorithms to protect the confidentiality of SSH server connections.
+rhel_10_300040: true
+
+# RHEL-10-300050 | HIGH | RHEL 10 must be configured so that Secure Shell (SSH) clients use only DOD-approved Message Authentication Codes (MACs) employing FIPS 140-3-validated cryptographic hash algorithms to protect the confidentiality of SSH client connections.
+rhel_10_300050: true
+
+# RHEL-10-300060 | HIGH | RHEL 10 must be configured so that Secure Shell (SSH) servers use only DOD-approved Message Authentication Codes (MACs) employing FIPS 140-3-validated cryptographic hash algorithms to protect the confidentiality of SSH server connections.
+rhel_10_300060: true
+
+# RHEL-10-300070 | HIGH | RHEL 10 must use FIPS 140-3-approved cryptographic algorithms for IP tunnels.
+rhel_10_300070: true
+
+# RHEL-10-300080 | HIGH | RHEL 10 must implement DOD-approved encryption in the bind package.
+rhel_10_300080: true
+
+# RHEL-10-300090 | HIGH | RHEL 10 cryptographic policy must not be overridden.
+rhel_10_300090: true
+
+# RHEL-10-400000 | MEDIUM | RHEL 10 must be configured so that the "/etc/group" file is owned by root.
+rhel_10_400000: true
+
+# RHEL-10-400005 | MEDIUM | RHEL 10 must be configured so that the "/etc/group" file is group-owned by "root".
+rhel_10_400005: true
+
+# RHEL-10-400010 | MEDIUM | RHEL 10 must be configured so that the "/etc/group-" file is owned by "root".
+rhel_10_400010: true
+
+# RHEL-10-400015 | MEDIUM | RHEL 10 must be configured so that the "/etc/group-" file is group-owned by "root".
+rhel_10_400015: true
+
+# RHEL-10-400020 | MEDIUM | RHEL 10 must be configured so that the "/etc/gshadow" file is owned by "root".
+rhel_10_400020: true
+
+# RHEL-10-400025 | MEDIUM | RHEL 10 must be configured so that the "/etc/gshadow" file is group-owned by "root".
+rhel_10_400025: true
+
+# RHEL-10-400030 | MEDIUM | RHEL 10 must be configured so that the "/etc/gshadow-" file is owned by "root".
+rhel_10_400030: true
+
+# RHEL-10-400035 | MEDIUM | RHEL 10 must be configured so that the "/etc/gshadow-" file is group-owned by "root".
+rhel_10_400035: true
+
+# RHEL-10-400040 | MEDIUM | RHEL 10 must be configured so that the "/etc/passwd" file is owned by "root".
+rhel_10_400040: true
+
+# RHEL-10-400045 | MEDIUM | RHEL 10 must be configured so that the "/etc/passwd" file is group-owned by "root".
+rhel_10_400045: true
+
+# RHEL-10-400050 | MEDIUM | RHEL 10 must be configured so that the "/etc/passwd-" file is owned by "root".
+rhel_10_400050: true
+
+# RHEL-10-400055 | MEDIUM | RHEL 10 must be configured so that the "/etc/passwd-" file is group-owned by "root".
+rhel_10_400055: true
+
+# RHEL-10-400060 | MEDIUM | RHEL 10 must be configured so that the "/etc/shadow" file is owned by "root".
+rhel_10_400060: true
+
+# RHEL-10-400065 | MEDIUM | RHEL 10 must be configured so that the "/etc/shadow" file is group-owned by "root".
+rhel_10_400065: true
+
+# RHEL-10-400070 | MEDIUM | RHEL 10 must be configured so that the "/etc/shadow-" file is owned by "root".
+rhel_10_400070: true
+
+# RHEL-10-400075 | MEDIUM | RHEL 10 must be configured so that the "/etc/shadow-" file is group-owned by "root".
+rhel_10_400075: true
+
+# RHEL-10-400080 | MEDIUM | RHEL 10 must be configured so that the "/var/log" directory is owned by "root".
+rhel_10_400080: true
+
+# RHEL-10-400085 | MEDIUM | RHEL 10 must be configured so that the "/var/log" directory is group-owned by "root".
+rhel_10_400085: true
+
+# RHEL-10-400090 | MEDIUM | RHEL 10 must be configured so that the "/var/log/"messages file is owned by root.
+rhel_10_400090: true
+
+# RHEL-10-400095 | MEDIUM | RHEL 10 must be configured so that the "/var/log/messages" file is group-owned by "root".
+rhel_10_400095: true
+
+# RHEL-10-400100 | MEDIUM | RHEL 10 must be configured so that system commands are owned by "root".
+rhel_10_400100: true
+
+# RHEL-10-400105 | MEDIUM | RHEL 10 must be configured so that system commands are group-owned by root or a system account.
+rhel_10_400105: true
+
+# RHEL-10-400110 | MEDIUM | RHEL 10 must be configured so that library files are owned by "root".
+rhel_10_400110: true
+
+# RHEL-10-400115 | MEDIUM | RHEL 10 must be configured so that library files are group-owned by "root" or a system account.
+rhel_10_400115: true
+
+# RHEL-10-400120 | MEDIUM | RHEL 10 must be configured so that library directories are owned by "root".
+rhel_10_400120: true
+
+# RHEL-10-400125 | MEDIUM | RHEL 10 must be configured so that library directories are group-owned by "root" or a system account.
+rhel_10_400125: true
+
+# RHEL-10-400130 | MEDIUM | RHEL 10 must be configured so that cron configuration file directories are owned by root.
+rhel_10_400130: true
+
+# RHEL-10-400135 | MEDIUM | RHEL 10 must be configured so that cron configuration files directories are group-owned by root.
+rhel_10_400135: true
+
+# RHEL-10-400140 | MEDIUM | RHEL 10 must be configured so that world-writable directories are owned by root, sys, bin, or an application user.
+rhel_10_400140: true
+
+# RHEL-10-400145 | MEDIUM | RHEL 10 must be configured so that all system device files are correctly labeled to prevent unauthorized modification.
+rhel_10_400145: true
+
+# RHEL-10-400150 | MEDIUM | RHEL 10 must be configured so that the Secure Shell (SSH) server configuration file is group-owned by "root".
+rhel_10_400150: true
+
+# RHEL-10-400155 | MEDIUM | RHEL 10 must be configured so that the Secure Shell (SSH) server configuration file is owned by "root".
+rhel_10_400155: true
+
+# RHEL-10-400160 | MEDIUM | RHEL 10 must ensure that all local interactive user home directories are group-owned by the home directory owner's primary group.
+rhel_10_400160: true
+
+# RHEL-10-400165 | MEDIUM | RHEL 10 must enforce group ownership of audit logs by "root" or by a restricted logging group to prevent unauthorized read access.
+rhel_10_400165: true
+
+# RHEL-10-400170 | MEDIUM | RHEL 10 must enforce "root" ownership of the audit log directory to prevent unauthorized read access.
+rhel_10_400170: true
+
+# RHEL-10-400175 | MEDIUM | RHEL 10 must enforce "root" ownership of audit logs to prevent unauthorized access.
+rhel_10_400175: true
+
+# RHEL-10-400180 | MEDIUM | RHEL 10 must enforce group ownership by "root" or a restricted logging group for audit log files to prevent unauthorized access.
+rhel_10_400180: true
+
+# RHEL-10-400185 | MEDIUM | RHEL 10 must set mode "0600" or less permissive for the audit logs file to prevent unauthorized access to the audit log.
+rhel_10_400185: true
+
+# RHEL-10-400190 | MEDIUM | RHEL 10 must enforce the audit log directory to have a mode of "0750" or less permissive to prevent unauthorized read access.
+rhel_10_400190: true
+
+# RHEL-10-400195 | MEDIUM | RHEL 10 must enforce root ownership of the "/etc/audit/" directory.
+rhel_10_400195: true
+
+# RHEL-10-400200 | MEDIUM | RHEL 10 must enforce root group ownership of the "/etc/audit/" directory.
+rhel_10_400200: true
+
+# RHEL-10-400205 | MEDIUM | RHEL 10 must enforce mode "755" or less permissive for system commands.
+rhel_10_400205: true
+
+# RHEL-10-400210 | MEDIUM | RHEL 10 must enforce mode "755" or less permissive on library directories.
+rhel_10_400210: true
+
+# RHEL-10-400215 | MEDIUM | RHEL 10 must enforce mode "755" or less permissive for library files.
+rhel_10_400215: true
+
+# RHEL-10-400220 | MEDIUM | RHEL 10 must enforce mode "0755" or less permissive for the "/var/log" directory.
+rhel_10_400220: true
+
+# RHEL-10-400225 | MEDIUM | RHEL 10 must enforce mode "0640" or less permissive for the "/var/log/messages" file.
+rhel_10_400225: true
+
+# RHEL-10-400230 | MEDIUM | RHEL 10 must be configured to prohibit modification of permissions for cron configuration files and directories from the operating system defaults.
+rhel_10_400230: true
+
+# RHEL-10-400235 | MEDIUM | RHEL 10 must enforce mode "0740" or less permissive for local initialization files.
+rhel_10_400235: true
+
+# RHEL-10-400240 | MEDIUM | RHEL 10 must enforce mode "0750" or less permissive for local interactive user home directories.
+rhel_10_400240: true
+
+# RHEL-10-400245 | MEDIUM | RHEL 10 must enforce mode "0644" or less permissive for the "/etc/group" file to prevent unauthorized access.
+rhel_10_400245: true
+
+# RHEL-10-400250 | MEDIUM | RHEL 10 must enforce mode "0644" or less permissive for the "/etc/group-" file to prevent unauthorized access.
+rhel_10_400250: true
+
+# RHEL-10-400255 | MEDIUM | RHEL 10 must enforce mode "0000" or less permissive for the "/etc/gshadow" file to prevent unauthorized access.
+rhel_10_400255: true
+
+# RHEL-10-400260 | MEDIUM | RHEL 10 must enforce mode "0000" or less permissive for the "/etc/gshadow-" file to prevent unauthorized access.
+rhel_10_400260: true
+
+# RHEL-10-400265 | MEDIUM | RHEL 10 must enforce mode "0644" or less permissive for the "/etc/passwd" file to prevent unauthorized access.
+rhel_10_400265: true
+
+# RHEL-10-400270 | MEDIUM | RHEL 10 must enforce mode "0644" or less permissive for "/etc/passwd-" file to prevent unauthorized access.
+rhel_10_400270: true
+
+# RHEL-10-400275 | MEDIUM | RHEL 10 must enforce mode "0000" or less permissive for "/etc/shadow-" file to prevent unauthorized access.
+rhel_10_400275: true
+
+# RHEL-10-400280 | MEDIUM | RHEL 10 must be configured so that a sticky bit is set on all public directories.
+rhel_10_400280: true
+
+# RHEL-10-400285 | MEDIUM | RHEL 10 must be configured so that all local files and directories have a valid group owner.
+rhel_10_400285: true
+
+# RHEL-10-400290 | MEDIUM | RHEL 10 must be configured so that all local files and directories must have a valid owner.
+rhel_10_400290: true
+
+# RHEL-10-400295 | MEDIUM | RHEL 10 must enforce mode "0000" for "/etc/shadow" to prevent unauthorized access.
+rhel_10_400295: true
+
+# RHEL-10-400300 | MEDIUM | RHEL 10 must be configured so that audit tools are owned by "root".
+rhel_10_400300: true
+
+# RHEL-10-400305 | MEDIUM | RHEL 10 must be configured so that audit tools are group-owned by "root".
+rhel_10_400305: true
+
+# RHEL-10-400310 | MEDIUM | RHEL 10 must set the umask value to "077" for all local interactive user accounts.
+rhel_10_400310: true
+
+# RHEL-10-400315 | MEDIUM | RHEL 10 must define default permissions for the bash shell.
+rhel_10_400315: true
+
+# RHEL-10-400320 | MEDIUM | RHEL 10 must define default permissions for the c shell.
+rhel_10_400320: true
+
+# RHEL-10-400325 | MEDIUM | RHEL 10 must define default permissions for all authenticated users in such a way that the user can read and modify only their own files.
+rhel_10_400325: true
+
+# RHEL-10-400330 | MEDIUM | RHEL 10 must define default permissions for the system default profile.
+rhel_10_400330: true
+
+# RHEL-10-400335 | MEDIUM | RHEL 10 must enforce that all local initialization files configured by systemd-tmpfiles have mode "0600" or less permissive.
+rhel_10_400335: true
+
+# RHEL-10-400340 | MEDIUM | RHEL 10 must enforce mode "0600" or less permissive for Secure Shell (SSH) private host key files.
+rhel_10_400340: true
+
+# RHEL-10-400345 | MEDIUM | RHEL 10 must enforce "root" group ownership of the "/boot/grub2/grub.cfg" file.
+rhel_10_400345: true
+
+# RHEL-10-400350 | MEDIUM | RHEL 10 must enforce "root" ownership of the "/boot/grub2/grub.cfg" file.
+rhel_10_400350: true
+
+# RHEL-10-400355 | MEDIUM | RHEL 10 must prevent device files from being interpreted on file systems that contain user home directories.
+rhel_10_400355: true
+
+# RHEL-10-400360 | MEDIUM | RHEL 10 must prevent files with the "setuid" and "setgid" bit set from being executed on file systems that contain user home directories.
+rhel_10_400360: true
+
+# RHEL-10-400365 | MEDIUM | RHEL 10 must prevent code from being executed on file systems that contain user home directories.
+# Set to false by default — noexec on /home may break legitimate scripts in user home dirs.
+rhel_10_400365: false
+
+# RHEL-10-400400 | MEDIUM | RHEL 10 must mount "/var/log/audit" with the "nodev" option.
+rhel_10_400400: true
+
+# RHEL-10-400405 | MEDIUM | RHEL 10 must mount "/var/log/audit" with the "noexec" option.
+rhel_10_400405: true
+
+# RHEL-10-400410 | MEDIUM | RHEL 10 must mount "/var/log/audit" with the "nosuid" option.
+rhel_10_400410: true
+
+# RHEL-10-400450 | MEDIUM | RHEL 10 must enforce a mode of "0755" or less permissive for audit tools.
+rhel_10_400450: true
+
+# RHEL-10-400500 | MEDIUM | RHEL 10 must prohibit local initialization files from executing world-writable programs.
+rhel_10_400500: true
+
+# RHEL-10-500000 | MEDIUM | RHEL 10 must enable the systemd-journald service.
+rhel_10_500000: true
+
+# RHEL-10-500005 | MEDIUM | RHEL 10 must enable auditing of processes that start prior to the audit daemon.
+rhel_10_500005: true
+
+# RHEL-10-500010 | MEDIUM | RHEL 10 must audit local events.
+rhel_10_500010: true
+
+# RHEL-10-500015 | MEDIUM | RHEL 10 must write audit records to disk.
+rhel_10_500015: true
+
+# RHEL-10-500020 | MEDIUM | RHEL 10 must log username information when unsuccessful login attempts occur.
+rhel_10_500020: true
+
+# RHEL-10-500025 | MEDIUM | RHEL 10 must allow only the information system security manager (ISSM) (or individuals or roles appointed by the ISSM) to select which auditable events are to be audited.
+rhel_10_500025: true
+
+# RHEL-10-500030 | MEDIUM | RHEL 10 must allocate an "audit_backlog_limit" of sufficient size to capture processes that start prior to the audit daemon.
+rhel_10_500030: true
+
+# RHEL-10-500035 | MEDIUM | RHEL 10 must take appropriate action when a critical audit processing failure occurs.
+rhel_10_500035: true
+
+# RHEL-10-500040 | MEDIUM | RHEL 10 must take action when allocated audit record storage volume reaches 75 percent of the audit record storage capacity.
+rhel_10_500040: true
+
+# RHEL-10-500045 | MEDIUM | RHEL 10 must label all off-loaded audit logs before sending them to the central log server.
+rhel_10_500045: true
+
+# RHEL-10-500100 | LOW | RHEL 10 must allocate audit record storage capacity to store at least one week's worth of audit records.
+rhel_10_500100: true
+
+# RHEL-10-500105 | MEDIUM | RHEL 10 must take action when allocated audit record storage volume reaches 95 percent of the audit record storage capacity.
+rhel_10_500105: true
+
+# RHEL-10-500110 | MEDIUM | RHEL 10 must take action when allocated audit record storage volume reaches 95 percent of the repository maximum audit record storage capacity.
+rhel_10_500110: true
+
+# RHEL-10-500115 | MEDIUM | RHEL 10 must take appropriate action when the internal event queue is full.
+rhel_10_500115: true
+
+# RHEL-10-500120 | MEDIUM | RHEL 10 must produce audit records containing information to establish the identity of any individual or process associated with the event.
+rhel_10_500120: true
+
+# RHEL-10-500125 | MEDIUM | RHEL 10 must periodically flush audit records to disk to ensure that audit records are not lost.
+rhel_10_500125: true
+
+# RHEL-10-500205 | MEDIUM | RHEL 10 must notify the system administrator (SA) and information system security officer (ISSO) (at a minimum) when allocated audit record storage volume 75 percent utilization.
+rhel_10_500205: true
+
+# RHEL-10-500210 | MEDIUM | RHEL 10 must notify the system administrator (SA) and/or information system security officer (ISSO) (at a minimum) of an audit processing failure.
+rhel_10_500210: true
+
+# RHEL-10-500215 | MEDIUM | RHEL 10 must log Secure Shell (SSH) connection attempts and failures to the server.
+rhel_10_500215: true
+
+# RHEL-10-500300 | MEDIUM | RHEL 10 must generate audit records for successful and unsuccessful uses of the "execve" system call.
+rhel_10_500300: true
+
+# RHEL-10-500310 | MEDIUM | RHEL 10 must generate audit records for successful and unsuccessful uses of the "setxattr", "fsetxattr", "lsetxattr", "removexattr", "fremovexattr", and "lremovexattr" system calls.
+rhel_10_500310: true
+
+# RHEL-10-500320 | MEDIUM | RHEL 10 must generate audit records for successful and unsuccessful uses of "umount" system calls.
+rhel_10_500320: true
+
+# RHEL-10-500330 | MEDIUM | RHEL 10 must generate audit records for successful and unsuccessful uses of the "chacl" command.
+rhel_10_500330: true
+
+# RHEL-10-500340 | MEDIUM | RHEL 10 must generate audit records for successful and unsuccessful uses of the "setfacl" command.
+rhel_10_500340: true
+
+# RHEL-10-500350 | MEDIUM | RHEL 10 must generate audit records for successful and unsuccessful uses of the "chcon" command.
+rhel_10_500350: true
+
+# RHEL-10-500360 | MEDIUM | RHEL 10 must generate audit records for successful and unsuccessful uses of the "semanage" command.
+rhel_10_500360: true
+
+# RHEL-10-500370 | MEDIUM | RHEL 10 must generate audit records for successful and unsuccessful uses of the "setfiles" command.
+rhel_10_500370: true
+
+# RHEL-10-500380 | MEDIUM | RHEL 10 must generate audit records for successful and unsuccessful uses of the "setsebool" command.
+rhel_10_500380: true
+
+# RHEL-10-500390 | MEDIUM | RHEL 10 must generate audit records for successful and unsuccessful uses of the "truncate", "ftruncate", "creat", "open", "openat", and "open_by_handle_at" system calls.
+rhel_10_500390: true
+
+# RHEL-10-500400 | MEDIUM | RHEL 10 must generate audit records for successful and unsuccessful uses of the "delete_module" system call.
+rhel_10_500400: true
+
+# RHEL-10-500410 | MEDIUM | RHEL 10 must generate audit records for successful and unsuccessful uses of the "init_module" and "finit_module" system calls.
+rhel_10_500410: true
+
+# RHEL-10-500420 | MEDIUM | RHEL 10 must generate audit records for successful and unsuccessful uses of the "chage" command.
+rhel_10_500420: true
+
+# RHEL-10-500430 | MEDIUM | RHEL 10 must generate audit records for successful and unsuccessful uses of the "chsh" command.
+rhel_10_500430: true
+
+# RHEL-10-500440 | MEDIUM | RHEL 10 must generate audit records for successful and unsuccessful uses of the "crontab" command.
+rhel_10_500440: true
+
+# RHEL-10-500450 | MEDIUM | RHEL 10 must generate audit records for successful and unsuccessful uses of the "gpasswd" command.
+rhel_10_500450: true
+
+# RHEL-10-500460 | MEDIUM | RHEL 10 must generate audit records for successful and unsuccessful uses of the "kmod" command.
+rhel_10_500460: true
+
+# RHEL-10-500470 | MEDIUM | RHEL 10 must generate audit records for successful and unsuccessful uses of the "newgrp" command.
+rhel_10_500470: true
+
+# RHEL-10-500480 | MEDIUM | RHEL 10 must generate audit records for successful and unsuccessful uses of the "pam_timestamp_check" command.
+rhel_10_500480: true
+
+# RHEL-10-500490 | MEDIUM | RHEL 10 must generate audit records for successful and unsuccessful uses of the "passwd" command.
+rhel_10_500490: true
+
+# RHEL-10-500500 | MEDIUM | RHEL 10 must generate audit records for successful and unsuccessful uses of the "postdrop" command.
+rhel_10_500500: true
+
+# RHEL-10-500510 | MEDIUM | RHEL 10 must generate audit records for successful and unsuccessful uses of the "postqueue" command.
+rhel_10_500510: true
+
+# RHEL-10-500520 | MEDIUM | RHEL 10 must generate audit records for successful and unsuccessful uses of the ssh-agent command.
+rhel_10_500520: true
+
+# RHEL-10-500530 | MEDIUM | RHEL 10 must generate audit records for successful and unsuccessful uses of the "ssh-keysign" command.
+rhel_10_500530: true
+
+# RHEL-10-500540 | MEDIUM | RHEL 10 must generate audit records for successful and unsuccessful uses of the "su" command.
+rhel_10_500540: true
+
+# RHEL-10-500550 | MEDIUM | RHEL 10 must generate audit records for successful and unsuccessful uses of the "sudo" command.
+rhel_10_500550: true
+
+# RHEL-10-500560 | MEDIUM | RHEL 10 must generate audit records for successful and unsuccessful uses of the "sudoedit" command.
+rhel_10_500560: true
+
+# RHEL-10-500570 | MEDIUM | RHEL 10 must generate audit records for successful and unsuccessful uses of the "unix_chkpwd" command.
+rhel_10_500570: true
+
+# RHEL-10-500580 | MEDIUM | RHEL 10 must generate audit records for successful and unsuccessful uses of the "unix_update" command.
+rhel_10_500580: true
+
+# RHEL-10-500590 | MEDIUM | RHEL 10 must generate audit records for successful and unsuccessful uses of the "userhelper" command.
+rhel_10_500590: true
+
+# RHEL-10-500600 | MEDIUM | RHEL 10 must generate audit records for successful and unsuccessful uses of the "usermod" command.
+rhel_10_500600: true
+
+# RHEL-10-500610 | MEDIUM | RHEL 10 must generate audit records for successful and unsuccessful uses of the "mount" command.
+rhel_10_500610: true
+
+# RHEL-10-500620 | MEDIUM | RHEL 10 must generate audit records for successful and unsuccessful uses of the "init" command.
+rhel_10_500620: true
+
+# RHEL-10-500630 | MEDIUM | RHEL 10 must generate audit records for successful and unsuccessful uses of the "poweroff" command.
+rhel_10_500630: true
+
+# RHEL-10-500640 | MEDIUM | RHEL 10 must generate audit records for successful and unsuccessful uses of the "reboot" command.
+rhel_10_500640: true
+
+# RHEL-10-500650 | MEDIUM | RHEL 10 must generate audit records for successful and unsuccessful uses of the shutdown command.
+rhel_10_500650: true
+
+# RHEL-10-500660 | MEDIUM | RHEL 10 must generate audit records for successful and unsuccessful uses of the "umount" system call.
+rhel_10_500660: true
+
+# RHEL-10-500670 | MEDIUM | RHEL 10 must generate audit records for successful and unsuccessful uses of the "umount2" system call.
+rhel_10_500670: true
+
+# RHEL-10-500680 | MEDIUM | RHEL 10 must generate audit records for all account creations, modifications, disabling, and termination events that affect "/etc/sudoers".
+rhel_10_500680: true
+
+# RHEL-10-500690 | MEDIUM | RHEL 10 must generate audit records for all account creations, modifications, disabling, and termination events that affect the "/etc/sudoers.d/" directory.
+rhel_10_500690: true
+
+# RHEL-10-500700 | MEDIUM | RHEL 10 must generate audit records for all account creations, modifications, disabling, and termination events that affect "/etc/group".
+rhel_10_500700: true
+
+# RHEL-10-500710 | MEDIUM | RHEL 10 must generate audit records for all account creations, modifications, disabling, and termination events that affect "/etc/gshadow".
+rhel_10_500710: true
+
+# RHEL-10-500720 | MEDIUM | RHEL 10 must generate audit records for all account creations, modifications, disabling, and termination events that affect "/etc/opasswd".
+rhel_10_500720: true
+
+# RHEL-10-500730 | MEDIUM | RHEL 10 must generate audit records for all account creations, modifications, disabling, and termination events that affect "/etc/passwd".
+rhel_10_500730: true
+
+# RHEL-10-500740 | MEDIUM | RHEL 10 must generate audit records for all account creations, modifications, disabling, and termination events that affect "/etc/shadow".
+rhel_10_500740: true
+
+# RHEL-10-500750 | MEDIUM | RHEL 10 must generate audit records for all account creations, modifications, disabling, and termination events that affect "/var/log/faillock".
+rhel_10_500750: true
+
+# RHEL-10-500760 | MEDIUM | RHEL 10 must generate audit records for all account creations, modifications, disabling, and termination events that affect "/var/log/lastlog".
+rhel_10_500760: true
+
+# RHEL-10-500780 | MEDIUM | RHEL 10 must generate audit records for all uses of the "chmod", "fchmod", "fchmodat", and "fchmodat2" syscalls.
+rhel_10_500780: true
+
+# RHEL-10-500790 | MEDIUM | RHEL 10 must generate audit records for all uses of the "chown", "fchown", "fchownat", and "lchown" syscalls.
+rhel_10_500790: true
+
+# RHEL-10-500810 | MEDIUM | RHEL 10 must generate audit records for all uses of the "rename", "unlink", "rmdir", "renameat", "renameat2", and "unlinkat" system calls.
+rhel_10_500810: true
+
+# RHEL-10-600000 | MEDIUM | RHEL 10 must require a boot loader superuser password.
+rhel_10_600000: true
+
+# RHEL-10-600010 | MEDIUM | RHEL 10 must require a unique superusers name upon booting into single-user and maintenance modes.
+rhel_10_600010: true
+
+# RHEL-10-600020 | MEDIUM | RHEL 10 must not assign an interactive login shell for system accounts.
+rhel_10_600020: true
+
+# RHEL-10-600100 | MEDIUM | RHEL 10 must, for new users or password changes, have a 60-day maximum password lifetime restriction for user account passwords in "/etc/login.defs".
+rhel_10_600100: true
+
+# RHEL-10-600110 | MEDIUM | RHEL 10 must, for user account passwords, have a 60-day maximum password lifetime restriction.
+rhel_10_600110: true
+
+# RHEL-10-600120 | MEDIUM | RHEL 10 must assign a home directory for local interactive user accounts upon creation.
+rhel_10_600120: true
+
+# RHEL-10-600130 | MEDIUM | RHEL 10 must not allow duplicate user IDs (UIDs) to exist for interactive users.
+rhel_10_600130: true
+
+# RHEL-10-600140 | MEDIUM | RHEL 10 must automatically expire temporary accounts within 72 hours.
+rhel_10_600140: true
+
+# RHEL-10-600150 | MEDIUM | RHEL 10 must assign a primary group to all interactive users.
+rhel_10_600150: true
+
+# RHEL-10-600160 | MEDIUM | RHEL 10 must disable account identifiers (individuals, groups, roles, and devices) after 35 days of inactivity.
+rhel_10_600160: true
+# Number of days of inactivity after which an account is disabled (STIG minimum: 35).
+rhel_10_600160_inactive_days: 90
+
+# RHEL-10-600170 | MEDIUM | RHEL 10 must be configured so that all local interactive user initialization file executable search path statements do not contain statements that will reference a working directory other than user home directories.
+rhel_10_600170: true
+
+# RHEL-10-600180 | MEDIUM | RHEL 10 must assign a home directory to all local interactive users in the "/etc/passwd" file.
+rhel_10_600180: true
+
+# RHEL-10-600190 | MEDIUM | RHEL 10 must ensure that all local interactive user home directories defined in the "/etc/passwd" file must exist.
+rhel_10_600190: true
+
+# RHEL-10-600200 | MEDIUM | RHEL 10 must enforce a delay of at least four seconds between login prompts following a failed login attempt.
+rhel_10_600200: true
+
+# RHEL-10-600210 | MEDIUM | RHEL 10 must enforce a 24-hours minimum password lifetime restriction for passwords for new users or password changes in "/etc/login.defs".
+rhel_10_600210: true
+
+# RHEL-10-600220 | MEDIUM | RHEL 10 must enforce that passwords be created with a minimum of 15 characters.
+rhel_10_600220: true
+
+# RHEL-10-600230 | MEDIUM | RHEL 10 must enforce password complexity by requiring at least one special character to be used.
+rhel_10_600230: true
+
+# RHEL-10-600240 | MEDIUM | RHEL 10 must enforce password complexity by requiring that at least one lowercase character be used.
+rhel_10_600240: true
+
+# RHEL-10-600250 | MEDIUM | RHEL 10 must enforce password complexity by requiring that at least one uppercase character be used.
+rhel_10_600250: true
+
+# RHEL-10-600260 | MEDIUM | RHEL 10 must require the change of at least eight characters when passwords are changed.
+rhel_10_600260: true
+
+# RHEL-10-600270 | MEDIUM | RHEL 10 must enforce that passwords have a 24 hours/1 day minimum lifetime restriction in "/etc/shadow".
+rhel_10_600270: true
+
+# RHEL-10-600280 | MEDIUM | RHEL 10 must require the maximum number of repeating characters of the same character class to be limited to four when passwords are changed.
+rhel_10_600280: true
+
+# RHEL-10-600290 | MEDIUM | RHEL 10 must require that the maximum number of repeating characters be limited to three when passwords are changed.
+rhel_10_600290: true
+
+# RHEL-10-600300 | MEDIUM | RHEL 10 must require the change of at least four character classes when passwords are changed.
+rhel_10_600300: true
+
+# RHEL-10-600310 | MEDIUM | RHEL 10 must enforce password complexity by requiring that at least one numeric character be used.
+rhel_10_600310: true
+
+# RHEL-10-600320 | MEDIUM | RHEL 10 must prevent the use of dictionary words for passwords.
+rhel_10_600320: true
+
+# RHEL-10-600400 | MEDIUM | RHEL 10 must allow only the root account to have unrestricted access to the system.
+rhel_10_600400: true
+
+# RHEL-10-600405 | MEDIUM | RHEL 10 must enforce password complexity rules for the "root" account.
+rhel_10_600405: true
+
+# RHEL-10-600410 | MEDIUM | RHEL 10 must automatically lock an account when three unsuccessful login attempts occur.
+rhel_10_600410: true
+
+# RHEL-10-600415 | MEDIUM | RHEL 10 must automatically lock the root account until the root account is released by an administrator when three unsuccessful login attempts occur during a 15-minute time period.
+rhel_10_600415: true
+
+# RHEL-10-600420 | MEDIUM | RHEL 10 must automatically lock an account when three unsuccessful login attempts occur during a 15-minute time period.
+rhel_10_600420: true
+
+# RHEL-10-600425 | MEDIUM | RHEL 10 must maintain an account lock until the locked account is released by an administrator.
+rhel_10_600425: true
+
+# RHEL-10-600430 | MEDIUM | RHEL 10 must ensure account lockouts persist.
+rhel_10_600430: true
+
+# RHEL-10-600450 | MEDIUM | RHEL 10 must not have unauthorized accounts.
+rhel_10_600450: true
+
+# RHEL-10-600455 | MEDIUM | RHEL 10 must not allow blank or null passwords.
+rhel_10_600455: true
+
+# RHEL-10-600460 | MEDIUM | RHEL 10 must not have accounts configured with blank or null passwords.
+rhel_10_600460: true
+
+# RHEL-10-600470 | MEDIUM | RHEL 10 must have a unique group ID (GID) for each group in "/etc/group".
+rhel_10_600470: true
+
+# RHEL-10-600475 | LOW | RHEL 10 must limit the number of concurrent sessions to 10 for all accounts and/or account types.
+rhel_10_600475: true
+
+# RHEL-10-600485 | MEDIUM | RHEL 10 must ensure the password complexity module in the system-auth file is configured for three or fewer retries.
+rhel_10_600485: true
+
+# RHEL-10-600500 | MEDIUM | RHEL 10 must restrict the use of the "su" command.
+rhel_10_600500: true
+
+# RHEL-10-600510 | MEDIUM | RHEL 10 must be configured to not bypass password requirements for privilege escalation.
+rhel_10_600510: true
+
+# RHEL-10-600520 | MEDIUM | RHEL 10 must restrict privilege elevation to authorized personnel.
+rhel_10_600520: true
+
+# RHEL-10-600530 | MEDIUM | RHEL 10 must require users to reauthenticate for privilege escalation.
+rhel_10_600530: true
+
+# RHEL-10-600540 | MEDIUM | RHEL 10 must require reauthentication when using the "sudo" command.
+rhel_10_600540: true
+
+# RHEL-10-600550 | MEDIUM | RHEL 10 must use the invoking user's password for privilege escalation when using "sudo".
+rhel_10_600550: true
+
+# RHEL-10-600560 | HIGH | RHEL 10 must require users to provide a password for privilege escalation.
+rhel_10_600560: true
+
+# RHEL-10-600600 | MEDIUM | RHEL 10 must configure the use of the pam_faillock.so module in the "/etc/pam.d/system-auth" file.
+rhel_10_600600: true
+
+# RHEL-10-600610 | MEDIUM | RHEL 10 must configure the use of the pam_faillock.so module in the "/etc/pam.d/password-auth" file.
+rhel_10_600610: true
+
+# RHEL-10-600620 | MEDIUM | RHEL 10 must ensure the password complexity module is enabled in the "password-auth" file.
+rhel_10_600620: true
+
+# RHEL-10-600630 | MEDIUM | RHEL 10 must ensure the password complexity module is enabled in the "system-auth" file.
+rhel_10_600630: true
+
+# RHEL-10-600640 | HIGH | RHEL 10 must enable the Pluggable Authentication Module (PAM) interface for SSHD.
+rhel_10_600640: true
+
+# RHEL-10-600650 | MEDIUM | RHEL 10 must ensure that the pam_unix.so module is configured in the password-auth file to use a FIPS 140-3-approved cryptographic hashing algorithm for system authentication.
+rhel_10_600650: true
+
+# RHEL-10-600700 | MEDIUM | RHEL 10 must be configured to use a sufficient number of hashing rounds for the shadow password suite.
+rhel_10_600700: true
+
+# RHEL-10-600710 | MEDIUM | RHEL 10 must be configured to use a FIPS 140-3-approved cryptographic hashing algorithm for system authentication by ensuring that the pam_unix.so module is configured in the "system-auth" file.
+rhel_10_600710: true
+
+# RHEL-10-600720 | MEDIUM | RHEL 10 must be configured so that password-auth uses a sufficient number of hashing rounds.
+rhel_10_600720: true
+
+# RHEL-10-600730 | HIGH | RHEL 10 must employ FIPS 140-3-approved cryptographic hashing algorithms for all stored passwords.
+rhel_10_600730: true
+
+# RHEL-10-600740 | HIGH | RHEL 10 must be configured to use the shadow file to store only encrypted representations of passwords.
+rhel_10_600740: true
+
+# RHEL-10-600750 | HIGH | RHEL 10 must be configured so that user and group account administration utilities are configured to store only encrypted representations of passwords.
+rhel_10_600750: true
+
+# RHEL-10-700010 | MEDIUM | RHEL 10 must display the Standard Mandatory DOD Notice and Consent Banner before granting local or remote access to the system via a Secure Shell (SSH) login.
+rhel_10_700010: true
+
+# RHEL-10-700020 | MEDIUM | RHEL 10 must display the Standard Mandatory DOD Notice and Consent Banner before granting local or remote access to the system via a graphical user login.
+rhel_10_700020: true
+
+# RHEL-10-700030 | MEDIUM | RHEL 10 must prevent a user from overriding the banner-message-enable setting for the graphical user interface.
+rhel_10_700030: true
+
+# RHEL-10-700040 | MEDIUM | RHEL 10 must display the Standard Mandatory DOD Notice and Consent Banner before granting local or remote access to the system via a command line user login.
+rhel_10_700040: true
+
+# RHEL-10-700100 | MEDIUM | RHEL 10 must prevent special devices on file systems that are imported via Network File System (NFS).
+rhel_10_700100: true
+
+# RHEL-10-700105 | MEDIUM | RHEL 10 must prevent code from being executed on file systems that are imported via Network File System (NFS).
+# Set to false by default — noexec on NFS mounts may break legitimate remote execution workflows.
+rhel_10_700105: false
+
+# RHEL-10-700110 | MEDIUM | RHEL 10 must prevent files with the "setuid" and "setgid" bit set from being executed on file systems that are imported via Network File System (NFS).
+rhel_10_700110: true
+
+# RHEL-10-700115 | MEDIUM | RHEL 10 must be configured so that the Network File System (NFS) is configured to use RPCSEC_GSS.
+rhel_10_700115: true
+
+# RHEL-10-700120 | MEDIUM | RHEL 10 must mount "/boot" with the "nodev" option.
+rhel_10_700120: true
+
+# RHEL-10-700125 | MEDIUM | RHEL 10 must prevent files with the "setuid" and "setgid" bit set from being executed on the "/boot" directory.
+rhel_10_700125: true
+
+# RHEL-10-700130 | MEDIUM | RHEL 10 must prevent files with the "setuid" and "setgid" bit set from being executed on the "/boot/efi" directory.
+rhel_10_700130: true
+
+# RHEL-10-700135 | MEDIUM | RHEL 10 must mount "/dev/shm" with the "nodev" option.
+rhel_10_700135: true
+
+# RHEL-10-700140 | MEDIUM | RHEL 10 must mount "/dev/shm" with the "noexec" option.
+rhel_10_700140: true
+
+# RHEL-10-700145 | MEDIUM | RHEL 10 must mount "/dev/shm" with the "nosuid" option.
+rhel_10_700145: true
+
+# RHEL-10-700150 | MEDIUM | RHEL 10 must mount "/tmp" with the "nodev" option.
+rhel_10_700150: true
+
+# RHEL-10-700155 | MEDIUM | RHEL 10 must mount "/tmp" with the "noexec" option.
+rhel_10_700155: true
+
+# RHEL-10-700160 | MEDIUM | RHEL 10 must mount "/tmp" with the "nosuid" option.
+rhel_10_700160: true
+
+# RHEL-10-700165 | MEDIUM | RHEL 10 must mount "/var" with the "nodev" option.
+rhel_10_700165: true
+
+# RHEL-10-700170 | MEDIUM | RHEL 10 must mount "/var/log" with the "nodev" option.
+rhel_10_700170: true
+
+# RHEL-10-700175 | MEDIUM | RHEL 10 must mount "/var/log" with the "noexec" option.
+rhel_10_700175: true
+
+# RHEL-10-700180 | MEDIUM | RHEL 10 must mount "/var/log" with the "nosuid" option.
+rhel_10_700180: true
+
+# RHEL-10-700185 | MEDIUM | RHEL 10 must mount "/var/tmp" with the "nodev" option.
+rhel_10_700185: true
+
+# RHEL-10-700190 | MEDIUM | RHEL 10 must mount "/var/tmp" with the "noexec" option.
+rhel_10_700190: true
+
+# RHEL-10-700195 | MEDIUM | RHEL 10 must mount "/var/tmp" with the "nosuid" option.
+rhel_10_700195: true
+
+# RHEL-10-700200 | MEDIUM | RHEL 10 must prevent special devices on nonroot local partitions.
+rhel_10_700200: true
+
+# RHEL-10-700400 | MEDIUM | RHEL 10 must enable the SELinux targeted policy.
+rhel_10_700400: true
+
+# RHEL-10-700410 | MEDIUM | RHEL 10 must elevate the SELinux context when an administrator calls the sudo command.
+rhel_10_700410: true
+
+# RHEL-10-700420 | MEDIUM | RHEL 10 must use a Linux Security Module configured to enforce limits on system services.
+rhel_10_700420: true
+
+# RHEL-10-700430 | MEDIUM | RHEL 10 must configure SELinux context type to allow the use of a nondefault faillock tally directory.
+rhel_10_700430: true
+
+# RHEL-10-700500 | MEDIUM | RHEL 10 must be configured so that Secure Shell (SSH) public host key files have mode "0644" or less permissive.
+rhel_10_700500: true
+
+# RHEL-10-700510 | MEDIUM | RHEL 10 must be configured so that the Secure Shell (SSH) daemon does not allow Generic Security Service Application Program Interface (GSSAPI) authentication.
+rhel_10_700510: true
+
+# RHEL-10-700520 | MEDIUM | RHEL 10 must be configured so that the Secure Shell (SSH) daemon does not allow Kerberos authentication.
+rhel_10_700520: true
+
+# RHEL-10-700530 | MEDIUM | RHEL 10 must be configured so that the Secure Shell (SSH) daemon does not allow rhosts authentication.
+rhel_10_700530: true
+
+# RHEL-10-700540 | MEDIUM | RHEL 10 must be configured so that the Secure Shell (SSH) daemon does not allow known hosts authentication.
+rhel_10_700540: true
+
+# RHEL-10-700550 | MEDIUM | RHEL 10 must be configured so that the Secure Shell (SSH) daemon disables remote X connections for interactive users.
+rhel_10_700550: true
+
+# RHEL-10-700560 | MEDIUM | RHEL 10 must be configured so that the Secure Shell (SSH) daemon performs strict mode checking of home directory configuration files.
+rhel_10_700560: true
+
+# RHEL-10-700570 | MEDIUM | RHEL 10 must be configured so that the Secure Shell (SSH) daemon displays the date and time of the last successful account login upon an SSH login.
+rhel_10_700570: true
+
+# RHEL-10-700580 | MEDIUM | RHEL 10 must be configured so that the Secure Shell (SSH) daemon prevents remote hosts from connecting to the proxy display.
+rhel_10_700580: true
+# Set to true to enable X11 forwarding (X11UseLocalhost yes will be enforced); false disables X11 forwarding entirely.
+rhel_10_700580_x11_forwarding: true
+
+# RHEL-10-700590 | MEDIUM | RHEL 10 must be configured so that Secure Shell (SSH) server configuration files' permissions are not modified.
+rhel_10_700590: true
+
+# RHEL-10-700600 | MEDIUM | RHEL 10 must be configured so that SSHD accepts public key authentication.
+rhel_10_700600: true
+
+# RHEL-10-700610 | MEDIUM | RHEL 10 must be configured so that SSHD does not allow blank passwords.
+rhel_10_700610: true
+
+# RHEL-10-700620 | MEDIUM | RHEL 10 must not permit direct logins to the root account using remote access via Secure Shell (SSH).
+# Set to false by default — PermitRootLogin no may disrupt systems relying on direct root SSH access.
+rhel_10_700620: false
+
+# RHEL-10-700630 | MEDIUM | RHEL 10 must not allow a noncertificate trusted host Secure Shell (SSH) login to the system.
+rhel_10_700630: true
+
+# RHEL-10-700640 | HIGH | RHEL 10 must not allow users to override Secure Shell (SSH) environment variables.
+rhel_10_700640: true
+
+# RHEL-10-700650 | HIGH | RHEL 10 must force a frequent session key renegotiation for Secure Shell (SSH) connections to the server.
+rhel_10_700650: true
+
+# RHEL-10-700660 | MEDIUM | RHEL 10 must be configured so that all network connections associated with Secure Shell (SSH) traffic terminate after becoming unresponsive.
+rhel_10_700660: true
+
+# RHEL-10-700670 | MEDIUM | RHEL 10 must forward mail from postmaster to the root account using a postfix alias.
+rhel_10_700670: true
+
+# RHEL-10-700680 | MEDIUM | RHEL 10 must not have a "shosts.equiv" file on the system.
+rhel_10_700680: true
+
+# RHEL-10-700690 | MEDIUM | RHEL 10 must not have any ".shosts" files on the system.
+rhel_10_700690: true
+
+# RHEL-10-700700 | MEDIUM | RHEL 10 must prevent a user from overriding the disabling of the graphical user interface automount function.
+rhel_10_700700: true
+
+# RHEL-10-700710 | MEDIUM | RHEL 10 must prevent a user from overriding the disabling of the graphical user interface autorun function.
+rhel_10_700710: true
+
+# RHEL-10-700720 | HIGH | RHEL 10 must not allow unattended or automatic login via the graphical user interface.
+rhel_10_700720: true
+
+# RHEL-10-700730 | MEDIUM | RHEL 10 must prevent a user from overriding the disabling of the graphical user smart card removal action.
+rhel_10_700730: true
+
+# RHEL-10-700740 | MEDIUM | RHEL 10 must prevent a user from overriding the screensaver lock-enabled setting for the graphical user interface.
+rhel_10_700740: true
+
+# RHEL-10-700750 | MEDIUM | RHEL 10 must automatically lock graphical user sessions after 15 minutes of inactivity.
+rhel_10_700750: true
+
+# RHEL-10-700760 | MEDIUM | RHEL 10 must prevent a user from overriding the session idle-delay setting for the graphical user interface.
+rhel_10_700760: true
+
+# RHEL-10-700770 | MEDIUM | RHEL 10 must initiate a session lock for graphical user interfaces when the screensaver is activated.
+rhel_10_700770: true
+
+# RHEL-10-700780 | MEDIUM | RHEL 10 must prevent a user from overriding the session lock-delay setting for the graphical user interface.
+rhel_10_700780: true
+
+# RHEL-10-700790 | MEDIUM | RHEL 10 must conceal, via the session lock, information previously visible on the display with a publicly viewable image.
+rhel_10_700790: true
+
+# RHEL-10-700800 | MEDIUM | RHEL 10 must ensure effective dconf policy matches the policy keyfiles.
+rhel_10_700800: true
+
+# RHEL-10-700810 | MEDIUM | RHEL 10 must prevent a user from overriding the disable-restart-buttons setting for the graphical user interface.
+rhel_10_700810: true
+
+# RHEL-10-700820 | MEDIUM | RHEL 10 must prevent a user from overriding the Ctrl-Alt-Del sequence settings for the graphical user interface.
+rhel_10_700820: true
+
+# RHEL-10-700830 | MEDIUM | RHEL 10 must disable the ability of a user to accidentally press Ctrl-Alt-Del and cause a system to shut down or reboot.
+rhel_10_700830: true
+
+# RHEL-10-700840 | MEDIUM | RHEL 10 must disable the user list at login for graphical user interfaces.
+rhel_10_700840: true
+
+# RHEL-10-700850 | MEDIUM | RHEL 10 must be configured to disable USB mass storage.
+rhel_10_700850: true
+
+# RHEL-10-700860 | MEDIUM | RHEL 10 must disable Bluetooth.
+rhel_10_700860: true
+
+# RHEL-10-700870 | MEDIUM | RHEL 10 must disable wireless network adapters.
+rhel_10_700870: true
+
+# RHEL-10-700880 | MEDIUM | RHEL 10 must disable the graphical user interface automounter unless required.
+rhel_10_700880: true
+
+# RHEL-10-700890 | LOW | RHEL 10 must disable the graphical user interface autorunner unless required.
+rhel_10_700890: true
+
+# RHEL-10-700900 | MEDIUM | RHEL 10 must implement nonexecutable data to protect its memory from unauthorized code execution.
+rhel_10_700900: true
+
+# RHEL-10-700920 | MEDIUM | RHEL 10 must automatically exit interactive command shell user sessions after 15 minutes of inactivity.
+rhel_10_700920: true
+
+# RHEL-10-700930 | MEDIUM | RHEL 10 must be configured with a timeout interval for the Secure Shell (SSH) daemon.
+rhel_10_700930: true
+
+# RHEL-10-700940 | MEDIUM | RHEL 10 must not default to the graphical display manager unless approved.
+rhel_10_700940: true
+# Default systemd target. Set to multi-user.target to enforce STIG; graphical.target if GDM is approved.
+rhel_10_700940_default_target: "graphical.target"
+
+# RHEL-10-700950 | HIGH | RHEL 10 must disable the systemd Ctrl-Alt-Delete burst key sequence.
+rhel_10_700950: true
+
+# RHEL-10-700960 | HIGH | RHEL 10 must disable the x86 Ctrl-Alt-Delete key sequence.
+rhel_10_700960: true
+
+# RHEL-10-700970 | MEDIUM | RHEL 10 must disable the debug-shell systemd service.
+rhel_10_700970: true
+
+# RHEL-10-700980 | MEDIUM | RHEL 10 must disable the ability of systemd to spawn an interactive boot process.
+rhel_10_700980: true
+
+# RHEL-10-700990 | MEDIUM | RHEL 10 must disable virtual system calls.
+rhel_10_700990: true
+
+# RHEL-10-701000 | MEDIUM | RHEL 10 must clear the page allocator to prevent use-after-free attacks.
+rhel_10_701000: true
+
+# RHEL-10-701010 | MEDIUM | RHEL 10 must clear memory when it is freed to prevent use-after-free attacks.
+rhel_10_701010: true
+
+# RHEL-10-701020 | MEDIUM | RHEL 10 must enable mitigations against processor-based vulnerabilities.
+rhel_10_701020: true
+
+# RHEL-10-701030 | MEDIUM | RHEL 10 must restrict access to the kernel message buffer.
+rhel_10_701030: true
+
+# RHEL-10-701040 | MEDIUM | RHEL 10 must prevent kernel profiling by nonprivileged users.
+rhel_10_701040: true
+
+# RHEL-10-701050 | HIGH | RHEL 10 must prevent the loading of a new kernel for later execution.
+rhel_10_701050: true
+
+# RHEL-10-701060 | MEDIUM | RHEL 10 must restrict exposed kernel pointer address access.
+rhel_10_701060: true
+
+# RHEL-10-701070 | MEDIUM | RHEL 10 must enable kernel parameters to enforce discretionary access control (DAC) on hardlinks.
+rhel_10_701070: true
+
+# RHEL-10-701080 | MEDIUM | RHEL 10 must enable kernel parameters to enforce discretionary access control (DAC) on symlinks.
+rhel_10_701080: true
+
+# RHEL-10-701090 | MEDIUM | RHEL 10 must disable the "kernel.core_pattern".
+rhel_10_701090: true
+
+# RHEL-10-701100 | MEDIUM | RHEL 10 must be configured to disable the Controller Area Network (CAN) kernel module.
+rhel_10_701100: true
+
+# RHEL-10-701110 | MEDIUM | RHEL 10 must disable the Stream Control Transmission Protocol (SCTP) kernel module.
+rhel_10_701110: true
+
+# RHEL-10-701120 | MEDIUM | RHEL 10 must disable the Transparent Inter Process Communication (TIPC) kernel module.
+rhel_10_701120: true
+
+# RHEL-10-701130 | MEDIUM | RHEL 10 must implement address space layout randomization (ASLR) to protect its memory from unauthorized code execution.
+rhel_10_701130: true
+
+# RHEL-10-701140 | MEDIUM | RHEL 10 must restrict usage of ptrace to descendant processes.
+rhel_10_701140: true
+
+# RHEL-10-701150 | MEDIUM | RHEL 10 must disable core dump backtraces.
+rhel_10_701150: true
+
+# RHEL-10-701160 | MEDIUM | RHEL 10 must disable storing core dumps.
+rhel_10_701160: true
+
+# RHEL-10-701170 | MEDIUM | RHEL 10 must disable core dumps for all users.
+rhel_10_701170: true
+
+# RHEL-10-701180 | MEDIUM | RHEL 10 must disable acquiring, saving, and processing core dumps.
+rhel_10_701180: true
+
+# RHEL-10-701190 | MEDIUM | RHEL 10 must implement nonexecutable data to protect its memory from unauthorized code execution.
+rhel_10_701190: true
+
+# RHEL-10-701200 | MEDIUM | RHEL 10 must disable the kdump service.
+rhel_10_701200: true
+
+# RHEL-10-701210 | MEDIUM | RHEL 10 must disable file system automount function unless required.
+rhel_10_701210: true
+
+# RHEL-10-701220 | MEDIUM | RHEL 10 must enable certificate-based smart card authentication.
+rhel_10_701220: true
+
+# RHEL-10-701230 | MEDIUM | RHEL 10 must implement certificate status checking for multifactor authentication.
+rhel_10_701230: true
+
+# RHEL-10-701240 | MEDIUM | RHEL 10 must, for PKI-based authentication, enforce authorized access to the corresponding private key.
+rhel_10_701240: true
+
+# RHEL-10-701250 | MEDIUM | RHEL 10 must require authentication to access emergency mode.
+rhel_10_701250: true
+
+# RHEL-10-701260 | MEDIUM | RHEL 10 must require authentication to access single-user mode.
+rhel_10_701260: true
+
+# RHEL-10-701270 | MEDIUM | RHEL 10 must, for PKI-based authentication, validate certificates by constructing a certification path (which includes status information) to an accepted trust anchor.
+rhel_10_701270: true
+
+# RHEL-10-701280 | MEDIUM | RHEL 10 must map the authenticated identity to the user or group account for public key infrastructure (PKI)-based authentication.
+rhel_10_701280: true
+
+# RHEL-10-701290 | MEDIUM | RHEL 10 must prohibit the use of cached authenticators after one day.
+rhel_10_701290: true
+
+# RHEL-10-800000 | MEDIUM | RHEL 10 must control remote access methods.
+rhel_10_800000: true
+
+# RHEL-10-800010 | MEDIUM | RHEL 10 must be configured to prohibit or restrict the use of functions, ports, protocols, and/or services, as defined in the Ports, Protocols, and Services Management (PPSM) Category Assignments List (CAL) and vulnerability assessments.
+rhel_10_800010: true
+
+# RHEL-10-800020 | MEDIUM | RHEL 10 must enforce that network interfaces not be in promiscuous mode.
+rhel_10_800020: true
+
+# RHEL-10-800030 | MEDIUM | RHEL 10 must disable access to the network bpf system call from nonprivileged processes.
+rhel_10_800030: true
+
+# RHEL-10-800040 | MEDIUM | RHEL 10 must securely compare internal information system clocks at least every 24 hours.
+rhel_10_800040: true
+
+# RHEL-10-800050 | MEDIUM | RHEL 10 must enable hardening for the Berkeley Packet Filter (BPF) just-in-time compiler.
+rhel_10_800050: true
+
+# RHEL-10-800060 | MEDIUM | RHEL 10 must have at least two name servers configured for systems using Domain Name Server (DNS) resolution.
+rhel_10_800060: true
+# Nameservers to configure in /etc/resolv.conf (at least two required by STIG).
+rhel_10_800060_nameservers:
+  - "127.0.0.1"
+  - "127.0.0.1"
+
+# RHEL-10-800070 | MEDIUM | RHEL 10 must not have unauthorized IP tunnels configured.
+rhel_10_800070: true
+
+# RHEL-10-800080 | MEDIUM | RHEL 10 must be configured to use Transmission Control Protocol (TCP) syncookies.
+rhel_10_800080: true
+
+# RHEL-10-800090 | MEDIUM | RHEL 10 must ignore Internet Protocol version 4 (IPv4) Internet Control Message Protocol (ICMP) redirect messages.
+rhel_10_800090: true
+
+# RHEL-10-800100 | MEDIUM | RHEL 10 must not forward Internet Protocol version 4 (IPv4) source-routed packets.
+rhel_10_800100: true
+
+# RHEL-10-800110 | MEDIUM | RHEL 10 must log Internet Protocol version 4 (IPv4) packets with impossible addresses.
+rhel_10_800110: true
+
+# RHEL-10-800120 | MEDIUM | RHEL 10 must log Internet Protocol version 4 (IPv4) packets with impossible addresses by default.
+rhel_10_800120: true
+
+# RHEL-10-800130 | MEDIUM | RHEL 10 must use reverse path filtering on all Internet Protocol version 4 (IPv4) interfaces.
+rhel_10_800130: true
+
+# RHEL-10-800140 | MEDIUM | RHEL 10 must prevent Internet Protocol version 4 (IPv4) Internet Control Message Protocol (ICMP) redirect messages from being accepted.
+rhel_10_800140: true
+
+# RHEL-10-800150 | MEDIUM | RHEL 10 must not forward Internet Protocol version 4 (IPv4) source-routed packets by default.
+rhel_10_800150: true
+
+# RHEL-10-800160 | MEDIUM | RHEL 10 must use a reverse-path filter for Internet Protocol version 4 (IPv4) network traffic when possible by default.
+rhel_10_800160: true
+
+# RHEL-10-800170 | MEDIUM | RHEL 10 must not respond to Internet Control Message Protocol (ICMP) echoes sent to a broadcast address.
+rhel_10_800170: true
+
+# RHEL-10-800180 | MEDIUM | RHEL 10 must limit the number of bogus Internet Control Message Protocol (ICMP) response errors logs.
+rhel_10_800180: true
+
+# RHEL-10-800190 | MEDIUM | RHEL 10 must not send Internet Control Message Protocol (ICMP) redirects.
+rhel_10_800190: true
+
+# RHEL-10-800200 | MEDIUM | RHEL 10 must not allow interfaces to perform Internet Control Message Protocol (ICMP) redirects by default.
+rhel_10_800200: true
+
+# RHEL-10-800210 | MEDIUM | RHEL 10 must not enable Internet Protocol version 4 (IPv4) packet forwarding unless the system is a router.
+rhel_10_800210: true
+
+# RHEL-10-800220 | MEDIUM | RHEL 10 must not accept router advertisements on all Internet Protocol version 6 (IPv6) interfaces.
+rhel_10_800220: true
+
+# RHEL-10-800230 | MEDIUM | RHEL 10 must ignore IPv6 Internet Control Message Protocol (ICMP) redirect messages.
+rhel_10_800230: true
+
+# RHEL-10-800240 | MEDIUM | RHEL 10 must not forward Internet Protocol version 6 (IPv6) source-routed packets.
+rhel_10_800240: true
+
+# RHEL-10-800250 | MEDIUM | RHEL 10 must not enable Internet Protocol version 6 (IPv6) packet forwarding unless the system is a router.
+rhel_10_800250: true
+
+# RHEL-10-800260 | MEDIUM | RHEL 10 must not accept router advertisements on all Internet Protocol version 6 (IPv6) interfaces by default.
+rhel_10_800260: true
+
+# RHEL-10-800270 | MEDIUM | RHEL 10 must prevent Internet Protocol version 6 (IPv6) Internet Control Message Protocol (ICMP) redirect messages from being accepted.
+rhel_10_800270: true
+
+# RHEL-10-800280 | MEDIUM | RHEL 10 must not forward Internet Protocol version 6 (IPv6) source-routed packets by default.
+rhel_10_800280: true
+
+# RHEL-10-800290 | MEDIUM | RHEL 10 must protect against or limit the effects of denial-of-service (DoS) attacks by ensuring that rate-limiting measures on impacted network interfaces are implemented.
+rhel_10_800290: true
+
+# RHEL-10-800300 | MEDIUM | RHEL 10 must configure a DNS processing mode in Network Manager to avoid conflicts with other Domain Name Server (DNS) managers and to not leak DNS queries to untrusted networks.
+rhel_10_800300: true
+
+# RHEL-10-800310 | MEDIUM | RHEL 10 must be configured to operate in secure mode if the Trivial File Transfer Protocol (TFTP) server service is required.
+rhel_10_800310: true
+
+# RHEL-10-900000 | MEDIUM | RHEL 10 must enforce mode "0640" or less for the "/etc/audit/auditd.conf" file to prevent unauthorized access.
+rhel_10_900000: true
+
+# RHEL-10-900100 | MEDIUM | RHEL 10 must prevent unauthorized changes to the audit system.
+rhel_10_900100: true
+
+# RHEL-10-001000 | HIGH | RHEL 10 must be a vendor-supported release.
+rhel_10_001000: true

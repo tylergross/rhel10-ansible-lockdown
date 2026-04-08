@@ -1,0 +1,87 @@
+---
+# =============================================================================
+# STIG ID  : RHEL-10-700500
+# Rule ID  : SV-281253r1184654_rule
+# Severity : medium
+# CCI      : CCI-002696
+# Title    : RHEL 10 must be configured so that Secure Shell (SSH) public host key files have mode "0644" or less permissive.
+#
+# Description:
+#   If a public host key file is modified by an unauthorized user, the SSH
+#   service may be compromised.
+#
+# Check Text:
+#   Verify RHEL 10 SSH public host key files have a mode of "0644" or less
+#   permissive with the following command:
+#
+#   Note: SSH public key files may be found in other directories on the
+#   system depending on the installation.
+#
+#   $ sudo stat -c "%a %n" /etc/ssh/*.pub
+#   644 /etc/ssh/ssh_host_dsa_key.pub
+#   644 /etc/ssh/ssh_host_ecdsa_key.pub
+#   644 /etc/ssh/ssh_host_ed25519_key.pub
+#   644 /etc/ssh/ssh_host_rsa_key.pub
+#
+#   If any "key.pub" file has a mode more permissive than "0644", this is a
+#   finding.
+#
+# Fix Text:
+#   Configure RHEL 10 SSH public host key files to have mode "0644" or less
+#   permissive.
+#
+#   Change the mode of public host key files under "/etc/ssh" to "0644" with
+#   the following command:
+#
+#   $ sudo chmod 0644 /etc/ssh/*key.pub
+#
+#   Restart the SSH daemon with the following command for the changes to take
+#   effect:
+#
+#   $ sudo systemctl restart sshd.service
+# =============================================================================
+
+- name: "RHEL-10-700500 | RHEL 10 must be configured so that Secure Shell (SSH) public host key files have mode 0644 or less permissive."
+  when: rhel_10_700500 | bool
+  tags:
+    - RHEL-10-700500
+    - medium
+    - CCI-002696
+  block:
+    - name: "RHEL-10-700500 | Find SSH public host key files"
+      ansible.builtin.find:
+        paths: /etc/ssh
+        patterns: '*.pub'
+      register: rhel_10_700500_pubkeys
+
+    - name: "RHEL-10-700500 | Set mode 0644 on SSH public host key files"
+      ansible.builtin.file:
+        path: "{{ item.path }}"
+        mode: '0644'
+        owner: root
+        group: root
+      loop: "{{ rhel_10_700500_pubkeys.files }}"
+      when: item.mode | int(base=8) > 0o644
+
+    - name: "RHEL-10-700500 | Re-check SSH public host key file permissions"
+      ansible.builtin.find:
+        paths: /etc/ssh
+        patterns: '*.pub'
+      register: rhel_10_700500_verify
+
+    - name: "RHEL-10-700500 | Assert all SSH public host key files have mode 0644 or less"
+      ansible.builtin.assert:
+        that: >-
+          rhel_10_700500_verify.files |
+          selectattr('mode', 'defined') |
+          map(attribute='mode') |
+          map('int', base=8) |
+          select('gt', 0o644) |
+          list | length == 0
+        fail_msg: "result=FAIL stig_id=RHEL-10-700500 detail=One or more SSH public host key files have permissions more permissive than 0644."
+        success_msg: "result=PASS stig_id=RHEL-10-700500 detail=All SSH public host key files have mode 0644 or less."
+
+  rescue:
+    - name: "RHEL-10-700500 | RESCUE - record failure and continue"
+      ansible.builtin.debug:
+        msg: "result=ERROR stig_id=RHEL-10-700500 detail=Task failed unexpectedly — see prior error for details."

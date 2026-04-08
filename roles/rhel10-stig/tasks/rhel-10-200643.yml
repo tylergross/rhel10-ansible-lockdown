@@ -1,0 +1,106 @@
+---
+# =============================================================================
+# STIG ID  : RHEL-10-200643
+# Rule ID  : SV-280986r1184782_rule
+# Severity : medium
+# CCI      : CCI-002385
+# Title    : RHEL 10 must be configured so that the rsyslog daemon does not accept log messages from other servers unless the server is being used for log aggregation.
+#
+# Description:
+#   Unintentionally running a rsyslog server accepting remote messages puts
+#   the system at increased risk. Malicious rsyslog messages sent to the
+#   server could exploit vulnerabilities in the server software, introduce
+#   misleading information into the system's logs, or fill the system's
+#   storage, leading to a denial of service. If the system is intended to be
+#   a log aggregation server, its use must be documented with the information
+#   system security officer.
+#
+# Check Text:
+#   Note: If the SA can demonstrate that another tool (e.g., SPLUNK) is being
+#   used to manage log off-load and aggregation in lieu of rsyslog, this
+#   check is not applicable.
+#
+#   Verify RHEL 10 is not configured to receive remote logs using rsyslog.
+#
+#   Verify the setting with the following commands:
+#
+#   $ ss -tulnp | grep rsyslog
+#
+#   If no output is returned, rsyslog is not listening for remote logs.
+#
+#   If output appears, check for configured ports (514 is the default for
+#   syslog).
+#
+#   Check for remote logging configuration in rsyslog by examining the
+#   rsyslog configuration files:
+#
+#   $ sudo grep -E
+#   'InputTCPServerRun|UDPServerRun|RELPServerRun|imtcp|imudp|imrelp'
+#   /etc/rsyslog.conf /etc/rsyslog.d/*
+#
+#   If this command returns uncommented lines enabling network listeners, the
+#   system is accepting remote logs. If this system is not documented and
+#   authorized as a log aggregation server, this is a finding.
+#
+#   Note: An error about no files or directories from the above commands may
+#   be returned. This is not a finding. Additionally, if a port option used
+#   together with a target and protocol is returned from inside an action
+#   block, this is not a finding.
+#
+# Fix Text:
+#   Configure RHEL 10 to not receive remote logs using rsyslog.
+#
+#   Remove the lines in "/etc/rsyslog.conf" and any files in the
+#   "/etc/rsyslog.d" directory that match any of the following:
+#
+#   InputTCPServerRun
+#   UDPServerRun
+#   RELPServerRun
+#   module(load="imtcp")
+#   module(load="imudp")
+#   module(load="imrelp")
+#   input(type="imudp" port="514")
+#   input(type="imtcp" port="514")
+#   input(type="imrelp" port="514")
+#
+#   Restart the rsyslog daemon with the following command for the changes to
+#   take effect:
+#
+#   $ sudo systemctl restart rsyslog.service
+# =============================================================================
+
+- name: "RHEL-10-200643 | RHEL 10 must be configured so that the rsyslog daemon does not accept log messages from other servers unless the server is being used for log aggregation."
+  when: rhel_10_200643 | bool
+  tags:
+    - RHEL-10-200643
+    - medium
+    - CCI-002385
+  block:
+    - name: "RHEL-10-200643 | Check rsyslog is not listening on network sockets"
+      ansible.builtin.shell: ss -tulnp | grep rsyslog || true
+      register: rhel_10_200643_ss
+      changed_when: false
+      failed_when: false
+
+    - name: "RHEL-10-200643 | Check rsyslog for input module directives"
+      ansible.builtin.shell: >-
+        grep -rE 'InputTCPServerRun|UDPServerRun|module\(load="imtcp"\)|module\(load="imudp"\)'
+        /etc/rsyslog.conf /etc/rsyslog.d/ 2>/dev/null || true
+      register: rhel_10_200643_modules
+      changed_when: false
+      failed_when: false
+
+    - name: "RHEL-10-200643 | Assert rsyslog is not accepting remote log messages"
+      ansible.builtin.assert:
+        that:
+          - rhel_10_200643_ss.stdout | trim == ''
+          - rhel_10_200643_modules.stdout | trim == ''
+        fail_msg: >-
+          result=FAIL stig_id=RHEL-10-200643
+          detail=rsyslog appears to be accepting remote log messages.
+          Remove network listener directives from /etc/rsyslog.conf and /etc/rsyslog.d/ unless this is an authorized log aggregation server.
+        success_msg: "result=PASS stig_id=RHEL-10-200643 detail=rsyslog is not accepting remote log messages."
+  rescue:
+    - name: "RHEL-10-200643 | RESCUE - record failure and continue"
+      ansible.builtin.debug:
+        msg: "result=ERROR stig_id=RHEL-10-200643 detail=Task failed unexpectedly — see prior error for details."

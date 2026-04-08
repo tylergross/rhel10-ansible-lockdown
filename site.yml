@@ -1,0 +1,16 @@
+---
+# rhel10-lockdown | main site playbook
+# Applies RHEL 10 STIG hardening controls to targeted hosts.
+#
+# Usage:
+#   ansible-playbook -i inventory/hosts.yml site.yml
+#   ansible-playbook -i inventory/hosts.yml site.yml --tags high
+#   ansible-playbook -i inventory/hosts.yml site.yml --tags RHEL-10-700970
+#   ansible-playbook -i inventory/hosts.yml site.yml --check
+
+- name: Apply RHEL 10 STIG hardening
+  hosts: rhel10
+  become: true
+  gather_facts: true
+  roles:
+    - role: rhel10-stig

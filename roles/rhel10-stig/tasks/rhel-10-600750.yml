@@ -1,0 +1,87 @@
+---
+# =============================================================================
+# STIG ID  : RHEL-10-600750
+# Rule ID  : SV-281223r1166621_rule
+# Severity : high
+# CCI      : CCI-004062
+# Title    : RHEL 10 must be configured so that user and group account administration utilities are configured to store only encrypted representations of passwords.
+#
+# Description:
+#   Passwords must be protected at all times, and encryption is the standard
+#   method for protecting passwords. If passwords are not encrypted, they can
+#   be plainly read (i.e., clear text) and easily compromised. Passwords that
+#   are encrypted with a weak algorithm are no more protected than if they
+#   are kept in plain text. This setting ensures user and group account
+#   administration utilities are configured to store only encrypted
+#   representations of passwords. Additionally, the "crypt_style"
+#   configuration option ensures the use of a strong hashing algorithm that
+#   makes password cracking attacks more difficult.
+#
+# Check Text:
+#   Verify RHEL 10 user and group account administration utilities are
+#   configured to store only encrypted representations of passwords with the
+#   following command:
+#
+#   $ sudo grep crypt /etc/libuser.conf
+#   crypt_style = sha512
+#
+#   If the "crypt_style" variable is not set to "yescrypt", is not in the
+#   defaults section, is commented out, or does not exist, this is a finding.
+#
+# Fix Text:
+#   Configure RHEL 10 to use the SHA-512 algorithm for password hashing.
+#
+#   Add or change the following line in the "[default]" section of the
+#   "/etc/libuser.conf" file:
+#
+#   crypt_style = sha512
+# =============================================================================
+
+- name: "RHEL-10-600750 | RHEL 10 must be configured so that user and group account administration utilities are configured to store only encrypted representations of passwords."
+  when: rhel_10_600750 | bool
+  tags:
+    - RHEL-10-600750
+    - high
+    - CCI-004062
+  block:
+    - name: "RHEL-10-600750 | Check crypt_style in /etc/libuser.conf"
+      ansible.builtin.command:
+        cmd: grep -iE '^\s*crypt_style\s*=\s*sha512' /etc/libuser.conf
+      register: rhel_10_600750_check
+      changed_when: false
+      failed_when: false
+
+    - name: "RHEL-10-600750 | Backup /etc/libuser.conf"
+      ansible.builtin.copy:
+        src: /etc/libuser.conf
+        dest: "/etc/libuser.conf.bak.{{ ansible_date_time.epoch }}"
+        remote_src: true
+        mode: preserve
+      when: rhel_10_600750_check.rc != 0
+
+    - name: "RHEL-10-600750 | Set crypt_style = sha512 in [defaults] section of /etc/libuser.conf"
+      ansible.builtin.lineinfile:
+        path: /etc/libuser.conf
+        regexp: '^\s*crypt_style\s*='
+        line: 'crypt_style = sha512'
+        state: present
+        insertafter: '^\[defaults\]'
+      when: rhel_10_600750_check.rc != 0
+
+    - name: "RHEL-10-600750 | Re-check crypt_style in /etc/libuser.conf"
+      ansible.builtin.command:
+        cmd: grep -iE '^\s*crypt_style\s*=\s*sha512' /etc/libuser.conf
+      register: rhel_10_600750_verify
+      changed_when: false
+      failed_when: false
+
+    - name: "RHEL-10-600750 | Assert crypt_style = sha512 in /etc/libuser.conf"
+      ansible.builtin.assert:
+        that: rhel_10_600750_verify.rc == 0
+        fail_msg: "result=FAIL stig_id=RHEL-10-600750 detail=crypt_style is not set to sha512 in /etc/libuser.conf."
+        success_msg: "result=PASS stig_id=RHEL-10-600750 detail=crypt_style = sha512 is configured in /etc/libuser.conf."
+
+  rescue:
+    - name: "RHEL-10-600750 | RESCUE - record failure and continue"
+      ansible.builtin.debug:
+        msg: "result=ERROR stig_id=RHEL-10-600750 detail=Task failed unexpectedly — see prior error for details."

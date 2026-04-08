@@ -1,0 +1,71 @@
+---
+# =============================================================================
+# STIG ID  : RHEL-10-200635
+# Rule ID  : SV-280982r1165301_rule
+# Severity : medium
+# CCI      : CCI-002475
+# Title    : RHEL 10 must be configured so that the file integrity tool verifies extended attributes.
+#
+# Description:
+#   RHEL 10 installation media ships with an optional file integrity tool
+#   called Advanced Intrusion Detection Environment (AIDE). AIDE is highly
+#   configurable at install time. This requirement assumes the "aide.conf"
+#   file is under the "/etc" directory. Extended attributes in file systems
+#   are used to contain arbitrary data and file metadata with security
+#   implications.
+#
+# Check Text:
+#   Verify RHEL 10 AIDE is configured to verify extended attributes with the
+#   following command:
+#
+#   $ sudo grep -E '^[^#]*xattrs' /etc/aide.conf
+#   FIPSR = p+i+n+u+g+s+m+growing+acl+selinux+xattrs+sha512
+#   /usr/sbin/auditctl p+i+n+u+g+s+b+acl+xattrs+sha512
+#   /usr/sbin/auditd p+i+n+u+g+s+b+acl+xattrs+sha512
+#   /usr/sbin/ausearch p+i+n+u+g+s+b+acl+xattrs+sha512
+#   /usr/sbin/aureport p+i+n+u+g+s+b+acl+xattrs+sha512
+#   /usr/sbin/augenrules p+i+n+u+g+s+b+acl+xattrs+sha512
+#   DIR = p+i+n+u+g+acl+selinux+xattrs
+#
+#   Open the file and verify that no additional uncommented file and
+#   directory selection lines are missing the "xattrs" rule.
+#
+#   If the "xattrs" rule is not being used on all uncommented selection lines
+#   in the "/etc/aide.conf" file, or extended attributes are not being
+#   checked by another file integrity tool, this is a finding.
+#
+# Fix Text:
+#   Configure RHEL 10 so that the file integrity tool checks file and
+#   directory extended attributes.
+#
+#   If AIDE is installed, ensure the "xattrs" rule is present on all
+#   uncommented file and directory selection lists.
+# =============================================================================
+
+- name: "RHEL-10-200635 | RHEL 10 must be configured so that the file integrity tool verifies extended attributes."
+  when: rhel_10_200635 | bool
+  tags:
+    - RHEL-10-200635
+    - medium
+    - CCI-002475
+  block:
+    - name: "RHEL-10-200635 | Check aide.conf for xattrs rule"
+      ansible.builtin.shell: grep -E '^[^#]*xattrs' /etc/aide.conf
+      register: rhel_10_200635_check
+      changed_when: false
+      failed_when: false
+
+    - name: "RHEL-10-200635 | Assert xattrs rule is present in aide.conf"
+      ansible.builtin.assert:
+        that:
+          - rhel_10_200635_check.rc == 0
+          - rhel_10_200635_check.stdout | trim != ''
+        fail_msg: >-
+          result=FAIL stig_id=RHEL-10-200635
+          detail=No uncommented xattrs rule found in /etc/aide.conf.
+          Ensure all selection lines include the 'xattrs' attribute.
+        success_msg: "result=PASS stig_id=RHEL-10-200635 detail=xattrs rule is present in /etc/aide.conf."
+  rescue:
+    - name: "RHEL-10-200635 | RESCUE - record failure and continue"
+      ansible.builtin.debug:
+        msg: "result=ERROR stig_id=RHEL-10-200635 detail=Task failed unexpectedly — see prior error for details."

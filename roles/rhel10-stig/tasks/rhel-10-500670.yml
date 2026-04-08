@@ -1,0 +1,98 @@
+---
+# =============================================================================
+# STIG ID  : RHEL-10-500670
+# Rule ID  : SV-281153r1166411_rule
+# Severity : medium
+# CCI      : CCI-000130
+# Title    : RHEL 10 must generate audit records for successful and unsuccessful uses of the "umount2" system call.
+#
+# Description:
+#   The changing of file permissions could indicate that a user is attempting
+#   to gain access to information that would otherwise be disallowed.
+#   Auditing discretionary access control (DAC) modifications can facilitate
+#   the identification of patterns of abuse among both authorized and
+#   unauthorized users. Satisfies: SRG-OS-000037-GPOS-00015,
+#   SRG-OS-000062-GPOS-00031, SRG-OS-000392-GPOS-00172,
+#   SRG-OS-000462-GPOS-00206, SRG-OS-000471-GPOS-00215
+#
+# Check Text:
+#   Verify RHEL 10 generates an audit record for all uses of the "umount2"
+#   system call with the following command:
+#
+#   $ sudo auditctl -l | grep umount2
+#   -a always,exit -F arch=b64 -S umount2 -F auid>=1000 -F auid!=-1 -F
+#   key=privileged-umount
+#   -a always,exit -F arch=b32 -S umount2 -F auid>=1000 -F auid!=-1 -F
+#   key=privileged-umount
+#
+#   If no line is returned, this is a finding.
+#
+# Fix Text:
+#   Configure RHEL 10 to generate audit records upon successful and
+#   unsuccessful uses of the "umount2" system call by adding or updating the
+#   following rules in a file in "/etc/audit/rules.d":
+#
+#   -a always,exit -F arch=b32 -S umount2 -F auid>=1000 -F auid!=unset -k
+#   privileged-umount
+#   -a always,exit -F arch=b64 -S umount2 -F auid>=1000 -F auid!=unset -k
+#   privileged-umount
+#
+#   Restart the audit daemon with the following command for the changes to
+#   take effect:
+#
+#   $ sudo service auditd restart
+# =============================================================================
+
+- name: "RHEL-10-500670 | RHEL 10 must generate audit records for successful and unsuccessful uses of the umount2 system call."
+  when: rhel_10_500670 | bool
+  tags:
+    - RHEL-10-500670
+    - medium
+    - CCI-000130
+  block:
+    - name: "RHEL-10-500670 | Check audit rule for umount2 syscall"
+      ansible.builtin.command:
+        cmd: auditctl -l
+      register: rhel_10_500670_rules
+      changed_when: false
+      failed_when: false
+
+    - name: "RHEL-10-500670 | Add audit rule for umount2 syscall (b32)"
+      ansible.builtin.lineinfile:
+        path: /etc/audit/rules.d/rhel10-stig.rules
+        line: "-a always,exit -F arch=b32 -S umount2 -F auid>=1000 -F auid!=unset -k privileged-umount"
+        create: true
+        mode: '0640'
+        owner: root
+        group: root
+      when: "'umount2' not in rhel_10_500670_rules.stdout"
+      notify: restart auditd
+
+    - name: "RHEL-10-500670 | Add audit rule for umount2 syscall (b64)"
+      ansible.builtin.lineinfile:
+        path: /etc/audit/rules.d/rhel10-stig.rules
+        line: "-a always,exit -F arch=b64 -S umount2 -F auid>=1000 -F auid!=unset -k privileged-umount"
+        create: true
+        mode: '0640'
+        owner: root
+        group: root
+      when: "'umount2' not in rhel_10_500670_rules.stdout"
+      notify: restart auditd
+
+    - name: "RHEL-10-500670 | Re-check audit rule for umount2 syscall"
+      ansible.builtin.command:
+        cmd: auditctl -l
+      register: rhel_10_500670_verify
+      changed_when: false
+      failed_when: false
+
+    - name: "RHEL-10-500670 | Assert audit rules for umount2 syscall are present"
+      ansible.builtin.assert:
+        that: "'umount2' in rhel_10_500670_verify.stdout"
+        fail_msg: "result=FAIL stig_id=RHEL-10-500670 detail=Audit rule for umount2 syscall (key=privileged-umount) is missing."
+        success_msg: "result=PASS stig_id=RHEL-10-500670 detail=Audit rule for umount2 syscall (key=privileged-umount) is present."
+
+  rescue:
+    - name: "RHEL-10-500670 | RESCUE - record failure and continue"
+      ansible.builtin.debug:
+        msg: "result=ERROR stig_id=RHEL-10-500670 detail=Task failed unexpectedly — see prior error for details."

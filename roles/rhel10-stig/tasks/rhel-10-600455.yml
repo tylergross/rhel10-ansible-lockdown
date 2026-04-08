@@ -1,0 +1,90 @@
+---
+# =============================================================================
+# STIG ID  : RHEL-10-600455
+# Rule ID  : SV-281200r1166552_rule
+# Severity : medium
+# CCI      : CCI-004066
+# Title    : RHEL 10 must not allow blank or null passwords.
+#
+# Description:
+#   If an account has an empty password, anyone could log in and run commands
+#   with the privileges of that account. Accounts with empty passwords must
+#   never be used in operational environments.
+#
+# Check Text:
+#   Verify RHEL 10 prohibits the use of null passwords with the following
+#   command:
+#
+#   $ sudo grep -i nullok /etc/pam.d/system-auth /etc/pam.d/password-auth
+#
+#   If output is produced, this is a finding.
+#
+#   If the system administrator (SA) can demonstrate that the required
+#   configuration is contained in a PAM configuration file included or
+#   substacked from the "system-auth" file, this is not a finding.
+#
+# Fix Text:
+#   Configure RHEL 10 to prohibit the use of null passwords.
+#
+#   If PAM is managed with "authselect", use the following command to remove
+#   instances of "nullok":
+#
+#   $ sudo authselect enable-feature without-nullok
+#
+#   Otherwise, remove any instances of the "nullok" option in the
+#   "/etc/pam.d/password-auth" and "/etc/pam.d/system-auth" files to prevent
+#   logins with empty passwords.
+#
+#   Note: Manual changes to the listed file may be overwritten by the
+#   "authselect" program.
+# =============================================================================
+
+- name: "RHEL-10-600455 | RHEL 10 must not allow blank or null passwords."
+  when: rhel_10_600455 | bool
+  tags:
+    - RHEL-10-600455
+    - medium
+    - CCI-004066
+  block:
+    - name: "RHEL-10-600455 | Check for nullok in PAM auth files"
+      ansible.builtin.command:
+        cmd: grep -i "nullok" /etc/pam.d/system-auth /etc/pam.d/password-auth
+      register: rhel_10_600455_check
+      changed_when: false
+      failed_when: false
+
+    - name: "RHEL-10-600455 | Remove nullok from /etc/pam.d/system-auth"
+      ansible.builtin.replace:
+        path: /etc/pam.d/system-auth
+        regexp: '\s*nullok\b'
+        replace: ''
+      when: >
+        rhel_10_600455_check.rc == 0 and
+        'system-auth:' in rhel_10_600455_check.stdout
+
+    - name: "RHEL-10-600455 | Remove nullok from /etc/pam.d/password-auth"
+      ansible.builtin.replace:
+        path: /etc/pam.d/password-auth
+        regexp: '\s*nullok\b'
+        replace: ''
+      when: >
+        rhel_10_600455_check.rc == 0 and
+        'password-auth:' in rhel_10_600455_check.stdout
+
+    - name: "RHEL-10-600455 | Re-check for nullok in PAM auth files"
+      ansible.builtin.command:
+        cmd: grep -i "nullok" /etc/pam.d/system-auth /etc/pam.d/password-auth
+      register: rhel_10_600455_verify
+      changed_when: false
+      failed_when: false
+
+    - name: "RHEL-10-600455 | Assert nullok is not present in PAM auth files"
+      ansible.builtin.assert:
+        that:
+          - rhel_10_600455_verify.rc != 0
+        fail_msg: "result=FAIL stig_id=RHEL-10-600455 detail=nullok is present in PAM auth files ({{ rhel_10_600455_verify.stdout | trim }}). Run 'authselect enable-feature without-nullok' or remove manually."
+        success_msg: "result=PASS stig_id=RHEL-10-600455 detail=nullok is not present in /etc/pam.d/system-auth or /etc/pam.d/password-auth."
+  rescue:
+    - name: "RHEL-10-600455 | RESCUE - record failure and continue"
+      ansible.builtin.debug:
+        msg: "result=ERROR stig_id=RHEL-10-600455 detail=Task failed unexpectedly — see prior error for details."

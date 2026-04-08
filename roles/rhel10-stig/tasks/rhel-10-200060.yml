@@ -1,0 +1,59 @@
+---
+# =============================================================================
+# STIG ID  : RHEL-10-200060
+# Rule ID  : SV-280948r1197218_rule
+# Severity : medium
+# CCI      : CCI-000381
+# Title    : RHEL 10 must not have the unbound package installed.
+#
+# Description:
+#   If the system is not a Domain Name Server (DNS), it should not have a DNS
+#   server package installed to decrease the attack surface of the system.
+#
+# Check Text:
+#   Verify RHEL 10 does not have a DNS package installed with the following
+#   command:
+#
+#   $ sudo dnf list --installed unbound
+#   Error: No matching Packages to list
+#
+#   If the "unbound" package is installed, and the information system
+#   security officer lacks a documented requirement for a DNS, this is a
+#   finding.
+#
+# Fix Text:
+#   Configure RHEL 10 to not have the unbound package installed with the
+#   following command:
+#
+#   $ sudo dnf -y remove unbound
+# =============================================================================
+
+- name: "RHEL-10-200060 | RHEL 10 must not have the unbound package installed."
+  when: rhel_10_200060 | bool
+  tags:
+    - RHEL-10-200060
+    - medium
+    - CCI-000381
+  block:
+    - name: "RHEL-10-200060 | Remove unbound if installed"
+      ansible.builtin.package:
+        name: unbound
+        state: absent
+
+    - name: "RHEL-10-200060 | Verify unbound is not installed"
+      ansible.builtin.command: rpm -q unbound
+      register: rhel_10_200060_check
+      changed_when: false
+      failed_when: false
+
+    - name: "RHEL-10-200060 | Assert unbound is not installed"
+      ansible.builtin.assert:
+        that: rhel_10_200060_check.rc != 0
+        fail_msg: >-
+          result=FAIL stig_id=RHEL-10-200060
+          detail=Package unbound is still installed. Remove with: dnf -y remove unbound
+        success_msg: "result=PASS stig_id=RHEL-10-200060 detail=Package unbound is not installed."
+  rescue:
+    - name: "RHEL-10-200060 | RESCUE - record failure and continue"
+      ansible.builtin.debug:
+        msg: "result=ERROR stig_id=RHEL-10-200060 detail=Task failed unexpectedly — see prior error for details."

@@ -1,0 +1,59 @@
+---
+# =============================================================================
+# STIG ID  : RHEL-10-400285
+# Rule ID  : SV-281074r1165577_rule
+# Severity : medium
+# CCI      : CCI-000213
+# Title    : RHEL 10 must be configured so that all local files and directories have a valid group owner.
+#
+# Description:
+#   Files without a valid group owner may be unintentionally inherited if a
+#   group is assigned the same group identifier (GID) as the GID of the files
+#   without a valid group owner.
+#
+# Check Text:
+#   Verify RHEL 10 is configured so that all local files and directories have
+#   a valid group with the following command:
+#
+#   $ df --local -P | awk {'if (NR!=1) print $6'} | sudo xargs -I '{}' find
+#   '{}' -xdev -nogroup
+#
+#   If any files on the system do not have an assigned group, this is a
+#   finding.
+#
+# Fix Text:
+#   Configure RHEL 10 so that all local files and directories have a valid
+#   group owner.
+#
+#   Either remove all files and directories from RHEL 10 that do not have a
+#   valid group, or assign a valid group to all files and directories on the
+#   system with the "chgrp" command:
+#
+#   $ sudo chgrp <group> <file>
+# =============================================================================
+
+- name: "RHEL-10-400285 | RHEL 10 must be configured so that all local files and directories have a valid group owner."
+  when: rhel_10_400285 | bool
+  tags:
+    - RHEL-10-400285
+    - medium
+    - CCI-000213
+  block:
+    - name: "RHEL-10-400285 | Find local files and directories with no valid group owner"
+      ansible.builtin.shell:
+        cmd: df --local -P | awk 'NR!=1 {print $6}' | xargs -I '{}' find '{}' -xdev -nogroup 2>/dev/null
+      register: rhel_10_400285_check
+      changed_when: false
+      failed_when: false
+
+    - name: "RHEL-10-400285 | Assert no files or directories exist without a valid group owner"
+      ansible.builtin.assert:
+        that:
+          - rhel_10_400285_check.stdout_lines | length == 0
+        fail_msg: "result=FAIL stig_id=RHEL-10-400285 detail=Files/directories with no valid group owner found: {{ rhel_10_400285_check.stdout_lines | join(', ') }}. Manual remediation required (chgrp or remove)."
+        success_msg: "result=PASS stig_id=RHEL-10-400285 detail=All local files and directories have a valid group owner."
+
+  rescue:
+    - name: "RHEL-10-400285 | RESCUE - record failure and continue"
+      ansible.builtin.debug:
+        msg: "result=ERROR stig_id=RHEL-10-400285 detail=Task failed unexpectedly — see prior error for details."

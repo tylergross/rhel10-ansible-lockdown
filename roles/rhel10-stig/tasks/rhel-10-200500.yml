@@ -1,0 +1,68 @@
+---
+# =============================================================================
+# STIG ID  : RHEL-10-200500
+# Rule ID  : SV-280952r1195340_rule
+# Severity : medium
+# CCI      : CCI-003992
+# Title    : RHEL 10 must have the "subscription-manager" package installed.
+#
+# Description:
+#   The Red Hat Subscription Manager application manages software
+#   subscriptions and software repositories for installed software products
+#   on the local system. It communicates with backend servers, such as the
+#   Red Hat Customer Portal or an on-premise instance of Subscription Asset
+#   Manager, to register the local system and grant access to software
+#   resources determined by the subscription entitlement.
+#
+# Check Text:
+#   Note: If the system is not an internet connected system, this requirement
+#   is not applicable.
+#
+#   Verify RHEL 10 has the "subscription-manager" package installed with the
+#   following command:
+#
+#   $ sudo dnf list --installed subscription-manager
+#   Installed Packages
+#   subscription-manager.x86_64 1.30.6.1-1.el10_0
+#   @rhel-10-for-x86_64-baseos-rpms
+#
+#   If the "subscription-manager" package is not installed, this is a
+#   finding.
+#
+# Fix Text:
+#   Configure RHEL 10 to have the "subscription-manager" package installed
+#   with the following command:
+#
+#   $ sudo dnf -y install subscription-manager
+# =============================================================================
+
+- name: "RHEL-10-200500 | RHEL 10 must have the subscription-manager package installed."
+  when: rhel_10_200500 | bool
+  tags:
+    - RHEL-10-200500
+    - medium
+    - CCI-003992
+  block:
+    - name: "RHEL-10-200500 | Ensure subscription-manager is installed"
+      ansible.builtin.package:
+        name: subscription-manager
+        state: present
+
+    - name: "RHEL-10-200500 | Verify subscription-manager is installed"
+      ansible.builtin.command: rpm -q subscription-manager
+      register: rhel_10_200500_check
+      changed_when: false
+      failed_when: false
+
+    - name: "RHEL-10-200500 | Assert subscription-manager is installed"
+      ansible.builtin.assert:
+        that: rhel_10_200500_check.rc == 0
+        fail_msg: >-
+          result=FAIL stig_id=RHEL-10-200500
+          detail=Package subscription-manager is not installed.
+          Install with: dnf -y install subscription-manager
+        success_msg: "result=PASS stig_id=RHEL-10-200500 detail=Package subscription-manager is installed."
+  rescue:
+    - name: "RHEL-10-200500 | RESCUE - record failure and continue"
+      ansible.builtin.debug:
+        msg: "result=ERROR stig_id=RHEL-10-200500 detail=Task failed unexpectedly — see prior error for details."

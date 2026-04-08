@@ -1,0 +1,101 @@
+---
+# =============================================================================
+# STIG ID  : RHEL-10-700670
+# Rule ID  : SV-281270r1166762_rule
+# Severity : medium
+# CCI      : CCI-000139
+# Title    : RHEL 10 must forward mail from postmaster to the root account using a postfix alias.
+#
+# Description:
+#   It is critical for the appropriate personnel to be aware if a system is
+#   at risk of failing to process audit logs as required. Without this
+#   notification, the security personnel may be unaware of an impending
+#   failure of the audit capability, and system operation may be adversely
+#   affected. Audit processing failures include software/hardware errors,
+#   failures in the audit capturing mechanisms, and audit storage capacity
+#   being reached or exceeded.
+#
+# Check Text:
+#   Verify RHEL 10 notifies administrators in the event of an audit
+#   processing failure.
+#
+#   Check that the "/etc/aliases" file has a defined value for "root".
+#
+#   $ sudo grep "postmaster:\s*root$" /etc/aliases
+#   postmaster: root
+#
+#   If the command does not return a line, or the line is commented out, ask
+#   the system administrator to indicate how they and the information systems
+#   security officer are notified of an audit process failure.
+#
+#   If there is no evidence of the proper personnel being notified of an
+#   audit processing failure, this is a finding.
+#
+# Fix Text:
+#   Configure RHEL 10 to have a valid email address as an alias for the root
+#   account.
+#
+#   Append the following line to "/etc/aliases":
+#
+#   postmaster: root
+#
+#   Run the following command:
+#
+#   $ sudo newaliases
+# =============================================================================
+
+- name: "RHEL-10-700670 | RHEL 10 must forward mail from postmaster to the root account using a postfix alias."
+  when: rhel_10_700670 | bool
+  tags:
+    - RHEL-10-700670
+    - medium
+    - CCI-000139
+  block:
+    - name: "RHEL-10-700670 | Check for postmaster alias in /etc/aliases"
+      ansible.builtin.command:
+        cmd: grep -P "^postmaster:\s*root$" /etc/aliases
+      register: rhel_10_700670_check
+      changed_when: false
+      failed_when: false
+
+    - name: "RHEL-10-700670 | Backup /etc/aliases before modification"
+      ansible.builtin.copy:
+        src: /etc/aliases
+        dest: "/etc/aliases.bak.{{ ansible_date_time.iso8601_basic_short }}"
+        remote_src: true
+        mode: '0644'
+        owner: root
+        group: root
+      when: rhel_10_700670_check.rc != 0
+
+    - name: "RHEL-10-700670 | Set postmaster alias to root in /etc/aliases"
+      ansible.builtin.lineinfile:
+        path: /etc/aliases
+        regexp: '^#?postmaster:'
+        line: 'postmaster: root'
+        state: present
+      when: rhel_10_700670_check.rc != 0
+
+    - name: "RHEL-10-700670 | Run newaliases to update alias database"
+      ansible.builtin.command:
+        cmd: newaliases
+      when: rhel_10_700670_check.rc != 0
+      changed_when: true
+
+    - name: "RHEL-10-700670 | Re-check postmaster alias in /etc/aliases"
+      ansible.builtin.command:
+        cmd: grep -P "^postmaster:\s*root$" /etc/aliases
+      register: rhel_10_700670_verify
+      changed_when: false
+      failed_when: false
+
+    - name: "RHEL-10-700670 | Assert postmaster alias points to root"
+      ansible.builtin.assert:
+        that: rhel_10_700670_verify.rc == 0
+        fail_msg: "result=FAIL stig_id=RHEL-10-700670 detail=postmaster alias to root is not configured in /etc/aliases."
+        success_msg: "result=PASS stig_id=RHEL-10-700670 detail=postmaster alias to root is configured in /etc/aliases."
+
+  rescue:
+    - name: "RHEL-10-700670 | RESCUE - record failure and continue"
+      ansible.builtin.debug:
+        msg: "result=ERROR stig_id=RHEL-10-700670 detail=Task failed unexpectedly — see prior error for details."

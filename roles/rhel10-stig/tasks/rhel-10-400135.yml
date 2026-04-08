@@ -1,0 +1,75 @@
+---
+# =============================================================================
+# STIG ID  : RHEL-10-400135
+# Rule ID  : SV-281044r1184618_rule
+# Severity : medium
+# CCI      : CCI-000213
+# Title    : RHEL 10 must be configured so that cron configuration files directories are group-owned by root.
+#
+# Description:
+#   Service configuration files enable or disable features of their
+#   respective services, which if configured incorrectly can lead to insecure
+#   and vulnerable configurations. Therefore, service configuration files
+#   should be owned by the correct group to prevent unauthorized changes.
+#
+# Check Text:
+#   Verify RHEL 10 group ownership of all cron configuration files with the
+#   following command:
+#
+#   $ stat -c "%G %n" /etc/cron*
+#   root /etc/cron.d
+#   root /etc/cron.daily
+#   root /etc/cron.deny
+#   root /etc/cron.hourly
+#   root /etc/cron.monthly
+#   root /etc/crontab
+#   root /etc/cron.weekly
+#
+#   If any crontab is not group-owned by "root", this is a finding.
+#
+# Fix Text:
+#   Configure RHEL 10 so that any cron configuration file directories are
+#   group-owned by "root" with the following command:
+#
+#   $ sudo chgrp root [cron config file]
+# =============================================================================
+
+- name: "RHEL-10-400135 | RHEL 10 must be configured so that cron configuration files directories are group-owned by root."
+  when: rhel_10_400135 | bool
+  tags:
+    - RHEL-10-400135
+    - medium
+    - CCI-000213
+  block:
+    - name: "RHEL-10-400135 | Find cron configuration files not group-owned by root"
+      ansible.builtin.command:
+        cmd: find /etc/cron.d /etc/cron.daily /etc/cron.hourly /etc/cron.monthly /etc/cron.weekly /etc/crontab ! -group root -print
+      register: rhel_10_400135_check
+      changed_when: false
+      failed_when: false
+
+    - name: "RHEL-10-400135 | Set root group ownership on cron configuration files"
+      ansible.builtin.file:
+        path: "{{ item }}"
+        group: root
+      loop: "{{ rhel_10_400135_check.stdout_lines }}"
+      when: rhel_10_400135_check.stdout_lines | length > 0
+
+    - name: "RHEL-10-400135 | Re-check cron configuration files not group-owned by root"
+      ansible.builtin.command:
+        cmd: find /etc/cron.d /etc/cron.daily /etc/cron.hourly /etc/cron.monthly /etc/cron.weekly /etc/crontab ! -group root -print
+      register: rhel_10_400135_verify
+      changed_when: false
+      failed_when: false
+
+    - name: "RHEL-10-400135 | Assert all cron configuration files are group-owned by root"
+      ansible.builtin.assert:
+        that:
+          - rhel_10_400135_verify.stdout_lines | length == 0
+        fail_msg: "result=FAIL stig_id=RHEL-10-400135 detail=Cron configuration files not group-owned by root: {{ rhel_10_400135_verify.stdout_lines | join(', ') }}."
+        success_msg: "result=PASS stig_id=RHEL-10-400135 detail=All cron configuration files are group-owned by root."
+
+  rescue:
+    - name: "RHEL-10-400135 | RESCUE - record failure and continue"
+      ansible.builtin.debug:
+        msg: "result=ERROR stig_id=RHEL-10-400135 detail=Task failed unexpectedly — see prior error for details."

@@ -1,0 +1,75 @@
+---
+# =============================================================================
+# STIG ID  : RHEL-10-200692
+# Rule ID  : SV-280999r1165352_rule
+# Severity : medium
+# CCI      : CCI-000381
+# Title    : RHEL 10 must be configured to prevent unrestricted mail relaying.
+#
+# Description:
+#   If unrestricted mail relaying is permitted, unauthorized senders could
+#   use this host as a mail relay to send spam or for other unauthorized
+#   activity.
+#
+# Check Text:
+#   Note: If postfix is not installed, this is not applicable.
+#
+#   Verify RHEL 10 is configured to prevent unrestricted mail relaying with
+#   the following command:
+#
+#   $ postconf -n smtpd_client_restrictions
+#   smtpd_client_restrictions = permit_mynetworks,reject
+#
+#   If the "smtpd_client_restrictions" parameter contains any entries other
+#   than "permit_mynetworks" and "reject", and the additional entries have
+#   not been documented with the information system security officer, this is
+#   a finding.
+#
+# Fix Text:
+#   Configure RHEL 10 so that the postfix configuration file restricts client
+#   connections to the local network with the following command:
+#
+#   $ sudo postconf -e 'smtpd_client_restrictions = permit_mynetworks,reject'
+# =============================================================================
+
+- name: "RHEL-10-200692 | RHEL 10 must be configured to prevent unrestricted mail relaying."
+  when: rhel_10_200692 | bool
+  tags:
+    - RHEL-10-200692
+    - medium
+    - CCI-000381
+  block:
+    - name: "RHEL-10-200692 | Check postfix smtpd_client_restrictions setting"
+      ansible.builtin.command: postconf -n smtpd_client_restrictions
+      register: rhel_10_200692_check
+      changed_when: false
+      failed_when: false
+
+    - name: "RHEL-10-200692 | Set smtpd_client_restrictions to prevent unrestricted relaying"
+      ansible.builtin.command: postconf -e 'smtpd_client_restrictions = permit_mynetworks,reject'
+      register: rhel_10_200692_set
+      changed_when: rhel_10_200692_set.rc == 0
+      when: >-
+        rhel_10_200692_check.stdout is not search('permit_mynetworks') or
+        rhel_10_200692_check.stdout is not search('reject')
+
+    - name: "RHEL-10-200692 | Re-check postfix smtpd_client_restrictions setting"
+      ansible.builtin.command: postconf -n smtpd_client_restrictions
+      register: rhel_10_200692_recheck
+      changed_when: false
+      failed_when: false
+
+    - name: "RHEL-10-200692 | Assert smtpd_client_restrictions contains permit_mynetworks and reject"
+      ansible.builtin.assert:
+        that:
+          - rhel_10_200692_recheck.stdout is search('permit_mynetworks')
+          - rhel_10_200692_recheck.stdout is search('reject')
+        fail_msg: >-
+          result=FAIL stig_id=RHEL-10-200692
+          detail=postfix smtpd_client_restrictions does not include permit_mynetworks and reject.
+          Run: postconf -e 'smtpd_client_restrictions = permit_mynetworks,reject'
+        success_msg: "result=PASS stig_id=RHEL-10-200692 detail=postfix smtpd_client_restrictions includes permit_mynetworks and reject."
+  rescue:
+    - name: "RHEL-10-200692 | RESCUE - record failure and continue"
+      ansible.builtin.debug:
+        msg: "result=ERROR stig_id=RHEL-10-200692 detail=Task failed unexpectedly — see prior error for details."

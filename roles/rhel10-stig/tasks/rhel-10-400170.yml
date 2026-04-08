@@ -1,0 +1,71 @@
+---
+# =============================================================================
+# STIG ID  : RHEL-10-400170
+# Rule ID  : SV-281051r1165508_rule
+# Severity : medium
+# CCI      : CCI-000162
+# Title    : RHEL 10 must enforce "root" ownership of the audit log directory to prevent unauthorized read access.
+#
+# Description:
+#   Unauthorized disclosure of audit records can reveal system and
+#   configuration data to attackers, thus compromising its confidentiality.
+#   Satisfies: SRG-OS-000057-GPOS-00027, SRG-OS-000058-GPOS-00028,
+#   SRG-OS-000059-GPOS-00029, SRG-OS-000206-GPOS-00084
+#
+# Check Text:
+#   Verify RHEL 10 audit logs directory is owned by "root".
+#
+#   Determine where the audit logs are stored with the following command:
+#
+#   $ sudo grep -iw log_file /etc/audit/auditd.conf
+#   log_file = /var/log/audit/audit.log
+#
+#   Using the location of the audit log file, determine if the audit log
+#   directory is owned by "root" using the following command:
+#
+#   $ sudo stat -c '%U %n' /var/log/audit
+#   root /var/log/audit
+#
+#   If the audit log directory is not owned by "root", this is a finding.
+#
+# Fix Text:
+#   Configure RHEL 10 to prevent unauthorized read access by ensuring the
+#   audit log directory is "root" owned with the following command:
+#
+#   $ sudo chown root /var/log/audit
+# =============================================================================
+
+- name: "RHEL-10-400170 | RHEL 10 must enforce root ownership of the audit log directory to prevent unauthorized read access."
+  when: rhel_10_400170 | bool
+  tags:
+    - RHEL-10-400170
+    - medium
+    - CCI-000162
+  block:
+    - name: "RHEL-10-400170 | Check owner of /var/log/audit"
+      ansible.builtin.stat:
+        path: /var/log/audit
+      register: rhel_10_400170_stat
+
+    - name: "RHEL-10-400170 | Set root ownership on /var/log/audit"
+      ansible.builtin.file:
+        path: /var/log/audit
+        owner: root
+      when: rhel_10_400170_stat.stat.pw_name != 'root'
+
+    - name: "RHEL-10-400170 | Re-check owner of /var/log/audit"
+      ansible.builtin.stat:
+        path: /var/log/audit
+      register: rhel_10_400170_verify
+
+    - name: "RHEL-10-400170 | Assert /var/log/audit is owned by root"
+      ansible.builtin.assert:
+        that:
+          - rhel_10_400170_verify.stat.pw_name == 'root'
+        fail_msg: "result=FAIL stig_id=RHEL-10-400170 detail=/var/log/audit is not owned by root (owner={{ rhel_10_400170_verify.stat.pw_name }})."
+        success_msg: "result=PASS stig_id=RHEL-10-400170 detail=/var/log/audit is owned by root."
+
+  rescue:
+    - name: "RHEL-10-400170 | RESCUE - record failure and continue"
+      ansible.builtin.debug:
+        msg: "result=ERROR stig_id=RHEL-10-400170 detail=Task failed unexpectedly — see prior error for details."

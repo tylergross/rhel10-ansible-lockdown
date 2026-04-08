@@ -1,0 +1,91 @@
+---
+# =============================================================================
+# STIG ID  : RHEL-10-600475
+# Rule ID  : SV-281203r1166561_rule
+# Severity : low
+# CCI      : CCI-000054
+# Title    : RHEL 10 must limit the number of concurrent sessions to 10 for all accounts and/or account types.
+#
+# Description:
+#   Operating system management includes the ability to control the number of
+#   users and user sessions that use an operating system. Limiting the number
+#   of allowed users and sessions per user is helpful in reducing the risks
+#   related to denial-of-service (DoS) attacks. This requirement addresses
+#   concurrent sessions for information system accounts and does not address
+#   concurrent sessions by single users via multiple system accounts. The
+#   maximum number of concurrent sessions should be defined based on mission
+#   needs and the operational environment for each system.
+#
+# Check Text:
+#   Verify RHEL 10 limits the number of concurrent sessions to "10" for all
+#   accounts and/or account types with the following command:
+#
+#   $ sudo grep -rs maxlogins /etc/security/limits.conf
+#   /etc/security/limits.d/*.conf | grep -v '#'
+#   /etc/security/limits.d/maxlogins.conf:* hard maxlogins 10
+#
+#   This can be set as a global domain (with the * wildcard) but may be set
+#   differently for multiple domains.
+#
+#   If the "maxlogins" item is missing or commented out, or the value is set
+#   greater than "10" and is not documented with the information system
+#   security officer as an operational requirement for all domains that have
+#   the "maxlogins" item assigned, this is a finding.
+#
+# Fix Text:
+#   Configure RHEL 10 to limit the number of concurrent sessions to "10" for
+#   all accounts and/or account types.
+#
+#   Add the following line to the top of "/etc/security/limits.conf" or in a
+#   ".conf" file defined in "/etc/security/limits.d/":
+#
+#   * hard maxlogins 10
+# =============================================================================
+
+- name: "RHEL-10-600475 | RHEL 10 must limit the number of concurrent sessions to 10 for all accounts and/or account types."
+  when: rhel_10_600475 | bool
+  tags:
+    - RHEL-10-600475
+    - low
+    - CCI-000054
+  block:
+    - name: "RHEL-10-600475 | Check maxlogins in /etc/security/limits.conf and limits.d/"
+      ansible.builtin.shell:
+        cmd: grep -rsh "maxlogins" /etc/security/limits.conf /etc/security/limits.d/*.conf 2>/dev/null | grep -v '^#'
+      register: rhel_10_600475_check
+      changed_when: false
+      failed_when: false
+
+    - name: "RHEL-10-600475 | Set maxlogins = 10 in /etc/security/limits.d/rhel10-stig-maxlogins.conf"
+      ansible.builtin.lineinfile:
+        path: /etc/security/limits.d/rhel10-stig-maxlogins.conf
+        regexp: '^\*\s+hard\s+maxlogins'
+        line: '* hard maxlogins 10'
+        state: present
+        create: true
+        mode: '0644'
+        owner: root
+        group: root
+      when: >
+        rhel_10_600475_check.rc != 0 or
+        rhel_10_600475_check.stdout_lines | length == 0 or
+        (rhel_10_600475_check.stdout | regex_search('maxlogins\s+(\d+)', '\1') | first | default('999') | int) > 10
+
+    - name: "RHEL-10-600475 | Re-check maxlogins"
+      ansible.builtin.shell:
+        cmd: grep -rsh "maxlogins" /etc/security/limits.conf /etc/security/limits.d/*.conf 2>/dev/null | grep -v '^#'
+      register: rhel_10_600475_verify
+      changed_when: false
+      failed_when: false
+
+    - name: "RHEL-10-600475 | Assert maxlogins is set to 10 or less"
+      ansible.builtin.assert:
+        that:
+          - rhel_10_600475_verify.stdout_lines | length > 0
+          - (rhel_10_600475_verify.stdout | regex_search('maxlogins\s+(\d+)', '\1') | first | int) <= 10
+        fail_msg: "result=FAIL stig_id=RHEL-10-600475 detail=maxlogins is not configured to 10 or less in limits.conf or limits.d/ (current={{ rhel_10_600475_verify.stdout | trim }})."
+        success_msg: "result=PASS stig_id=RHEL-10-600475 detail=maxlogins is set to 10 or less ({{ rhel_10_600475_verify.stdout | trim }})."
+  rescue:
+    - name: "RHEL-10-600475 | RESCUE - record failure and continue"
+      ansible.builtin.debug:
+        msg: "result=ERROR stig_id=RHEL-10-600475 detail=Task failed unexpectedly — see prior error for details."

@@ -1,0 +1,107 @@
+---
+# =============================================================================
+# STIG ID  : RHEL-10-300080
+# Rule ID  : SV-281015r1184783_rule
+# Severity : high
+# CCI      : CCI-002418
+# Title    : RHEL 10 must implement DOD-approved encryption in the bind package.
+#
+# Description:
+#   Without cryptographic integrity protections, information can be altered
+#   by unauthorized users without detection. Cryptographic mechanisms used
+#   for protecting the integrity of information include, for example, signed
+#   hash functions using asymmetric cryptography enabling distribution of the
+#   public key to verify the hash information while maintaining the
+#   confidentiality of the secret key used to generate the hash. RHEL 10
+#   incorporates systemwide crypto policies by default. The employed
+#   algorithms can be viewed in the "/etc/crypto-policies/back-ends/"
+#   directory. Satisfies: SRG-OS-000423-GPOS-00187, SRG-OS-000426-GPOS-00190
+#
+# Check Text:
+#   Note: If the "bind" package is not installed, this requirement is not
+#   applicable.
+#
+#   Verify RHEL 10 BIND uses the systemwide cryptographic policy with the
+#   following command:
+#
+#   $ sudo grep include /etc/named.conf
+#   include "/etc/crypto-policies/back-ends/bind.config";'
+#
+#   If BIND is installed and the BIND config file does not contain the
+#   include "/etc/crypto-policies/back-ends/bind.config" directive, or the
+#   line is commented out, this is a finding.
+#
+# Fix Text:
+#   Configure RHEL 10 BIND to use the systemwide cryptographic policy.
+#
+#   Add the following line to the "options" section in "/etc/named.conf":
+#
+#   include "/etc/crypto-policies/back-ends/bind.config";
+# =============================================================================
+
+- name: "RHEL-10-300080 | RHEL 10 must implement DOD-approved encryption in the bind package."
+  when: rhel_10_300080 | bool
+  tags:
+    - RHEL-10-300080
+    - high
+    - CCI-002418
+  block:
+    - name: "RHEL-10-300080 | Check if bind is installed"
+      ansible.builtin.command:
+        cmd: rpm -q bind
+      register: rhel_10_300080_bind
+      changed_when: false
+      failed_when: false
+
+    - name: "RHEL-10-300080 | Check /etc/named.conf for crypto-policies include"
+      ansible.builtin.command:
+        cmd: grep -F 'include "/etc/crypto-policies/back-ends/bind.config";' /etc/named.conf
+      register: rhel_10_300080_check
+      changed_when: false
+      failed_when: false
+      when: rhel_10_300080_bind.rc == 0
+
+    - name: "RHEL-10-300080 | Backup /etc/named.conf before modification"
+      ansible.builtin.copy:
+        src: /etc/named.conf
+        dest: "/etc/named.conf.bak.{{ ansible_date_time.epoch }}"
+        remote_src: true
+        mode: preserve
+      when:
+        - rhel_10_300080_bind.rc == 0
+        - rhel_10_300080_check.rc != 0
+
+    - name: "RHEL-10-300080 | Add crypto-policies include to /etc/named.conf"
+      ansible.builtin.lineinfile:
+        path: /etc/named.conf
+        line: 'include "/etc/crypto-policies/back-ends/bind.config";'
+        state: present
+      when:
+        - rhel_10_300080_bind.rc == 0
+        - rhel_10_300080_check.rc != 0
+
+    - name: "RHEL-10-300080 | Re-check /etc/named.conf after remediation"
+      ansible.builtin.command:
+        cmd: grep -F 'include "/etc/crypto-policies/back-ends/bind.config";' /etc/named.conf
+      register: rhel_10_300080_verify
+      changed_when: false
+      failed_when: false
+      when: rhel_10_300080_bind.rc == 0
+
+    - name: "RHEL-10-300080 | Assert bind crypto-policies include is present (bind installed)"
+      ansible.builtin.assert:
+        that: rhel_10_300080_verify.rc == 0
+        fail_msg: "result=FAIL stig_id=RHEL-10-300080 detail=bind is installed but /etc/named.conf does not include /etc/crypto-policies/back-ends/bind.config."
+        success_msg: "result=PASS stig_id=RHEL-10-300080 detail=bind crypto-policies include is present in /etc/named.conf."
+      when: rhel_10_300080_bind.rc == 0
+
+    - name: "RHEL-10-300080 | Assert not applicable (bind not installed)"
+      ansible.builtin.assert:
+        that: true
+        success_msg: "result=PASS stig_id=RHEL-10-300080 detail=bind is not installed — control not applicable."
+      when: rhel_10_300080_bind.rc != 0
+
+  rescue:
+    - name: "RHEL-10-300080 | RESCUE - record failure and continue"
+      ansible.builtin.debug:
+        msg: "result=ERROR stig_id=RHEL-10-300080 detail=Task failed unexpectedly — see prior error for details."

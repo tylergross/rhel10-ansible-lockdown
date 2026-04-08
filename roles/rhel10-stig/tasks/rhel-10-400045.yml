@@ -1,0 +1,64 @@
+---
+# =============================================================================
+# STIG ID  : RHEL-10-400045
+# Rule ID  : SV-281026r1165433_rule
+# Severity : medium
+# CCI      : CCI-000213
+# Title    : RHEL 10 must be configured so that the "/etc/passwd" file is group-owned by "root".
+#
+# Description:
+#   The "/etc/passwd" file contains information about the users that are
+#   configured on the system. Protection of this file is critical for system
+#   security.
+#
+# Check Text:
+#   Verify RHEL 10 is configured so that the "/etc/passwd" file is
+#   group-owned by "root" with the following command:
+#
+#   $ sudo stat -c "%G %n" /etc/passwd
+#   root /etc/passwd
+#
+#   If the "/etc/passwd" file does not have a group owner of "root", this is
+#   a finding.
+#
+# Fix Text:
+#   Configure RHEL 10 so that the group of the "/etc/passwd" file is set to
+#   "root" by running the following command:
+#
+#   $ sudo chgrp root /etc/passwd
+# =============================================================================
+
+- name: "RHEL-10-400045 | RHEL 10 must be configured so that the /etc/passwd file is group-owned by root."
+  when: rhel_10_400045 | bool
+  tags:
+    - RHEL-10-400045
+    - medium
+    - CCI-000213
+  block:
+    - name: "RHEL-10-400045 | Check group owner of /etc/passwd"
+      ansible.builtin.stat:
+        path: /etc/passwd
+      register: rhel_10_400045_stat
+
+    - name: "RHEL-10-400045 | Set correct group owner on /etc/passwd"
+      ansible.builtin.file:
+        path: /etc/passwd
+        group: root
+      when: rhel_10_400045_stat.stat.gr_name != 'root'
+
+    - name: "RHEL-10-400045 | Re-check group owner of /etc/passwd"
+      ansible.builtin.stat:
+        path: /etc/passwd
+      register: rhel_10_400045_verify
+
+    - name: "RHEL-10-400045 | Assert correct group owner on /etc/passwd"
+      ansible.builtin.assert:
+        that:
+          - rhel_10_400045_verify.stat.gr_name == 'root'
+        fail_msg: "result=FAIL stig_id=RHEL-10-400045 detail=/etc/passwd is not group-owned by root (group={{ rhel_10_400045_verify.stat.gr_name }})."
+        success_msg: "result=PASS stig_id=RHEL-10-400045 detail=/etc/passwd is group-owned by root."
+
+  rescue:
+    - name: "RHEL-10-400045 | RESCUE - record failure and continue"
+      ansible.builtin.debug:
+        msg: "result=ERROR stig_id=RHEL-10-400045 detail=Task failed unexpectedly — see prior error for details."

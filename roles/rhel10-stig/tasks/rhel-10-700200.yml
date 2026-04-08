@@ -1,0 +1,61 @@
+---
+# =============================================================================
+# STIG ID  : RHEL-10-700200
+# Rule ID  : SV-281248r1166696_rule
+# Severity : medium
+# CCI      : CCI-001764
+# Title    : RHEL 10 must prevent special devices on nonroot local partitions.
+#
+# Description:
+#   The "nodev" mount option causes the system to not interpret character or
+#   block special devices. Executing character or block special devices from
+#   untrusted file systems increases the opportunity for nonprivileged users
+#   to attain unauthorized administrative access. The only legitimate
+#   location for device files is the "/dev" directory located on the root
+#   partition, with the exception of chroot jails if implemented.
+#
+# Check Text:
+#   Verify RHEL 10 is configured so that all nonroot local partitions are
+#   mounted with the "nodev" option with the following command:
+#
+#   $ sudo mount | grep '^/dev\S* on /\S' | grep --invert-match 'nodev'
+#
+#   If any output is produced, this is a finding.
+#
+# Fix Text:
+#   Configure RHEL 10 so that "/etc/fstab" uses the "nodev" option on all
+#   nonroot local partitions.
+# =============================================================================
+
+- name: "RHEL-10-700200 | RHEL 10 must prevent special devices on nonroot local partitions."
+  when: rhel_10_700200 | bool
+  tags:
+    - RHEL-10-700200
+    - medium
+    - CCI-001764
+  block:
+    - name: "RHEL-10-700200 | Check for nonroot local partitions without nodev"
+      ansible.builtin.command:
+        cmd: mount
+      register: rhel_10_700200_mount
+      changed_when: false
+      failed_when: false
+
+    - name: "RHEL-10-700200 | Find local /dev partitions not mounted on root and missing nodev"
+      ansible.builtin.set_fact:
+        rhel_10_700200_violators: >-
+          {{ rhel_10_700200_mount.stdout_lines |
+             select('match', '^/dev\S+ on /\S') |
+             reject('search', 'nodev') |
+             list }}
+
+    - name: "RHEL-10-700200 | Assert all nonroot local partitions have nodev"
+      ansible.builtin.assert:
+        that: rhel_10_700200_violators | length == 0
+        fail_msg: "result=FAIL stig_id=RHEL-10-700200 detail=Local partition(s) mounted without nodev: {{ rhel_10_700200_violators | join(', ') }}. Update /etc/fstab manually."
+        success_msg: "result=PASS stig_id=RHEL-10-700200 detail=All nonroot local partitions are mounted with the nodev option."
+
+  rescue:
+    - name: "RHEL-10-700200 | RESCUE - record failure and continue"
+      ansible.builtin.debug:
+        msg: "result=ERROR stig_id=RHEL-10-700200 detail=Task failed unexpectedly — see prior error for details."

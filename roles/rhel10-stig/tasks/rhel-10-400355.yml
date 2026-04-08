@@ -1,0 +1,65 @@
+---
+# =============================================================================
+# STIG ID  : RHEL-10-400355
+# Rule ID  : SV-281088r1165619_rule
+# Severity : medium
+# CCI      : CCI-001764
+# Title    : RHEL 10 must prevent device files from being interpreted on file systems that contain user home directories.
+#
+# Description:
+#   The "nodev" mount option causes the system to not interpret character or
+#   block special devices. Executing character or block special devices from
+#   untrusted file systems increases the opportunity for nonprivileged users
+#   to attain unauthorized administrative access. The only legitimate
+#   location for device files is the "/dev" directory located on the root
+#   partition, with the exception of chroot jails if implemented.
+#
+# Check Text:
+#   Verify RHEL 10 is configured so that "/home" is mounted with the "nodev"
+#   option with the following command:
+#
+#   Note: If a separate file system has not been created for the user home
+#   directories (user home directories are mounted under "/"), this is
+#   automatically a finding, as the "nodev" option cannot be used on the "/"
+#   system.
+#
+#   $ mount | grep /home
+#   /dev/mapper/luks-ca2261ed-7b00-4b7b-84cd-8cd6d8fa4b28 on /home type xfs
+#   (rw,nodev,nosuid,noexec,seclabel)
+#
+#   If the "/home" file system is mounted without the "nodev" option, this is
+#   a finding.
+#
+# Fix Text:
+#   Configure RHEL 10 to prevent device files from being interpreted on file
+#   systems that contain user home directories.
+#
+#   Modify "/etc/fstab" to use the "nodev" option on the "/home" directory.
+# =============================================================================
+
+- name: "RHEL-10-400355 | RHEL 10 must prevent device files from being interpreted on file systems that contain user home directories."
+  when: rhel_10_400355 | bool
+  tags:
+    - RHEL-10-400355
+    - medium
+    - CCI-001764
+  block:
+    - name: "RHEL-10-400355 | Check mount options for /home"
+      ansible.builtin.command:
+        cmd: findmnt --noheadings --mountpoint /home --output OPTIONS
+      register: rhel_10_400355_mount
+      changed_when: false
+      failed_when: false
+
+    - name: "RHEL-10-400355 | Assert nodev is set on /home"
+      ansible.builtin.assert:
+        that:
+          - rhel_10_400355_mount.rc == 0
+          - "'nodev' in rhel_10_400355_mount.stdout"
+        fail_msg: "result=FAIL stig_id=RHEL-10-400355 detail=/home is not mounted with nodev (options={{ rhel_10_400355_mount.stdout | trim }}). Fix: add nodev to /etc/fstab and remount."
+        success_msg: "result=PASS stig_id=RHEL-10-400355 detail=/home is mounted with nodev."
+
+  rescue:
+    - name: "RHEL-10-400355 | RESCUE - record failure and continue"
+      ansible.builtin.debug:
+        msg: "result=ERROR stig_id=RHEL-10-400355 detail=Task failed unexpectedly — see prior error for details."

@@ -1,0 +1,67 @@
+---
+# =============================================================================
+# STIG ID  : RHEL-10-400255
+# Rule ID  : SV-281068r1165559_rule
+# Severity : medium
+# CCI      : CCI-000213
+# Title    : RHEL 10 must enforce mode "0000" or less permissive for the "/etc/gshadow" file to prevent unauthorized access.
+#
+# Description:
+#   The "/etc/gshadow" file contains group password hashes. Protection of
+#   this file is critical for system security.
+#
+# Check Text:
+#   Verify RHEL 10 is configured so that the "/etc/gshadow" file has mode
+#   "0000" with the following command:
+#
+#   $ sudo stat -c "%a %n" /etc/gshadow
+#   0 /etc/gshadow
+#
+#   If a value of "0" is not returned, this is a finding.
+#
+# Fix Text:
+#   Configure RHEL 10 so that the mode of the "/etc/gshadow" file is set to
+#   "0000" by running the following command:
+#
+#   $ sudo chmod 0000 /etc/gshadow
+# =============================================================================
+
+- name: "RHEL-10-400255 | RHEL 10 must enforce mode 0000 or less permissive for the /etc/gshadow file to prevent unauthorized access."
+  when: rhel_10_400255 | bool
+  tags:
+    - RHEL-10-400255
+    - medium
+    - CCI-000213
+  block:
+    - name: "RHEL-10-400255 | Check mode of /etc/gshadow"
+      ansible.builtin.stat:
+        path: /etc/gshadow
+      register: rhel_10_400255_stat
+      changed_when: false
+
+    - name: "RHEL-10-400255 | Set mode of /etc/gshadow to 0000"
+      ansible.builtin.file:
+        path: /etc/gshadow
+        mode: '0000'
+      when: >
+        not rhel_10_400255_stat.stat.exists or
+        rhel_10_400255_stat.stat.mode != '0000'
+
+    - name: "RHEL-10-400255 | Re-check mode of /etc/gshadow"
+      ansible.builtin.stat:
+        path: /etc/gshadow
+      register: rhel_10_400255_verify
+      changed_when: false
+
+    - name: "RHEL-10-400255 | Assert /etc/gshadow has mode 0000"
+      ansible.builtin.assert:
+        that:
+          - rhel_10_400255_verify.stat.exists
+          - rhel_10_400255_verify.stat.mode == '0000'
+        fail_msg: "result=FAIL stig_id=RHEL-10-400255 detail=/etc/gshadow mode is {{ rhel_10_400255_verify.stat.mode }} — expected 0000."
+        success_msg: "result=PASS stig_id=RHEL-10-400255 detail=/etc/gshadow has mode 0000."
+
+  rescue:
+    - name: "RHEL-10-400255 | RESCUE - record failure and continue"
+      ansible.builtin.debug:
+        msg: "result=ERROR stig_id=RHEL-10-400255 detail=Task failed unexpectedly — see prior error for details."

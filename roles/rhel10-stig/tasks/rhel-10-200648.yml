@@ -1,0 +1,100 @@
+---
+# =============================================================================
+# STIG ID  : RHEL-10-200648
+# Rule ID  : SV-280991r1165328_rule
+# Severity : medium
+# CCI      : CCI-000133
+# Title    : RHEL 10 must use cron logging.
+#
+# Description:
+#   Cron logging can be used to trace the successful or unsuccessful
+#   execution of cron jobs. It can also be used to spot intrusions into the
+#   use of the cron facility by unauthorized and malicious users.
+#
+# Check Text:
+#   Verify RHEL 10 rsyslog is configured to log cron events with the
+#   following command:
+#
+#   Note: If another logging package is used, substitute the utility
+#   configuration file for "/etc/rsyslog.conf" or "/etc/rsyslog.d/*.conf"
+#   files.
+#
+#   $ sudo grep -s cron /etc/rsyslog.conf /etc/rsyslog.d/*.conf
+#   /etc/rsyslog.conf:*.info;mail.none;authpriv.none;cron.none
+#   /var/log/messages
+#   /etc/rsyslog.conf:cron.* /var/log/cron
+#
+#   If the command does not return a response, check for cron logging all
+#   facilities with the following command:
+#
+#   $ logger -p local0.info "Test message for all facilities."
+#
+#   Check the logs for the test message with the following:
+#
+#   $ sudo tail /var/log/messages
+#
+#   If "rsyslog" is not logging messages for the cron facility or all
+#   facilities, this is a finding.
+#
+# Fix Text:
+#   Configure RHEL 10 rsyslog to log all cron messages by adding or updating
+#   the following line to "/etc/rsyslog.conf" or a configuration file in the
+#   "/etc/rsyslog.d/" directory:
+#
+#   cron.* /var/log/cron
+#
+#   Restart the rsyslog daemon with the following command for the changes to
+#   take effect:
+#
+#   $ sudo systemctl restart rsyslog.service
+# =============================================================================
+
+- name: "RHEL-10-200648 | RHEL 10 must use cron logging."
+  when: rhel_10_200648 | bool
+  tags:
+    - RHEL-10-200648
+    - medium
+    - CCI-000133
+  block:
+    - name: "RHEL-10-200648 | Check rsyslog cron logging configuration"
+      ansible.builtin.shell: >-
+        grep -s cron /etc/rsyslog.conf /etc/rsyslog.d/*.conf 2>/dev/null | grep 'cron\.\*' || true
+      register: rhel_10_200648_check
+      changed_when: false
+      failed_when: false
+
+    - name: "RHEL-10-200648 | Create /etc/rsyslog.d/99-stig-cron.conf if cron logging missing"
+      ansible.builtin.copy:
+        dest: /etc/rsyslog.d/99-stig-cron.conf
+        content: "cron.* /var/log/cron\n"
+        owner: root
+        group: root
+        mode: '0640'
+      register: rhel_10_200648_create
+      when: rhel_10_200648_check.stdout | trim == ''
+
+    - name: "RHEL-10-200648 | Restart rsyslog if cron logging config was created"
+      ansible.builtin.service:
+        name: rsyslog
+        state: restarted
+      when: rhel_10_200648_create is changed
+
+    - name: "RHEL-10-200648 | Re-check rsyslog cron logging configuration"
+      ansible.builtin.shell: >-
+        grep -s cron /etc/rsyslog.conf /etc/rsyslog.d/*.conf 2>/dev/null | grep 'cron\.\*' || true
+      register: rhel_10_200648_recheck
+      changed_when: false
+      failed_when: false
+
+    - name: "RHEL-10-200648 | Assert cron logging is configured in rsyslog"
+      ansible.builtin.assert:
+        that: rhel_10_200648_recheck.stdout | trim != ''
+        fail_msg: >-
+          result=FAIL stig_id=RHEL-10-200648
+          detail=No cron.* logging rule found in rsyslog configuration.
+          Add cron.* /var/log/cron to /etc/rsyslog.conf or /etc/rsyslog.d/.
+        success_msg: "result=PASS stig_id=RHEL-10-200648 detail=rsyslog is configured to log cron messages."
+  rescue:
+    - name: "RHEL-10-200648 | RESCUE - record failure and continue"
+      ansible.builtin.debug:
+        msg: "result=ERROR stig_id=RHEL-10-200648 detail=Task failed unexpectedly — see prior error for details."

@@ -1,0 +1,128 @@
+---
+# =============================================================================
+# STIG ID  : RHEL-10-500300
+# Rule ID  : SV-281116r1166300_rule
+# Severity : medium
+# CCI      : CCI-002233
+# Title    : RHEL 10 must generate audit records for successful and unsuccessful uses of the "execve" system call.
+#
+# Description:
+#   Misuse of privileged functions, either intentionally or unintentionally
+#   by authorized users, or by unauthorized external entities that have
+#   compromised information system accounts, is a serious and ongoing concern
+#   and can have significant adverse impacts on organizations. Auditing the
+#   use of privileged functions is one way to detect such misuse and identify
+#   the risk from insider threats and the advanced persistent threat.
+#   Satisfies: SRG-OS-000326-GPOS-00126, SRG-OS-000327-GPOS-00127,
+#   SRG-OS-000755-GPOS-00220
+#
+# Check Text:
+#   Verify RHEL 10 is configured to audit the execution of the "execve"
+#   system call with the following command:
+#
+#   $ sudo auditctl -l | grep execve
+#   -a always,exit -F arch=b32 -S execve -C uid!=euid -F euid=0 -F
+#   key=execpriv
+#   -a always,exit -F arch=b64 -S execve -C uid!=euid -F euid=0 -F
+#   key=execpriv
+#   -a always,exit -F arch=b32 -S execve -C gid!=egid -F egid=0 -F
+#   key=execpriv
+#   -a always,exit -F arch=b64 -S execve -C gid!=egid -F egid=0 -F
+#   key=execpriv
+#
+#   If the command does not return all lines, or the lines are commented out,
+#   this is a finding.
+#
+# Fix Text:
+#   Configure RHEL 10 to generate audit records upon successful and
+#   unsuccessful attempts to use the "execve" system call.
+#
+#   Add or update the following file system rules to
+#   "/etc/audit/rules.d/audit.rules":
+#
+#   -a always,exit -F arch=b32 -S execve -C uid!=euid -F euid=0 -k execpriv
+#   -a always,exit -F arch=b64 -S execve -C uid!=euid -F euid=0 -k execpriv
+#   -a always,exit -F arch=b32 -S execve -C gid!=egid -F egid=0 -k execpriv
+#   -a always,exit -F arch=b64 -S execve -C gid!=egid -F egid=0 -k execpriv
+#
+#   Restart the audit daemon with the following command for the changes to
+#   take effect:
+#
+#   $ sudo service auditd restart
+# =============================================================================
+
+- name: "RHEL-10-500300 | RHEL 10 must generate audit records for successful and unsuccessful uses of the execve system call."
+  when: rhel_10_500300 | bool
+  tags:
+    - RHEL-10-500300
+    - medium
+    - CCI-002233
+  block:
+    - name: "RHEL-10-500300 | Check audit rules for execve syscall"
+      ansible.builtin.command:
+        cmd: auditctl -l
+      register: rhel_10_500300_rules
+      changed_when: false
+      failed_when: false
+
+    - name: "RHEL-10-500300 | Add audit rule for execve uid!=euid b32"
+      ansible.builtin.lineinfile:
+        path: /etc/audit/rules.d/rhel10-stig.rules
+        line: '-a always,exit -F arch=b32 -S execve -C uid!=euid -F euid=0 -k execpriv'
+        create: true
+        mode: '0640'
+        owner: root
+        group: root
+      when: "'execpriv' not in rhel_10_500300_rules.stdout"
+      notify: restart auditd
+
+    - name: "RHEL-10-500300 | Add audit rule for execve uid!=euid b64"
+      ansible.builtin.lineinfile:
+        path: /etc/audit/rules.d/rhel10-stig.rules
+        line: '-a always,exit -F arch=b64 -S execve -C uid!=euid -F euid=0 -k execpriv'
+        create: true
+        mode: '0640'
+        owner: root
+        group: root
+      when: "'execpriv' not in rhel_10_500300_rules.stdout"
+      notify: restart auditd
+
+    - name: "RHEL-10-500300 | Add audit rule for execve gid!=egid b32"
+      ansible.builtin.lineinfile:
+        path: /etc/audit/rules.d/rhel10-stig.rules
+        line: '-a always,exit -F arch=b32 -S execve -C gid!=egid -F egid=0 -k execpriv'
+        create: true
+        mode: '0640'
+        owner: root
+        group: root
+      when: "'execpriv' not in rhel_10_500300_rules.stdout"
+      notify: restart auditd
+
+    - name: "RHEL-10-500300 | Add audit rule for execve gid!=egid b64"
+      ansible.builtin.lineinfile:
+        path: /etc/audit/rules.d/rhel10-stig.rules
+        line: '-a always,exit -F arch=b64 -S execve -C gid!=egid -F egid=0 -k execpriv'
+        create: true
+        mode: '0640'
+        owner: root
+        group: root
+      when: "'execpriv' not in rhel_10_500300_rules.stdout"
+      notify: restart auditd
+
+    - name: "RHEL-10-500300 | Re-check audit rules for execve"
+      ansible.builtin.command:
+        cmd: auditctl -l
+      register: rhel_10_500300_verify
+      changed_when: false
+      failed_when: false
+
+    - name: "RHEL-10-500300 | Assert execve audit rules are configured"
+      ansible.builtin.assert:
+        that: "'execpriv' in rhel_10_500300_verify.stdout"
+        fail_msg: "result=FAIL stig_id=RHEL-10-500300 detail=Audit rules for execve syscall with execpriv key are not configured."
+        success_msg: "result=PASS stig_id=RHEL-10-500300 detail=Audit rules for execve syscall are configured."
+
+  rescue:
+    - name: "RHEL-10-500300 | RESCUE - record failure and continue"
+      ansible.builtin.debug:
+        msg: "result=ERROR stig_id=RHEL-10-500300 detail=Task failed unexpectedly — see prior error for details."

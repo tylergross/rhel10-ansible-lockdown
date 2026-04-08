@@ -1,0 +1,79 @@
+---
+# =============================================================================
+# STIG ID  : RHEL-10-200660
+# Rule ID  : SV-280993r1195381_rule
+# Severity : medium
+# CCI      : CCI-000169
+# Title    : RHEL 10 must have the "audit" package installed.
+#
+# Description:
+#   Without establishing what type of events occurred, along with the source,
+#   location, and outcome, it would be difficult to establish, correlate, and
+#   investigate the events leading up to an outage or attack. Audit record
+#   content that may be necessary to satisfy this requirement includes, for
+#   example, time stamps, source and destination addresses, user/process
+#   identifiers, event descriptions, success/fail indications, filenames
+#   involved, and access control or flow control rules invoked. Associating
+#   event types with detected events in audit logs provides a means of
+#   investigating an attack, recognizing resource utilization or capacity
+#   thresholds, or identifying an improperly configured RHEL 10 system.
+#   Satisfies: SRG-OS-000062-GPOS-00031, SRG-OS-000037-GPOS-00015,
+#   SRG-OS-000038-GPOS-00016, SRG-OS-000039-GPOS-00017,
+#   SRG-OS-000040-GPOS-00018, SRG-OS-000041-GPOS-00019,
+#   SRG-OS-000042-GPOS-00021, SRG-OS-000051-GPOS-00024,
+#   SRG-OS-000054-GPOS-00025, SRG-OS-000122-GPOS-00063,
+#   SRG-OS-000254-GPOS-00095, SRG-OS-000255-GPOS-00096,
+#   SRG-OS-000337-GPOS-00129, SRG-OS-000348-GPOS-00136,
+#   SRG-OS-000349-GPOS-00137, SRG-OS-000350-GPOS-00138,
+#   SRG-OS-000351-GPOS-00139, SRG-OS-000352-GPOS-00140,
+#   SRG-OS-000353-GPOS-00141, SRG-OS-000354-GPOS-00142,
+#   SRG-OS-000358-GPOS-00145, SRG-OS-000365-GPOS-00152,
+#   SRG-OS-000392-GPOS-00172, SRG-OS-000475-GPOS-00220
+#
+# Check Text:
+#   Verify RHEL 10 has the "audit" service package installed with the
+#   following command:
+#
+#   $ sudo dnf list --installed audit
+#   Installed Packages
+#   audit.x86_64 4.0.3-1.el10 @anaconda
+#
+#   If the "audit" package is not installed, this is a finding.
+#
+# Fix Text:
+#   Configure RHEL 10 to have the "audit" service package installed with the
+#   following command:
+#
+#   $ sudo dnf -y install audit
+# =============================================================================
+
+- name: "RHEL-10-200660 | RHEL 10 must have the audit package installed."
+  when: rhel_10_200660 | bool
+  tags:
+    - RHEL-10-200660
+    - medium
+    - CCI-000169
+  block:
+    - name: "RHEL-10-200660 | Ensure audit is installed"
+      ansible.builtin.package:
+        name: audit
+        state: present
+
+    - name: "RHEL-10-200660 | Verify audit is installed"
+      ansible.builtin.command: rpm -q audit
+      register: rhel_10_200660_check
+      changed_when: false
+      failed_when: false
+
+    - name: "RHEL-10-200660 | Assert audit is installed"
+      ansible.builtin.assert:
+        that: rhel_10_200660_check.rc == 0
+        fail_msg: >-
+          result=FAIL stig_id=RHEL-10-200660
+          detail=Package audit is not installed.
+          Install with: dnf -y install audit
+        success_msg: "result=PASS stig_id=RHEL-10-200660 detail=Package audit is installed."
+  rescue:
+    - name: "RHEL-10-200660 | RESCUE - record failure and continue"
+      ansible.builtin.debug:
+        msg: "result=ERROR stig_id=RHEL-10-200660 detail=Task failed unexpectedly — see prior error for details."

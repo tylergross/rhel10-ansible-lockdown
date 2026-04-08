@@ -1,0 +1,91 @@
+---
+# =============================================================================
+# STIG ID  : RHEL-10-200543
+# Rule ID  : SV-280961r1165238_rule
+# Severity : medium
+# CCI      : CCI-000382
+# Title    : RHEL 10 must disable network management of the chrony daemon.
+#
+# Description:
+#   Not exposing the management interface of the chrony daemon on the network
+#   diminishes the attack space. Satisfies: SRG-OS-000096-GPOS-00050,
+#   SRG-OS-000095-GPOS-00049
+#
+# Check Text:
+#   Verify RHEL 10 disables network management of the chrony daemon with the
+#   following command:
+#
+#   $ sudo grep -w cmdport /etc/chrony.conf
+#   cmdport 0
+#
+#   If the "cmdport" option is not set to "0", is commented out, or is
+#   missing, this is a finding.
+#
+# Fix Text:
+#   Configure RHEL 10 to disable network management of the chrony daemon by
+#   adding/modifying the following line in the "/etc/chrony.conf" file:
+#
+#   cmdport 0
+#
+#   Restart the chronyd service with the following command for the changes to
+#   take effect:
+#
+#   $ sudo systemctl restart chronyd
+# =============================================================================
+
+- name: "RHEL-10-200543 | RHEL 10 must disable network management of the chrony daemon."
+  when: rhel_10_200543 | bool
+  tags:
+    - RHEL-10-200543
+    - medium
+    - CCI-000382
+  block:
+    - name: "RHEL-10-200543 | Check cmdport setting in chrony.conf"
+      ansible.builtin.command: grep -w cmdport /etc/chrony.conf
+      register: rhel_10_200543_check
+      changed_when: false
+      failed_when: false
+
+    - name: "RHEL-10-200543 | Backup /etc/chrony.conf before modification"
+      ansible.builtin.copy:
+        src: /etc/chrony.conf
+        dest: "/etc/chrony.conf.{{ ansible_date_time.epoch }}.bak"
+        remote_src: true
+        owner: root
+        group: root
+        mode: '0644'
+      when: rhel_10_200543_check.stdout is not search('^\s*cmdport\s+0\s*$')
+
+    - name: "RHEL-10-200543 | Ensure cmdport 0 is set in chrony.conf"
+      ansible.builtin.lineinfile:
+        path: /etc/chrony.conf
+        regexp: '^\s*cmdport\s+'
+        line: 'cmdport 0'
+        state: present
+      register: rhel_10_200543_lineinfile
+      when: rhel_10_200543_check.stdout is not search('^\s*cmdport\s+0\s*$')
+
+    - name: "RHEL-10-200543 | Restart chronyd after chrony.conf change"
+      ansible.builtin.service:
+        name: chronyd
+        state: restarted
+      when: rhel_10_200543_lineinfile is changed
+
+    - name: "RHEL-10-200543 | Re-check cmdport setting after remediation"
+      ansible.builtin.command: grep -w cmdport /etc/chrony.conf
+      register: rhel_10_200543_check_final
+      changed_when: false
+      failed_when: false
+
+    - name: "RHEL-10-200543 | Assert cmdport 0 is set in chrony.conf"
+      ansible.builtin.assert:
+        that: rhel_10_200543_check_final.stdout is search('^\s*cmdport\s+0\s*$')
+        fail_msg: >-
+          result=FAIL stig_id=RHEL-10-200543
+          detail=chrony.conf does not have 'cmdport 0' set
+          (found={{ rhel_10_200543_check_final.stdout | trim | default('missing') }}).
+        success_msg: "result=PASS stig_id=RHEL-10-200543 detail=chrony.conf has 'cmdport 0' set — chrony network management is disabled."
+  rescue:
+    - name: "RHEL-10-200543 | RESCUE - record failure and continue"
+      ansible.builtin.debug:
+        msg: "result=ERROR stig_id=RHEL-10-200543 detail=Task failed unexpectedly — see prior error for details."

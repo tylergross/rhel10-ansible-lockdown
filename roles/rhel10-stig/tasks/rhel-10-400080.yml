@@ -1,0 +1,70 @@
+---
+# =============================================================================
+# STIG ID  : RHEL-10-400080
+# Rule ID  : SV-281033r1165454_rule
+# Severity : medium
+# CCI      : CCI-001314
+# Title    : RHEL 10 must be configured so that the "/var/log" directory is owned by "root".
+#
+# Description:
+#   Only authorized personnel should be aware of errors and the details of
+#   the errors. Error messages are an indicator of an organization's
+#   operational state or can identify the RHEL 10 system or platform.
+#   Additionally, personally identifiable information (PII) and operational
+#   information must not be revealed through error messages to unauthorized
+#   personnel or their designated representatives. The structure and content
+#   of error messages must be carefully considered by the organization and
+#   development team. The extent to which the information system is able to
+#   identify and handle error conditions is guided by organizational policy
+#   and operational requirements.
+#
+# Check Text:
+#   Verify RHEL 10 is configured so that the "/var/log" directory is owned by
+#   "root" with the following command:
+#
+#   $ stat -c "%U %n" /var/log
+#   root /var/log
+#
+#   If "/var/log" does not have an owner of "root", this is a finding.
+#
+# Fix Text:
+#   Configure RHEL 10 so that the owner of the directory "/var/log" is set to
+#   "root" by running the following command:
+#
+#   $ sudo chown root /var/log
+# =============================================================================
+
+- name: "RHEL-10-400080 | RHEL 10 must be configured so that the /var/log directory is owned by root."
+  when: rhel_10_400080 | bool
+  tags:
+    - RHEL-10-400080
+    - medium
+    - CCI-001314
+  block:
+    - name: "RHEL-10-400080 | Check owner of /var/log"
+      ansible.builtin.stat:
+        path: /var/log
+      register: rhel_10_400080_stat
+
+    - name: "RHEL-10-400080 | Set correct owner on /var/log"
+      ansible.builtin.file:
+        path: /var/log
+        owner: root
+      when: rhel_10_400080_stat.stat.pw_name != 'root'
+
+    - name: "RHEL-10-400080 | Re-check owner of /var/log"
+      ansible.builtin.stat:
+        path: /var/log
+      register: rhel_10_400080_verify
+
+    - name: "RHEL-10-400080 | Assert correct owner on /var/log"
+      ansible.builtin.assert:
+        that:
+          - rhel_10_400080_verify.stat.pw_name == 'root'
+        fail_msg: "result=FAIL stig_id=RHEL-10-400080 detail=/var/log is not owned by root (owner={{ rhel_10_400080_verify.stat.pw_name }})."
+        success_msg: "result=PASS stig_id=RHEL-10-400080 detail=/var/log is owned by root."
+
+  rescue:
+    - name: "RHEL-10-400080 | RESCUE - record failure and continue"
+      ansible.builtin.debug:
+        msg: "result=ERROR stig_id=RHEL-10-400080 detail=Task failed unexpectedly — see prior error for details."

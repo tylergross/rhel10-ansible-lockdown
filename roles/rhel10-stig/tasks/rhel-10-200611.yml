@@ -1,0 +1,63 @@
+---
+# =============================================================================
+# STIG ID  : RHEL-10-200611
+# Rule ID  : SV-280973r1165274_rule
+# Severity : medium
+# CCI      : CCI-004046
+# Title    : RHEL 10 must have the "pcscd" service set to active.
+#
+# Description:
+#   The information system ensures that even if it is compromised, that
+#   compromise will not affect credentials stored on the authentication
+#   device. The daemon program for "pcsc-lite" and the MuscleCard framework
+#   is "pcscd". It is a resource manager that coordinates communications with
+#   smart card readers, smart cards, and cryptographic tokens that are
+#   connected to the system.
+#
+# Check Text:
+#   Verify RHEL 10 has the "pcscd" socket set to active with the following
+#   command:
+#
+#   $ systemctl is-active pcscd.socket
+#   active
+#
+#   If the "pcscd" socket is not active, this is a finding.
+#
+# Fix Text:
+#   Configure RHEL 10 to have the "pcscd" socket set to active with the
+#   following command:
+#
+#   $ sudo systemctl enable --now pcscd.socket
+# =============================================================================
+
+- name: "RHEL-10-200611 | RHEL 10 must have the pcscd service set to active."
+  when: rhel_10_200611 | bool
+  tags:
+    - RHEL-10-200611
+    - medium
+    - CCI-004046
+  block:
+    - name: "RHEL-10-200611 | Ensure pcscd.socket is started and enabled"
+      ansible.builtin.service:
+        name: pcscd.socket
+        state: started
+        enabled: true
+
+    - name: "RHEL-10-200611 | Check pcscd.socket is active"
+      ansible.builtin.command: systemctl is-active pcscd.socket
+      register: rhel_10_200611_check
+      changed_when: false
+      failed_when: false
+
+    - name: "RHEL-10-200611 | Assert pcscd.socket is active"
+      ansible.builtin.assert:
+        that: rhel_10_200611_check.stdout == 'active'
+        fail_msg: >-
+          result=FAIL stig_id=RHEL-10-200611
+          detail=Socket pcscd.socket is not active (got '{{ rhel_10_200611_check.stdout }}').
+          Enable with: systemctl enable --now pcscd.socket
+        success_msg: "result=PASS stig_id=RHEL-10-200611 detail=Socket pcscd.socket is active and enabled."
+  rescue:
+    - name: "RHEL-10-200611 | RESCUE - record failure and continue"
+      ansible.builtin.debug:
+        msg: "result=ERROR stig_id=RHEL-10-200611 detail=Task failed unexpectedly — see prior error for details."

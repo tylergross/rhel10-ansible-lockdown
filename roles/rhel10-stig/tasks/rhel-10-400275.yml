@@ -1,0 +1,68 @@
+---
+# =============================================================================
+# STIG ID  : RHEL-10-400275
+# Rule ID  : SV-281072r1165571_rule
+# Severity : medium
+# CCI      : CCI-000213
+# Title    : RHEL 10 must enforce mode "0000" or less permissive for "/etc/shadow-" file to prevent unauthorized access.
+#
+# Description:
+#   The "/etc/shadow-" file is a backup file of "/etc/shadow", and as such
+#   contains the list of local system accounts and password hashes.
+#   Protection of this file is critical for system security.
+#
+# Check Text:
+#   Verify RHEL 10 is configured so that the "/etc/shadow-" file has mode
+#   "0000" with the following command:
+#
+#   $ sudo stat -c "%a %n" /etc/shadow-
+#   0 /etc/shadow-
+#
+#   If a value of "0" is not returned, this is a finding.
+#
+# Fix Text:
+#   Configure RHEL 10 so that the mode of the "/etc/shadow-" file is set to
+#   "0000" by running the following command:
+#
+#   $ sudo chmod 0000 /etc/shadow-
+# =============================================================================
+
+- name: "RHEL-10-400275 | RHEL 10 must enforce mode 0000 or less permissive for /etc/shadow- file to prevent unauthorized access."
+  when: rhel_10_400275 | bool
+  tags:
+    - RHEL-10-400275
+    - medium
+    - CCI-000213
+  block:
+    - name: "RHEL-10-400275 | Check mode of /etc/shadow-"
+      ansible.builtin.stat:
+        path: /etc/shadow-
+      register: rhel_10_400275_stat
+      changed_when: false
+
+    - name: "RHEL-10-400275 | Set mode of /etc/shadow- to 0000"
+      ansible.builtin.file:
+        path: /etc/shadow-
+        mode: '0000'
+      when: >
+        rhel_10_400275_stat.stat.exists and
+        rhel_10_400275_stat.stat.mode != '0000'
+
+    - name: "RHEL-10-400275 | Re-check mode of /etc/shadow-"
+      ansible.builtin.stat:
+        path: /etc/shadow-
+      register: rhel_10_400275_verify
+      changed_when: false
+
+    - name: "RHEL-10-400275 | Assert /etc/shadow- has mode 0000"
+      ansible.builtin.assert:
+        that:
+          - rhel_10_400275_verify.stat.exists
+          - rhel_10_400275_verify.stat.mode == '0000'
+        fail_msg: "result=FAIL stig_id=RHEL-10-400275 detail=/etc/shadow- mode is {{ rhel_10_400275_verify.stat.mode }} — expected 0000."
+        success_msg: "result=PASS stig_id=RHEL-10-400275 detail=/etc/shadow- has mode 0000."
+
+  rescue:
+    - name: "RHEL-10-400275 | RESCUE - record failure and continue"
+      ansible.builtin.debug:
+        msg: "result=ERROR stig_id=RHEL-10-400275 detail=Task failed unexpectedly — see prior error for details."

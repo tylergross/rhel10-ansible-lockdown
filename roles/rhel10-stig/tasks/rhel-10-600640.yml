@@ -1,0 +1,95 @@
+---
+# =============================================================================
+# STIG ID  : RHEL-10-600640
+# Rule ID  : SV-281216r1166600_rule
+# Severity : high
+# CCI      : CCI-000877
+# Title    : RHEL 10 must enable the Pluggable Authentication Module (PAM) interface for SSHD.
+#
+# Description:
+#   When "UsePAM" is set to "yes", PAM runs through account and session types
+#   properly. This is important when restricted access to services based on
+#   IP, time, or other factors of the account is needed. Additionally, this
+#   ensures users can inherit certain environment variables on login or
+#   disallow access to the server.
+#
+# Check Text:
+#   Verify RHEL 10 SSHD is configured to allow for the "UsePAM" interface
+#   with the following command:
+#
+#   $ sudo /usr/sbin/sshd -dd 2>&1 | awk '/filename/ {print $4}' | tr -d '\r'
+#   | tr '\n' ' ' | xargs sudo grep -iH '^\s*usepam'
+#   UsePAM yes
+#
+#   If the "UsePAM" keyword is set to "no", is missing, or is commented out,
+#   this is a finding.
+#
+# Fix Text:
+#   Configure RHEL 10 SSHD to use the "UsePAM" interface by adding or
+#   modifying the following line in "/etc/ssh/sshd_config" or in a file in
+#   "/etc/ssh/sshd_config.d".
+#
+#   UsePAM yes
+#
+#   Restart the SSH daemon with the following command for the settings to
+#   take effect:
+#
+#   $ sudo systemctl restart sshd.service
+# =============================================================================
+
+- name: "RHEL-10-600640 | RHEL 10 must enable the Pluggable Authentication Module (PAM) interface for SSHD."
+  when: rhel_10_600640 | bool
+  tags:
+    - RHEL-10-600640
+    - high
+    - CCI-000877
+  block:
+    - name: "RHEL-10-600640 | Check UsePAM setting in sshd config"
+      ansible.builtin.shell:
+        cmd: /usr/sbin/sshd -dd 2>&1 | awk '/filename/ {print $4}' | tr -d '\r' | tr '\n' ' ' | xargs grep -iH '^\s*usepam'
+      register: rhel_10_600640_check
+      changed_when: false
+      failed_when: false
+
+    - name: "RHEL-10-600640 | Check UsePAM directly in /etc/ssh/sshd_config"
+      ansible.builtin.command:
+        cmd: grep -iE '^\s*UsePAM\s+yes' /etc/ssh/sshd_config
+      register: rhel_10_600640_main
+      changed_when: false
+      failed_when: false
+
+    - name: "RHEL-10-600640 | Backup /etc/ssh/sshd_config"
+      ansible.builtin.copy:
+        src: /etc/ssh/sshd_config
+        dest: "/etc/ssh/sshd_config.bak.{{ ansible_date_time.epoch }}"
+        remote_src: true
+        mode: '0600'
+      when: rhel_10_600640_main.rc != 0
+
+    - name: "RHEL-10-600640 | Set UsePAM yes in /etc/ssh/sshd_config"
+      ansible.builtin.lineinfile:
+        path: /etc/ssh/sshd_config
+        regexp: '^#?\s*UsePAM'
+        line: 'UsePAM yes'
+        state: present
+        validate: '/usr/sbin/sshd -t -f %s'
+      when: rhel_10_600640_main.rc != 0
+      notify: Restart sshd
+
+    - name: "RHEL-10-600640 | Re-check UsePAM in /etc/ssh/sshd_config"
+      ansible.builtin.command:
+        cmd: grep -iE '^\s*UsePAM\s+yes' /etc/ssh/sshd_config
+      register: rhel_10_600640_verify
+      changed_when: false
+      failed_when: false
+
+    - name: "RHEL-10-600640 | Assert UsePAM yes is configured for sshd"
+      ansible.builtin.assert:
+        that: rhel_10_600640_verify.rc == 0
+        fail_msg: "result=FAIL stig_id=RHEL-10-600640 detail=UsePAM yes is not configured in the SSHD configuration."
+        success_msg: "result=PASS stig_id=RHEL-10-600640 detail=UsePAM yes is configured in the SSHD configuration."
+
+  rescue:
+    - name: "RHEL-10-600640 | RESCUE - record failure and continue"
+      ansible.builtin.debug:
+        msg: "result=ERROR stig_id=RHEL-10-600640 detail=Task failed unexpectedly — see prior error for details."

@@ -1,0 +1,82 @@
+---
+# =============================================================================
+# STIG ID  : RHEL-10-600120
+# Rule ID  : SV-281171r1166465_rule
+# Severity : medium
+# CCI      : CCI-002824
+# Title    : RHEL 10 must assign a home directory for local interactive user accounts upon creation.
+#
+# Description:
+#   If local interactive users are not assigned a valid home directory, there
+#   is no place for the storage and control of files they should own.
+#
+# Check Text:
+#   Verify RHEL 10 assigns a home directory for local interactive user
+#   accounts upon creation with the following command:
+#
+#   $ sudo grep -i create_home /etc/login.defs
+#   CREATE_HOME yes
+#
+#   If the value for "CREATE_HOME" parameter is not set to "yes", the line is
+#   missing, or the line is commented out, this is a finding.
+#
+# Fix Text:
+#   Configure RHEL 10 to assign home directories to all new local interactive
+#   users by setting the "CREATE_HOME" parameter in "/etc/login.defs" to
+#   "yes" as follows:
+#
+#   CREATE_HOME yes
+# =============================================================================
+
+- name: "RHEL-10-600120 | RHEL 10 must assign a home directory for local interactive user accounts upon creation."
+  when: rhel_10_600120 | bool
+  tags:
+    - RHEL-10-600120
+    - medium
+    - CCI-002824
+  block:
+    - name: "RHEL-10-600120 | Check CREATE_HOME in /etc/login.defs"
+      ansible.builtin.command:
+        cmd: grep -i "^CREATE_HOME" /etc/login.defs
+      register: rhel_10_600120_check
+      changed_when: false
+      failed_when: false
+
+    - name: "RHEL-10-600120 | Backup /etc/login.defs before modification"
+      ansible.builtin.copy:
+        src: /etc/login.defs
+        dest: "/etc/login.defs.bak.{{ ansible_date_time.epoch }}"
+        remote_src: true
+        mode: preserve
+      when: >
+        rhel_10_600120_check.rc != 0 or
+        rhel_10_600120_check.stdout | lower is not search('create_home\s+yes')
+
+    - name: "RHEL-10-600120 | Set CREATE_HOME to yes in /etc/login.defs"
+      ansible.builtin.lineinfile:
+        path: /etc/login.defs
+        regexp: '^#?\s*CREATE_HOME'
+        line: 'CREATE_HOME     yes'
+        state: present
+      when: >
+        rhel_10_600120_check.rc != 0 or
+        rhel_10_600120_check.stdout | lower is not search('create_home\s+yes')
+
+    - name: "RHEL-10-600120 | Re-check CREATE_HOME"
+      ansible.builtin.command:
+        cmd: grep -i "^CREATE_HOME" /etc/login.defs
+      register: rhel_10_600120_verify
+      changed_when: false
+      failed_when: false
+
+    - name: "RHEL-10-600120 | Assert CREATE_HOME is set to yes"
+      ansible.builtin.assert:
+        that:
+          - rhel_10_600120_verify.rc == 0
+          - rhel_10_600120_verify.stdout | lower is search('create_home\s+yes')
+        fail_msg: "result=FAIL stig_id=RHEL-10-600120 detail=CREATE_HOME is not set to yes in /etc/login.defs (current={{ rhel_10_600120_verify.stdout | trim }})."
+        success_msg: "result=PASS stig_id=RHEL-10-600120 detail=CREATE_HOME is set to yes in /etc/login.defs."
+  rescue:
+    - name: "RHEL-10-600120 | RESCUE - record failure and continue"
+      ansible.builtin.debug:
+        msg: "result=ERROR stig_id=RHEL-10-600120 detail=Task failed unexpectedly — see prior error for details."

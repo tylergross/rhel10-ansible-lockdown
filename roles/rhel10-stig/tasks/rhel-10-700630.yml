@@ -1,0 +1,92 @@
+---
+# =============================================================================
+# STIG ID  : RHEL-10-700630
+# Rule ID  : SV-281266r1184766_rule
+# Severity : medium
+# CCI      : CCI-000213
+# Title    : RHEL 10 must not allow a noncertificate trusted host Secure Shell (SSH) login to the system.
+#
+# Description:
+#   SSH trust relationships mean a compromise on one host can allow an
+#   attacker to move trivially to other hosts. OpenSSH uses the first
+#   occurrence of a keyword it sees, and drop-in files are read in
+#   lexicographical order at the start of the configuration. Red Hat
+#   recommends using drop-in files rather than changing base configuration
+#   files.
+#
+# Check Text:
+#   Verify RHEL 10 does not allow a noncertificate trusted host SSH login to
+#   the system with the following command:
+#
+#   $ sudo /usr/sbin/sshd -dd 2>&1 | awk '/filename/ {print $4}' | tr -d '\r'
+#   | tr '\n' ' ' | xargs sudo grep -iH '^\s*hostbasedauthentication'
+#   /etc/ssh/sshd_config.d/10-stig.conf:HostbasedAuthentication no
+#
+#   Verify the runtime setting with the following command:
+#
+#   $ sudo sshd -T | grep -i hostbasedauthentication
+#   hostbasedauthentication no
+#
+#   If the "HostbasedAuthentication" keyword is not set to "no" in a drop-in
+#   that lexicographically precedes 50-redhat.conf, or no output is returned,
+#   this is a finding.
+#
+# Fix Text:
+#   Configure RHEL 10 to not allow a noncertificate trusted host SSH login to
+#   the system.
+#
+#   In "/etc/ssh/sshd_config.d", create a drop file that will
+#   lexicographically precede 50-redhat.conf and add the following line:
+#
+#   HostbasedAuthentication no
+#
+#   Restart the SSH daemon with the following command for the settings to
+#   take effect:
+#
+#   $ sudo systemctl restart sshd.service
+# =============================================================================
+
+- name: "RHEL-10-700630 | RHEL 10 must not allow a noncertificate trusted host Secure Shell (SSH) login to the system."
+  when: rhel_10_700630 | bool
+  tags:
+    - RHEL-10-700630
+    - medium
+    - CCI-000213
+  block:
+    - name: "RHEL-10-700630 | Check HostbasedAuthentication in sshd runtime config"
+      ansible.builtin.command:
+        cmd: sshd -T
+      register: rhel_10_700630_runtime
+      changed_when: false
+      failed_when: false
+
+    - name: "RHEL-10-700630 | Set HostbasedAuthentication in /etc/ssh/sshd_config.d/10-stig.conf"
+      ansible.builtin.lineinfile:
+        path: /etc/ssh/sshd_config.d/10-stig.conf
+        regexp: '^#?HostbasedAuthentication'
+        line: 'HostbasedAuthentication no'
+        state: present
+        create: true
+        mode: '0600'
+        owner: root
+        group: root
+      when: "'hostbasedauthentication no' not in rhel_10_700630_runtime.stdout | lower"
+      notify: restart sshd
+
+    - name: "RHEL-10-700630 | Re-check HostbasedAuthentication in sshd runtime config"
+      ansible.builtin.command:
+        cmd: sshd -T
+      register: rhel_10_700630_verify
+      changed_when: false
+      failed_when: false
+
+    - name: "RHEL-10-700630 | Assert HostbasedAuthentication is set to no"
+      ansible.builtin.assert:
+        that: "'hostbasedauthentication no' in rhel_10_700630_verify.stdout | lower"
+        fail_msg: "result=FAIL stig_id=RHEL-10-700630 detail=sshd runtime does not have HostbasedAuthentication no."
+        success_msg: "result=PASS stig_id=RHEL-10-700630 detail=sshd HostbasedAuthentication is set to no."
+
+  rescue:
+    - name: "RHEL-10-700630 | RESCUE - record failure and continue"
+      ansible.builtin.debug:
+        msg: "result=ERROR stig_id=RHEL-10-700630 detail=Task failed unexpectedly — see prior error for details."

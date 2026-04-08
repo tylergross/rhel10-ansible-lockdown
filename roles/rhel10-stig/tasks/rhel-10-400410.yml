@@ -1,0 +1,60 @@
+---
+# =============================================================================
+# STIG ID  : RHEL-10-400410
+# Rule ID  : SV-281093r1165634_rule
+# Severity : medium
+# CCI      : CCI-001764
+# Title    : RHEL 10 must mount "/var/log/audit" with the "nosuid" option.
+#
+# Description:
+#   The "nosuid" mount option causes the system to not execute "setuid" and
+#   "setgid" files with owner privileges. This option must be used for
+#   mounting any file system not containing approved "setuid" and "setguid"
+#   files. Executing files from untrusted file systems increases the
+#   opportunity for nonprivileged users to attain unauthorized administrative
+#   access.
+#
+# Check Text:
+#   Verify RHEL 10 is configured so that "/var/log/audit" is mounted with the
+#   "nosuid" option:
+#
+#   $ mount | grep /var/log/audit
+#   /dev/mapper/luks-4e45e1ad-5337-42c4-a19f-ee12ccc1d502 on /var/log/audit
+#   type xfs (rw,nodev,nosuid,noexec,seclabel)
+#
+#   If the "/var/log/audit" file system is mounted without the "nosuid"
+#   option, this is a finding.
+#
+# Fix Text:
+#   Configure RHEL 10 to mount "/var/log/audit" with the "nosuid" option.
+#
+#   Modify "/etc/fstab" to use the "nosuid" option on the "/var/log/audit"
+#   directory.
+# =============================================================================
+
+- name: "RHEL-10-400410 | RHEL 10 must mount /var/log/audit with the nosuid option."
+  when: rhel_10_400410 | bool
+  tags:
+    - RHEL-10-400410
+    - medium
+    - CCI-001764
+  block:
+    - name: "RHEL-10-400410 | Check mount options for /var/log/audit"
+      ansible.builtin.command:
+        cmd: findmnt --noheadings --mountpoint /var/log/audit --output OPTIONS
+      register: rhel_10_400410_mount
+      changed_when: false
+      failed_when: false
+
+    - name: "RHEL-10-400410 | Assert nosuid is set on /var/log/audit"
+      ansible.builtin.assert:
+        that:
+          - rhel_10_400410_mount.rc == 0
+          - "'nosuid' in rhel_10_400410_mount.stdout"
+        fail_msg: "result=FAIL stig_id=RHEL-10-400410 detail=/var/log/audit is not mounted with nosuid (options={{ rhel_10_400410_mount.stdout | trim }}). Fix: add nosuid to /etc/fstab and remount."
+        success_msg: "result=PASS stig_id=RHEL-10-400410 detail=/var/log/audit is mounted with nosuid."
+
+  rescue:
+    - name: "RHEL-10-400410 | RESCUE - record failure and continue"
+      ansible.builtin.debug:
+        msg: "result=ERROR stig_id=RHEL-10-400410 detail=Task failed unexpectedly — see prior error for details."

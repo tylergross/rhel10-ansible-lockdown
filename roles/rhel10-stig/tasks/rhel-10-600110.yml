@@ -1,0 +1,75 @@
+---
+# =============================================================================
+# STIG ID  : RHEL-10-600110
+# Rule ID  : SV-281170r1184651_rule
+# Severity : medium
+# CCI      : CCI-004066
+# Title    : RHEL 10 must, for user account passwords, have a 60-day maximum password lifetime restriction.
+#
+# Description:
+#   Any password, no matter how complex, can eventually be cracked.
+#   Therefore, passwords must be changed periodically. If the operating
+#   system does not limit the lifetime of passwords and force users to change
+#   their passwords, there is the risk that the operating system passwords
+#   could be compromised.
+#
+# Check Text:
+#   Verify RHEL 10 enforces a 60-day maximum time period for existing user
+#   account passwords with the following commands:
+#
+#   $ sudo awk -F: '$5 > 60 {print $1 "" "" $5}' /etc/shadow
+#
+#   $ sudo awk -F: '$5 <= 0 {print $1 "" "" $5}' /etc/shadow
+#
+#   If any results are returned that are not associated with a system
+#   account, this is a finding.
+#
+# Fix Text:
+#   Configure RHEL 10 to enforce a 60-day maximum password lifetime
+#   restriction on user account passwords.
+#
+#   Set the 60-day maximum password lifetime restriction with the following
+#   command:
+#
+#   $ sudo passwd -x 60 [user]
+# =============================================================================
+
+- name: "RHEL-10-600110 | RHEL 10 must, for user account passwords, have a 60-day maximum password lifetime restriction."
+  when: rhel_10_600110 | bool
+  tags:
+    - RHEL-10-600110
+    - medium
+    - CCI-004066
+  block:
+    - name: "RHEL-10-600110 | Find interactive users with PASS_MAX_DAYS > 60 or <= 0"
+      ansible.builtin.shell:
+        cmd: >
+          awk -F: '($3 >= 1000 && $3 != 65534) && ($5 > 60 || $5 <= 0) {print $1}' /etc/shadow
+      register: rhel_10_600110_check
+      changed_when: false
+      failed_when: false
+
+    - name: "RHEL-10-600110 | Set PASS_MAX_DAYS to 60 for non-compliant interactive users"
+      ansible.builtin.command:
+        cmd: passwd -x 60 {{ item }}
+      loop: "{{ rhel_10_600110_check.stdout_lines }}"
+      when: rhel_10_600110_check.stdout_lines | length > 0
+
+    - name: "RHEL-10-600110 | Re-check interactive users with PASS_MAX_DAYS > 60 or <= 0"
+      ansible.builtin.shell:
+        cmd: >
+          awk -F: '($3 >= 1000 && $3 != 65534) && ($5 > 60 || $5 <= 0) {print $1}' /etc/shadow
+      register: rhel_10_600110_verify
+      changed_when: false
+      failed_when: false
+
+    - name: "RHEL-10-600110 | Assert all interactive users have PASS_MAX_DAYS <= 60"
+      ansible.builtin.assert:
+        that:
+          - rhel_10_600110_verify.stdout_lines | length == 0
+        fail_msg: "result=FAIL stig_id=RHEL-10-600110 detail=Interactive user(s) still have PASS_MAX_DAYS > 60 or <= 0 ({{ rhel_10_600110_verify.stdout | trim }})."
+        success_msg: "result=PASS stig_id=RHEL-10-600110 detail=All interactive users have a 60-day maximum password lifetime restriction."
+  rescue:
+    - name: "RHEL-10-600110 | RESCUE - record failure and continue"
+      ansible.builtin.debug:
+        msg: "result=ERROR stig_id=RHEL-10-600110 detail=Task failed unexpectedly — see prior error for details."

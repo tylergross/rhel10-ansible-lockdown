@@ -1,0 +1,85 @@
+---
+# =============================================================================
+# STIG ID  : RHEL-10-400240
+# Rule ID  : SV-281065r1165550_rule
+# Severity : medium
+# CCI      : CCI-000213
+# Title    : RHEL 10 must enforce mode "0750" or less permissive for local interactive user home directories.
+#
+# Description:
+#   Excessive permissions on local interactive user home directories may
+#   allow unauthorized access to user files by other users.
+#
+# Check Text:
+#   Verify RHEL 10 is configured so that the assigned home directory of all
+#   local interactive users has a mode of "0750" or less permissive with the
+#   following command:
+#
+#   Note: This may miss interactive users that have been assigned a
+#   privileged user identifier (UID). Evidence of interactive use may be
+#   obtained from a number of log files containing system login information.
+#
+#   $ stat -L -c '%a %n' $(awk -F: '($3>=1000)&&($7 !~ /nologin/){print $6}'
+#   /etc/passwd) 2>/dev/null
+#   700 /home/disauser
+#
+#   If home directories referenced in "/etc/passwd" do not have a mode of
+#   "0750" or less permissive, this is a finding.
+#
+# Fix Text:
+#   Configure RHEL 10 so that the mode of interactive user's home directories
+#   is set to "0750".
+#
+#   To change the mode of a local interactive user's home directory, use the
+#   following command:
+#
+#   Note: The example will be for the user "disauser".
+#
+#   $ sudo chmod 0750 /home/disauser
+# =============================================================================
+
+- name: "RHEL-10-400240 | RHEL 10 must enforce mode 0750 or less permissive for local interactive user home directories."
+  when: rhel_10_400240 | bool
+  tags:
+    - RHEL-10-400240
+    - medium
+    - CCI-000213
+  block:
+    - name: "RHEL-10-400240 | Get list of interactive user home directories"
+      ansible.builtin.command:
+        cmd: awk -F':' '($3>=1000) && ($7 !~ /nologin/) && ($7 !~ /false/) {print $6}' /etc/passwd
+      register: rhel_10_400240_homedirs
+      changed_when: false
+      failed_when: false
+
+    - name: "RHEL-10-400240 | Check and remediate home directories more permissive than 0750"
+      ansible.builtin.file:
+        path: "{{ item }}"
+        mode: 'u=rwx,g=rx,o='
+      loop: "{{ rhel_10_400240_homedirs.stdout_lines }}"
+      when:
+        - rhel_10_400240_homedirs.stdout_lines | length > 0
+        - item != ''
+      register: rhel_10_400240_fix
+
+    - name: "RHEL-10-400240 | Find interactive home directories more permissive than 0750 after remediation"
+      ansible.builtin.shell:
+        cmd: >
+          awk -F':' '($3>=1000) && ($7 !~ /nologin/) && ($7 !~ /false/) {print $6}' /etc/passwd |
+          xargs -I{} stat -L -c '%a %n' {} 2>/dev/null |
+          awk '$1+0 > 750 {print $2}'
+      register: rhel_10_400240_verify
+      changed_when: false
+      failed_when: false
+
+    - name: "RHEL-10-400240 | Assert all interactive home directories have mode 0750 or less permissive"
+      ansible.builtin.assert:
+        that:
+          - rhel_10_400240_verify.stdout_lines | length == 0
+        fail_msg: "result=FAIL stig_id=RHEL-10-400240 detail=Home directories with mode more permissive than 0750 found: {{ rhel_10_400240_verify.stdout_lines | join(', ') }}."
+        success_msg: "result=PASS stig_id=RHEL-10-400240 detail=All interactive user home directories have mode 0750 or less permissive."
+
+  rescue:
+    - name: "RHEL-10-400240 | RESCUE - record failure and continue"
+      ansible.builtin.debug:
+        msg: "result=ERROR stig_id=RHEL-10-400240 detail=Task failed unexpectedly — see prior error for details."

@@ -1,0 +1,95 @@
+---
+# =============================================================================
+# STIG ID  : RHEL-10-600290
+# Rule ID  : SV-281188r1195439_rule
+# Severity : medium
+# CCI      : CCI-004066
+# Title    : RHEL 10 must require that the maximum number of repeating characters be limited to three when passwords are changed.
+#
+# Description:
+#   Use of a complex password helps to increase the time and resources
+#   required to compromise the password. Password complexity, or strength, is
+#   a measure of the effectiveness of a password in resisting attempts at
+#   guessing and brute-force attacks. Password complexity is one factor of
+#   several that determines how long it takes to crack a password. The more
+#   complex a password is, the greater the number of possible combinations
+#   that must be tested before the password is compromised.
+#
+# Check Text:
+#   Verify RHEL 10 limits the value of the "maxrepeat" option in
+#   "/etc/security/pwquality.conf" with the following command:
+#
+#   $ sudo grep -s maxrepeat /etc/security/pwquality.conf
+#   /etc/security/pwquality.conf.d/*.conf
+#   /etc/security/pwquality.conf:maxrepeat = 3
+#
+#   If the value of "maxrepeat" is set to more than "3" or is commented out,
+#   this is a finding.
+#
+# Fix Text:
+#   Configure RHEL 10 to require the change of the number of repeating
+#   consecutive characters when passwords are changed by setting the
+#   "maxrepeat" option.
+#
+#   Add or update the following line in the "/etc/security/pwquality.conf"
+#   file or a configuration file in the "/etc/security/pwquality.conf.d/"
+#   directory to contain the "maxrepeat" parameter:
+#
+#   maxrepeat = 3
+# =============================================================================
+
+- name: "RHEL-10-600290 | RHEL 10 must require that the maximum number of repeating characters be limited to three when passwords are changed."
+  when: rhel_10_600290 | bool
+  tags:
+    - RHEL-10-600290
+    - medium
+    - CCI-004066
+  block:
+    - name: "RHEL-10-600290 | Check maxrepeat in /etc/security/pwquality.conf"
+      ansible.builtin.command:
+        cmd: grep -s "^maxrepeat" /etc/security/pwquality.conf
+      register: rhel_10_600290_check
+      changed_when: false
+      failed_when: false
+
+    - name: "RHEL-10-600290 | Backup /etc/security/pwquality.conf before modification"
+      ansible.builtin.copy:
+        src: /etc/security/pwquality.conf
+        dest: "/etc/security/pwquality.conf.bak.{{ ansible_date_time.epoch }}"
+        remote_src: true
+        mode: preserve
+      when: >
+        rhel_10_600290_check.rc != 0 or
+        (rhel_10_600290_check.stdout | regex_search('maxrepeat\s*=\s*(\d+)', '\1') | first | int) > 3 or
+        (rhel_10_600290_check.stdout | regex_search('maxrepeat\s*=\s*(\d+)', '\1') | first | int) == 0
+
+    - name: "RHEL-10-600290 | Set maxrepeat = 3 in /etc/security/pwquality.conf"
+      ansible.builtin.lineinfile:
+        path: /etc/security/pwquality.conf
+        regexp: '^#?\s*maxrepeat\s*='
+        line: 'maxrepeat = 3'
+        state: present
+      when: >
+        rhel_10_600290_check.rc != 0 or
+        (rhel_10_600290_check.stdout | regex_search('maxrepeat\s*=\s*(\d+)', '\1') | first | int) > 3 or
+        (rhel_10_600290_check.stdout | regex_search('maxrepeat\s*=\s*(\d+)', '\1') | first | int) == 0
+
+    - name: "RHEL-10-600290 | Re-check maxrepeat"
+      ansible.builtin.command:
+        cmd: grep -s "^maxrepeat" /etc/security/pwquality.conf
+      register: rhel_10_600290_verify
+      changed_when: false
+      failed_when: false
+
+    - name: "RHEL-10-600290 | Assert maxrepeat is 3 or less (but not 0)"
+      ansible.builtin.assert:
+        that:
+          - rhel_10_600290_verify.rc == 0
+          - (rhel_10_600290_verify.stdout | regex_search('maxrepeat\s*=\s*(\d+)', '\1') | first | int) > 0
+          - (rhel_10_600290_verify.stdout | regex_search('maxrepeat\s*=\s*(\d+)', '\1') | first | int) <= 3
+        fail_msg: "result=FAIL stig_id=RHEL-10-600290 detail=maxrepeat is not set to 3 or less in /etc/security/pwquality.conf (current={{ rhel_10_600290_verify.stdout | trim }})."
+        success_msg: "result=PASS stig_id=RHEL-10-600290 detail=maxrepeat is set correctly in /etc/security/pwquality.conf ({{ rhel_10_600290_verify.stdout | trim }})."
+  rescue:
+    - name: "RHEL-10-600290 | RESCUE - record failure and continue"
+      ansible.builtin.debug:
+        msg: "result=ERROR stig_id=RHEL-10-600290 detail=Task failed unexpectedly — see prior error for details."

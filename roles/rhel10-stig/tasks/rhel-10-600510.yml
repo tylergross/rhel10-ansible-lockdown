@@ -1,0 +1,77 @@
+---
+# =============================================================================
+# STIG ID  : RHEL-10-600510
+# Rule ID  : SV-281206r1166570_rule
+# Severity : medium
+# CCI      : CCI-002038
+# Title    : RHEL 10 must be configured to not bypass password requirements for privilege escalation.
+#
+# Description:
+#   Without reauthentication, users may access resources or perform tasks for
+#   which they do not have authorization. When operating systems provide the
+#   capability to escalate a functional capability, it is critical the user
+#   reauthenticate. Satisfies: SRG-OS-000373-GPOS-00156,
+#   SRG-OS-000373-GPOS-00157, SRG-OS-000373-GPOS-00158
+#
+# Check Text:
+#   Verify RHEL 10 is not configured to bypass password requirements for
+#   privilege escalation with the following command:
+#
+#   $ sudo grep pam_succeed_if /etc/pam.d/sudo
+#
+#   If any occurrences of "pam_succeed_if" are returned, this is a finding.
+#
+# Fix Text:
+#   Configure RHEL 10 to require users to supply a password for privilege
+#   escalation.
+#
+#   Remove any occurrences of " pam_succeed_if " in the "/etc/pam.d/sudo"
+#   file.
+# =============================================================================
+
+- name: "RHEL-10-600510 | RHEL 10 must be configured to not bypass password requirements for privilege escalation."
+  when: rhel_10_600510 | bool
+  tags:
+    - RHEL-10-600510
+    - medium
+    - CCI-002038
+  block:
+    - name: "RHEL-10-600510 | Check for pam_succeed_if in /etc/pam.d/sudo"
+      ansible.builtin.command:
+        cmd: grep pam_succeed_if /etc/pam.d/sudo
+      register: rhel_10_600510_check
+      changed_when: false
+      failed_when: false
+
+    - name: "RHEL-10-600510 | Backup /etc/pam.d/sudo"
+      ansible.builtin.copy:
+        src: /etc/pam.d/sudo
+        dest: "/etc/pam.d/sudo.bak.{{ ansible_date_time.epoch }}"
+        remote_src: true
+        mode: preserve
+      when: rhel_10_600510_check.rc == 0
+
+    - name: "RHEL-10-600510 | Remove pam_succeed_if lines from /etc/pam.d/sudo"
+      ansible.builtin.lineinfile:
+        path: /etc/pam.d/sudo
+        regexp: 'pam_succeed_if'
+        state: absent
+      when: rhel_10_600510_check.rc == 0
+
+    - name: "RHEL-10-600510 | Re-check for pam_succeed_if in /etc/pam.d/sudo"
+      ansible.builtin.command:
+        cmd: grep pam_succeed_if /etc/pam.d/sudo
+      register: rhel_10_600510_verify
+      changed_when: false
+      failed_when: false
+
+    - name: "RHEL-10-600510 | Assert pam_succeed_if is not present"
+      ansible.builtin.assert:
+        that: rhel_10_600510_verify.rc != 0
+        fail_msg: "result=FAIL stig_id=RHEL-10-600510 detail=pam_succeed_if is still present in /etc/pam.d/sudo — password bypass exists."
+        success_msg: "result=PASS stig_id=RHEL-10-600510 detail=No pam_succeed_if entries found in /etc/pam.d/sudo."
+
+  rescue:
+    - name: "RHEL-10-600510 | RESCUE - record failure and continue"
+      ansible.builtin.debug:
+        msg: "result=ERROR stig_id=RHEL-10-600510 detail=Task failed unexpectedly — see prior error for details."

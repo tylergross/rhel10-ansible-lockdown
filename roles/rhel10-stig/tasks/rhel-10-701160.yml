@@ -1,0 +1,92 @@
+---
+# =============================================================================
+# STIG ID  : RHEL-10-701160
+# Rule ID  : SV-281318r1167104_rule
+# Severity : medium
+# CCI      : CCI-000381
+# Title    : RHEL 10 must disable storing core dumps.
+#
+# Description:
+#   A core dump includes a memory image taken at the time the operating
+#   system terminates an application. The memory image could contain
+#   sensitive data and is generally useful only for developers or system
+#   operators trying to debug problems. Enabling core dumps on production
+#   systems is not recommended; however, there may be overriding operational
+#   requirements to enable advanced debugging. Permitting temporary
+#   enablement of core dumps during such situations must be reviewed through
+#   local needs and policy.
+#
+# Check Text:
+#   Note: If kernel dumps are disabled in accordance with RHEL-10-701090,
+#   this requirement is not applicable.
+#
+#   Verify RHEL 10 disables storing core dumps for all users by issuing the
+#   following command:
+#
+#   $ sudo grep -ir storage /etc/systemd/ | grep -v '#'
+#   /etc/systemd/coredump.conf:Storage=none
+#
+#   If the "Storage" item is missing or the value is anything other than
+#   "none", and the need for core dumps is not documented with the
+#   information system security officer as an operational requirement for all
+#   domains that have the "core" item assigned, this is a finding.
+#
+# Fix Text:
+#   Configure RHEL 10 to disable storing core dumps for all users.
+#
+#   Create or edit the setting in a drop-in configuration file:
+#
+#   $ sudo vi /etc/systemd/coredump.conf
+#
+#   Add the following line:
+#
+#   Storage=none
+# =============================================================================
+
+- name: "RHEL-10-701160 | RHEL 10 must disable storing core dumps."
+  when: rhel_10_701160 | bool
+  tags:
+    - RHEL-10-701160
+    - medium
+    - CCI-000381
+  block:
+    - name: "RHEL-10-701160 | Check current Storage setting"
+      ansible.builtin.command:
+        cmd: grep -ir Storage /etc/systemd/coredump.conf /etc/systemd/coredump.conf.d/ 2>/dev/null || true
+      register: rhel_10_701160_check
+      changed_when: false
+      failed_when: false
+
+    - name: "RHEL-10-701160 | Backup coredump.conf before modification"
+      ansible.builtin.copy:
+        src: /etc/systemd/coredump.conf
+        dest: "/etc/systemd/coredump.conf.bak.{{ ansible_date_time.epoch }}"
+        remote_src: true
+        mode: preserve
+      when: "'Storage=none' not in (rhel_10_701160_check.stdout | default(''))"
+
+    - name: "RHEL-10-701160 | Set Storage=none in coredump.conf"
+      ansible.builtin.lineinfile:
+        path: /etc/systemd/coredump.conf
+        regexp: '^#?\s*Storage\s*='
+        line: 'Storage=none'
+        state: present
+      when: "'Storage=none' not in (rhel_10_701160_check.stdout | default(''))"
+
+    - name: "RHEL-10-701160 | Re-check Storage setting"
+      ansible.builtin.command:
+        cmd: grep -ir Storage /etc/systemd/coredump.conf /etc/systemd/coredump.conf.d/ 2>/dev/null || true
+      register: rhel_10_701160_verify
+      changed_when: false
+      failed_when: false
+
+    - name: "RHEL-10-701160 | Assert Storage is set to none"
+      ansible.builtin.assert:
+        that: "'Storage=none' in (rhel_10_701160_verify.stdout | default(''))"
+        fail_msg: "result=FAIL stig_id=RHEL-10-701160 detail=Storage is not set to none in coredump configuration."
+        success_msg: "result=PASS stig_id=RHEL-10-701160 detail=Storage=none is correctly configured."
+
+  rescue:
+    - name: "RHEL-10-701160 | RESCUE - record failure and continue"
+      ansible.builtin.debug:
+        msg: "result=ERROR stig_id=RHEL-10-701160 detail=Task failed unexpectedly — see prior error for details."

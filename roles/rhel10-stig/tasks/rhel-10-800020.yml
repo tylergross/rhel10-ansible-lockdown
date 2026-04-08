@@ -1,0 +1,61 @@
+---
+# =============================================================================
+# STIG ID  : RHEL-10-800020
+# Rule ID  : SV-281334r1167152_rule
+# Severity : medium
+# CCI      : CCI-002418
+# Title    : RHEL 10 must enforce that network interfaces not be in promiscuous mode.
+#
+# Description:
+#   Network interfaces in promiscuous mode allow for the capture of all
+#   network traffic visible to the system. If unauthorized individuals can
+#   access these applications, it may allow them to collect information such
+#   as login IDs, passwords, and key exchanges between systems. If the system
+#   is being used to perform a network troubleshooting function, the use of
+#   these tools must be documented with the information systems security
+#   officer (ISSO) and restricted to authorized personnel only.
+#
+# Check Text:
+#   Verify RHEL 10 network interfaces are not in promiscuous mode with the
+#   following command:
+#
+#   $ sudo ip link | grep -i promisc
+#
+#   If network interfaces are found on the system in promiscuous mode and
+#   their use has not been approved by the ISSO and documented, this is a
+#   finding.
+#
+# Fix Text:
+#   Configure RHEL 10 network interfaces to turn off promiscuous mode unless
+#   approved by the ISSO and documented.
+#
+#   Set the promiscuous mode of an interface to "off" with the following
+#   command:
+#
+#   $ sudo ip link set dev <devicename> multicast off promisc off
+# =============================================================================
+
+- name: "RHEL-10-800020 | RHEL 10 must enforce that network interfaces not be in promiscuous mode."
+  when: rhel_10_800020 | bool
+  tags:
+    - RHEL-10-800020
+    - medium
+    - CCI-002418
+  block:
+    - name: "RHEL-10-800020 | Check for network interfaces in promiscuous mode"
+      ansible.builtin.command:
+        cmd: ip link
+      register: rhel_10_800020_iplink
+      changed_when: false
+      failed_when: false
+
+    - name: "RHEL-10-800020 | Assert no interfaces are in promiscuous mode"
+      ansible.builtin.assert:
+        that: "'PROMISC' not in rhel_10_800020_iplink.stdout | upper"
+        fail_msg: "result=FAIL stig_id=RHEL-10-800020 detail=One or more network interfaces are in promiscuous mode. Verify with ISSO and disable unauthorized ones using: ip link set dev <iface> promisc off"
+        success_msg: "result=PASS stig_id=RHEL-10-800020 detail=No network interfaces are in promiscuous mode."
+
+  rescue:
+    - name: "RHEL-10-800020 | RESCUE - record failure and continue"
+      ansible.builtin.debug:
+        msg: "result=ERROR stig_id=RHEL-10-800020 detail=Task failed unexpectedly — see prior error for details."

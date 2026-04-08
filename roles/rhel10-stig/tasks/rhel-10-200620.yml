@@ -1,0 +1,64 @@
+---
+# =============================================================================
+# STIG ID  : RHEL-10-200620
+# Rule ID  : SV-280975r1195364_rule
+# Severity : medium
+# CCI      : CCI-004046
+# Title    : RHEL 10 must have the "opensc" package installed.
+#
+# Description:
+#   The use of Personal Identity Verification (PIV) credentials facilitates
+#   standardization and reduces the risk of unauthorized access. The DOD has
+#   mandated the use of the common access card (CAC) to support identity
+#   management and personal authentication for systems covered under Homeland
+#   Security Presidential Directive (HSPD) 12, as well as making the CAC a
+#   primary component of layered protection for national security systems.
+#   Satisfies: SRG-OS-000375-GPOS-00160, SRG-OS-000376-GPOS-00161
+#
+# Check Text:
+#   Verify RHEL 10 has the "opensc" package installed with the following
+#   command:
+#
+#   $ sudo dnf list --installed opensc
+#   Installed Packages
+#   opensc.x86_64 0.26.1-1.el10 @rhel-10-for-x86_64-baseos-rpm
+#
+#   If the "opensc" package is not installed, this is a finding.
+#
+# Fix Text:
+#   Configure RHEL 10 to have the "opensc" package installed with the
+#   following command:
+#
+#   $ sudo dnf -y install opensc
+# =============================================================================
+
+- name: "RHEL-10-200620 | RHEL 10 must have the opensc package installed."
+  when: rhel_10_200620 | bool
+  tags:
+    - RHEL-10-200620
+    - medium
+    - CCI-004046
+  block:
+    - name: "RHEL-10-200620 | Ensure opensc is installed"
+      ansible.builtin.package:
+        name: opensc
+        state: present
+
+    - name: "RHEL-10-200620 | Verify opensc is installed"
+      ansible.builtin.command: rpm -q opensc
+      register: rhel_10_200620_check
+      changed_when: false
+      failed_when: false
+
+    - name: "RHEL-10-200620 | Assert opensc is installed"
+      ansible.builtin.assert:
+        that: rhel_10_200620_check.rc == 0
+        fail_msg: >-
+          result=FAIL stig_id=RHEL-10-200620
+          detail=Package opensc is not installed.
+          Install with: dnf -y install opensc
+        success_msg: "result=PASS stig_id=RHEL-10-200620 detail=Package opensc is installed."
+  rescue:
+    - name: "RHEL-10-200620 | RESCUE - record failure and continue"
+      ansible.builtin.debug:
+        msg: "result=ERROR stig_id=RHEL-10-200620 detail=Task failed unexpectedly — see prior error for details."

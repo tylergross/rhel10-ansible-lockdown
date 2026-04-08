@@ -1,0 +1,69 @@
+---
+# =============================================================================
+# STIG ID  : RHEL-10-400270
+# Rule ID  : SV-281071r1165568_rule
+# Severity : medium
+# CCI      : CCI-000213
+# Title    : RHEL 10 must enforce mode "0644" or less permissive for "/etc/passwd-" file to prevent unauthorized access.
+#
+# Description:
+#   The "/etc/passwd-" file is a backup file of "/etc/passwd", and as such
+#   contains information about the users that are configured on the system.
+#   Protection of this file is critical for system security.
+#
+# Check Text:
+#   Verify RHEL 10 is configured so that the "/etc/passwd-" file has mode
+#   "0644" or less permissive with the following command:
+#
+#   $ sudo stat -c "%a %n" /etc/passwd-
+#   644 /etc/passwd-
+#
+#   If a value of "0644" or less permissive is not returned, this is a
+#   finding.
+#
+# Fix Text:
+#   Configure RHEL 10 so that the mode of the "/etc/passwd-" file is set to
+#   "0644" by running the following command:
+#
+#   $ sudo chmod 0644 /etc/passwd-
+# =============================================================================
+
+- name: "RHEL-10-400270 | RHEL 10 must enforce mode 0644 or less permissive for /etc/passwd- file to prevent unauthorized access."
+  when: rhel_10_400270 | bool
+  tags:
+    - RHEL-10-400270
+    - medium
+    - CCI-000213
+  block:
+    - name: "RHEL-10-400270 | Check mode of /etc/passwd-"
+      ansible.builtin.stat:
+        path: /etc/passwd-
+      register: rhel_10_400270_stat
+      changed_when: false
+
+    - name: "RHEL-10-400270 | Set mode of /etc/passwd- to 0644"
+      ansible.builtin.file:
+        path: /etc/passwd-
+        mode: '0644'
+      when: >
+        rhel_10_400270_stat.stat.exists and
+        (rhel_10_400270_stat.stat.mode | int(base=8)) > (0o644)
+
+    - name: "RHEL-10-400270 | Re-check mode of /etc/passwd-"
+      ansible.builtin.stat:
+        path: /etc/passwd-
+      register: rhel_10_400270_verify
+      changed_when: false
+
+    - name: "RHEL-10-400270 | Assert /etc/passwd- has mode 0644 or less permissive"
+      ansible.builtin.assert:
+        that:
+          - rhel_10_400270_verify.stat.exists
+          - (rhel_10_400270_verify.stat.mode | int(base=8)) <= (0o644)
+        fail_msg: "result=FAIL stig_id=RHEL-10-400270 detail=/etc/passwd- mode is {{ rhel_10_400270_verify.stat.mode }} which is more permissive than 0644."
+        success_msg: "result=PASS stig_id=RHEL-10-400270 detail=/etc/passwd- has mode 0644 or less permissive ({{ rhel_10_400270_verify.stat.mode }})."
+
+  rescue:
+    - name: "RHEL-10-400270 | RESCUE - record failure and continue"
+      ansible.builtin.debug:
+        msg: "result=ERROR stig_id=RHEL-10-400270 detail=Task failed unexpectedly — see prior error for details."

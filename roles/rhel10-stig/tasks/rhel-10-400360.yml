@@ -1,0 +1,65 @@
+---
+# =============================================================================
+# STIG ID  : RHEL-10-400360
+# Rule ID  : SV-281089r1165622_rule
+# Severity : medium
+# CCI      : CCI-001764
+# Title    : RHEL 10 must prevent files with the "setuid" and "setgid" bit set from being executed on file systems that contain user home directories.
+#
+# Description:
+#   The "nosuid" mount option causes the system to not execute "setuid" and
+#   "setgid" files with owner privileges. This option must be used for
+#   mounting any file system not containing approved "setuid" and "setguid"
+#   files. Executing files from untrusted file systems increases the
+#   opportunity for nonprivileged users to attain unauthorized administrative
+#   access.
+#
+# Check Text:
+#   Verify RHEL 10 is configured so that "/home" is mounted with the "nosuid"
+#   option with the following command:
+#
+#   Note: If a separate file system has not been created for the user home
+#   directories (user home directories are mounted under "/"), this is
+#   automatically a finding, as the "nosuid" option cannot be used on the "/"
+#   system.
+#
+#   $ mount | grep /home
+#   /dev/mapper/luks-ca2261ed-7b00-4b7b-84cd-8cd6d8fa4b28 on /home type xfs
+#   (rw,nodev,nosuid,noexec,seclabel)
+#
+#   If the "/home" file system is mounted without the "nosuid" option, this
+#   is a finding.
+#
+# Fix Text:
+#   Configure RHEL 10 to prevent files with the "setuid" and "setgid" bit set
+#   from being executed on file systems that contain user home directories.
+#
+#   Modify "/etc/fstab" to use the "nosuid" option on the "/home" directory.
+# =============================================================================
+
+- name: "RHEL-10-400360 | RHEL 10 must prevent files with the setuid and setgid bit set from being executed on file systems that contain user home directories."
+  when: rhel_10_400360 | bool
+  tags:
+    - RHEL-10-400360
+    - medium
+    - CCI-001764
+  block:
+    - name: "RHEL-10-400360 | Check mount options for /home"
+      ansible.builtin.command:
+        cmd: findmnt --noheadings --mountpoint /home --output OPTIONS
+      register: rhel_10_400360_mount
+      changed_when: false
+      failed_when: false
+
+    - name: "RHEL-10-400360 | Assert nosuid is set on /home"
+      ansible.builtin.assert:
+        that:
+          - rhel_10_400360_mount.rc == 0
+          - "'nosuid' in rhel_10_400360_mount.stdout"
+        fail_msg: "result=FAIL stig_id=RHEL-10-400360 detail=/home is not mounted with nosuid (options={{ rhel_10_400360_mount.stdout | trim }}). Fix: add nosuid to /etc/fstab and remount."
+        success_msg: "result=PASS stig_id=RHEL-10-400360 detail=/home is mounted with nosuid."
+
+  rescue:
+    - name: "RHEL-10-400360 | RESCUE - record failure and continue"
+      ansible.builtin.debug:
+        msg: "result=ERROR stig_id=RHEL-10-400360 detail=Task failed unexpectedly — see prior error for details."

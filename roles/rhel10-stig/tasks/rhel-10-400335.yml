@@ -1,0 +1,91 @@
+---
+# =============================================================================
+# STIG ID  : RHEL-10-400335
+# Rule ID  : SV-281084r1165607_rule
+# Severity : medium
+# CCI      : CCI-000213
+# Title    : RHEL 10 must enforce that all local initialization files configured by systemd-tmpfiles have mode "0600" or less permissive.
+#
+# Description:
+#   Excessive permissions on local interactive user home directories may
+#   allow unauthorized access to user files by other users.
+#
+# Check Text:
+#   Verify RHEL 10 enforces that all local initialization files configured by
+#   systemd-tmpfiles have mode "0600" or less permissive.
+#
+#   Check that all files from "/usr/share/rootfiles/" are overridden
+#   correctly in RHEL 10:
+#
+#   $ sudo grep /usr/share/rootfiles/ /etc/tmpfiles.d/*.conf
+#   C /root/.bash_logout 600 root root - /usr/share/rootfiles/.bash_logout
+#   C /root/.bash_profile 600 root root - /usr/share/rootfiles/.bash_profile
+#   C /root/.bashrc 600 root root - /usr/share/rootfiles/.bashrc
+#   C /root/.cshrc 600 root root - /usr/share/rootfiles/.cshrc
+#   C /root/.tcshrc 600 root root - /usr/share/rootfiles/.tcshrc
+#
+#   If any files are not configured to "600", or if no files are found by
+#   grep, this is a finding.
+#
+# Fix Text:
+#   Configure RHEL 10 to enforce that all local initialization files
+#   configured by systemd-tmpfiles have mode "0600" or less permissive.
+#
+#   Ensure the following lines are in a ".conf" file under
+#   "/etc/tmpfiles.d/":
+#
+#   C /root/.bash_logout 600 root root - /usr/share/rootfiles/.bash_logout
+#   C /root/.bash_profile 600 root root - /usr/share/rootfiles/.bash_profile
+#   C /root/.bashrc 600 root root - /usr/share/rootfiles/.bashrc
+#   C /root/.cshrc 600 root root - /usr/share/rootfiles/.cshrc
+#   C /root/.tcshrc 600 root root - /usr/share/rootfiles/.tcshrc
+# =============================================================================
+
+- name: "RHEL-10-400335 | RHEL 10 must enforce that all local initialization files configured by systemd-tmpfiles have mode 0600 or less permissive."
+  when: rhel_10_400335 | bool
+  tags:
+    - RHEL-10-400335
+    - medium
+    - CCI-000213
+  block:
+    - name: "RHEL-10-400335 | Check systemd-tmpfiles config for rootfiles with mode 600"
+      ansible.builtin.shell:
+        cmd: grep -r '/usr/share/rootfiles/' /etc/tmpfiles.d/*.conf 2>/dev/null | grep -E '\s600\s'
+      register: rhel_10_400335_check
+      changed_when: false
+      failed_when: false
+
+    - name: "RHEL-10-400335 | Deploy tmpfiles.d config for root initialization files at mode 0600"
+      ansible.builtin.copy:
+        dest: /etc/tmpfiles.d/root-init-files.conf
+        content: |
+          # STIG RHEL-10-400335 — enforce mode 0600 on root shell initialization files
+          C /root/.bash_logout 600 root root - /usr/share/rootfiles/.bash_logout
+          C /root/.bash_profile 600 root root - /usr/share/rootfiles/.bash_profile
+          C /root/.bashrc 600 root root - /usr/share/rootfiles/.bashrc
+          C /root/.cshrc 600 root root - /usr/share/rootfiles/.cshrc
+          C /root/.tcshrc 600 root root - /usr/share/rootfiles/.tcshrc
+        owner: root
+        group: root
+        mode: '0644'
+      when: rhel_10_400335_check.rc != 0 or rhel_10_400335_check.stdout_lines | length < 5
+
+    - name: "RHEL-10-400335 | Re-check systemd-tmpfiles config for rootfiles with mode 600"
+      ansible.builtin.shell:
+        cmd: grep -r '/usr/share/rootfiles/' /etc/tmpfiles.d/*.conf 2>/dev/null | grep -E '\s600\s'
+      register: rhel_10_400335_verify
+      changed_when: false
+      failed_when: false
+
+    - name: "RHEL-10-400335 | Assert tmpfiles.d entries for root init files exist with mode 600"
+      ansible.builtin.assert:
+        that:
+          - rhel_10_400335_verify.rc == 0
+          - rhel_10_400335_verify.stdout_lines | length >= 5
+        fail_msg: "result=FAIL stig_id=RHEL-10-400335 detail=Not all root initialization files in /etc/tmpfiles.d/ are configured at mode 600 (found {{ rhel_10_400335_verify.stdout_lines | length }} of 5 expected)."
+        success_msg: "result=PASS stig_id=RHEL-10-400335 detail=All root initialization files in /etc/tmpfiles.d/ are configured at mode 600."
+
+  rescue:
+    - name: "RHEL-10-400335 | RESCUE - record failure and continue"
+      ansible.builtin.debug:
+        msg: "result=ERROR stig_id=RHEL-10-400335 detail=Task failed unexpectedly — see prior error for details."

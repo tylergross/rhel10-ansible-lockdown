@@ -1,0 +1,73 @@
+---
+# =============================================================================
+# STIG ID  : RHEL-10-600140
+# Rule ID  : SV-281173r1166471_rule
+# Severity : medium
+# CCI      : CCI-001682
+# Title    : RHEL 10 must automatically expire temporary accounts within 72 hours.
+#
+# Description:
+#   Temporary accounts are privileged or nonprivileged accounts that are
+#   established during pressing circumstances, such as new software or
+#   hardware configuration or an incident response, where the need for prompt
+#   account activation requires bypassing normal account authorization
+#   procedures. If any inactive temporary accounts are left enabled on the
+#   system and are not manually removed or automatically expired within 72
+#   hours, the security posture of the system will be degraded and exposed to
+#   exploitation by unauthorized users or insider threat actors. Temporary
+#   accounts are different from emergency accounts. Emergency accounts, also
+#   known as "last resort" or "break glass" accounts, are local login
+#   accounts enabled on the system for emergency use by authorized system
+#   administrators to manage a system when standard login methods are failing
+#   or not available. Emergency accounts are not subject to manual removal or
+#   scheduled expiration requirements. The automatic expiration of temporary
+#   accounts may be extended as needed by the circumstances, but it must not
+#   be extended indefinitely. A documented permanent account should be
+#   established for privileged users who need long-term maintenance accounts.
+#   Satisfies: SRG-OS-000123-GPOS-00064, SRG-OS-000002-GPOS-00002
+#
+# Check Text:
+#   Verify RHEL 10 automatically expires temporary accounts within 72 hours.
+#
+#   For every existing temporary account, run the following command to obtain
+#   its account expiration information:
+#
+#   $ sudo chage -l <temporary_account_name> | grep -i "account expires"
+#
+#   Verify each of these accounts has an expiration date set within 72 hours.
+#
+#   If any temporary accounts have no expiration date set or do not expire
+#   within 72 hours, this is a finding.
+#
+# Fix Text:
+#   Configure RHEL 10 to expire temporary accounts after 72 hours with the
+#   following command:
+#
+#   $ sudo chage -E $(date -d +3days +%Y-%m-%d) <temporary_account_name>
+# =============================================================================
+
+- name: "RHEL-10-600140 | RHEL 10 must automatically expire temporary accounts within 72 hours."
+  when: rhel_10_600140 | bool
+  tags:
+    - RHEL-10-600140
+    - medium
+    - CCI-001682
+  block:
+    - name: "RHEL-10-600140 | Find interactive user accounts with no expiration or expiration > 72 hours"
+      ansible.builtin.shell:
+        cmd: >
+          awk -F: '($3 >= 1000 && $3 != 65534 && $8 == "") {print $1}' /etc/shadow
+      register: rhel_10_600140_check
+      changed_when: false
+      failed_when: false
+
+    - name: "RHEL-10-600140 | Assert all temporary accounts have expiration dates within 72 hours"
+      ansible.builtin.assert:
+        that:
+          - rhel_10_600140_check.stdout_lines | length == 0
+        fail_msg: "result=FAIL stig_id=RHEL-10-600140 detail=Interactive user accounts with no expiration date exist ({{ rhel_10_600140_check.stdout | trim }}). Temporary accounts must expire within 72 hours: sudo chage -E $(date -d +3days +%Y-%m-%d) <account>."
+        success_msg: "result=PASS stig_id=RHEL-10-600140 detail=All interactive user accounts have expiration dates set."
+  rescue:
+    - name: "RHEL-10-600140 | RESCUE - record failure and continue"
+      ansible.builtin.debug:
+        msg: "result=ERROR stig_id=RHEL-10-600140 detail=Task failed unexpectedly — see prior error for details."

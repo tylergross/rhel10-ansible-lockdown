@@ -1,0 +1,105 @@
+---
+# =============================================================================
+# STIG ID  : RHEL-10-700810
+# Rule ID  : SV-281284r1197247_rule
+# Severity : medium
+# CCI      : CCI-002696
+# Title    : RHEL 10 must prevent a user from overriding the disable-restart-buttons setting for the graphical user interface.
+#
+# Description:
+#   A user who is at the console can reboot the system at the login screen.
+#   If restart or shutdown buttons are pressed at the login screen, this can
+#   create the risk of short-term loss of availability of systems due to
+#   reboot.
+#
+# Check Text:
+#   Note: This requirement assumes the use of the RHEL 10 default graphical
+#   user interface, the GNOME desktop environment. If the system does not
+#   have any graphical user interface installed, this requirement is not
+#   applicable.
+#
+#   Verify RHEL 10 prevents a user from overriding the
+#   disable-restart-buttons setting for graphical user interfaces:
+#
+#   $ gsettings writable org.gnome.login-screen disable-restart-buttons
+#   false
+#
+#   If "disable-restart-buttons" is writable, and the result is "true", this
+#   is a finding.
+#
+# Fix Text:
+#   Configure RHEL 10 to prevent a user from overriding the
+#   disable-restart-buttons setting for graphical user interfaces.
+#
+#   Note: The example below is using the database "local" for the system. If
+#   the system is using another database in "/etc/dconf/profile/user", the
+#   file should be created under the appropriate subdirectory.
+#
+#   Update the "/etc/dconf/db/local.d/locks/session" file to prevent
+#   nonprivileged users from modifying the disable-restart-buttons setting:
+#
+#   $ sudo vi /etc/dconf/db/local.d/locks/session
+#
+#   /org/gnome/login-screen/disable-restart-buttons
+#
+#   Run the following command to update the database:
+#
+#   $ sudo dconf update
+# =============================================================================
+
+- name: "RHEL-10-700810 | RHEL 10 must prevent a user from overriding the disable-restart-buttons setting for the graphical user interface."
+  when: rhel_10_700810 | bool
+  tags:
+    - RHEL-10-700810
+    - medium
+    - CCI-002696
+  block:
+    - name: "RHEL-10-700810 | Ensure dconf locks directory exists"
+      ansible.builtin.file:
+        path: /etc/dconf/db/local.d/locks
+        state: directory
+        mode: '0755'
+        owner: root
+        group: root
+
+    - name: "RHEL-10-700810 | Check disable-restart-buttons lock in dconf locks file"
+      ansible.builtin.command:
+        cmd: grep -r 'disable-restart-buttons' /etc/dconf/db/local.d/locks/
+      register: rhel_10_700810_check
+      changed_when: false
+      failed_when: false
+
+    - name: "RHEL-10-700810 | Set disable-restart-buttons lock in dconf locks file"
+      ansible.builtin.lineinfile:
+        path: /etc/dconf/db/local.d/locks/session
+        line: '/org/gnome/login-screen/disable-restart-buttons'
+        state: present
+        create: true
+        mode: '0644'
+        owner: root
+        group: root
+      when: rhel_10_700810_check.rc != 0
+
+    - name: "RHEL-10-700810 | Update dconf database"
+      ansible.builtin.command:
+        cmd: dconf update
+      when: rhel_10_700810_check.rc != 0
+      changed_when: true
+
+    - name: "RHEL-10-700810 | Re-check disable-restart-buttons lock in dconf"
+      ansible.builtin.command:
+        cmd: grep -r 'disable-restart-buttons' /etc/dconf/db/local.d/locks/
+      register: rhel_10_700810_verify
+      changed_when: false
+      failed_when: false
+
+    - name: "RHEL-10-700810 | Assert disable-restart-buttons is locked in dconf"
+      ansible.builtin.assert:
+        that: rhel_10_700810_verify.rc == 0
+        fail_msg: "result=FAIL stig_id=RHEL-10-700810 detail=disable-restart-buttons is not locked in dconf."
+        success_msg: "result=PASS stig_id=RHEL-10-700810 detail=disable-restart-buttons is locked in dconf."
+
+  rescue:
+    - name: "RHEL-10-700810 | RESCUE - record failure and continue"
+      ansible.builtin.debug:
+        msg: "result=ERROR stig_id=RHEL-10-700810 detail=Task failed unexpectedly — see prior error for details."

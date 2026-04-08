@@ -1,0 +1,85 @@
+---
+# =============================================================================
+# STIG ID  : RHEL-10-400165
+# Rule ID  : SV-281050r1184685_rule
+# Severity : medium
+# CCI      : CCI-000162
+# Title    : RHEL 10 must enforce group ownership of audit logs by "root" or by a restricted logging group to prevent unauthorized read access.
+#
+# Description:
+#   Unauthorized disclosure of audit records can reveal system and
+#   configuration data to attackers, thus compromising its confidentiality.
+#   Satisfies: SRG-OS-000057-GPOS-00027, SRG-OS-000058-GPOS-00028,
+#   SRG-OS-000059-GPOS-00029, SRG-OS-000206-GPOS-00084
+#
+# Check Text:
+#   Verify RHEL 10 audit logs are group-owned by "root" or a restricted
+#   logging group.
+#
+#   Determine where the audit logs are stored with the following command:
+#
+#   $ sudo grep -iw log_file /etc/audit/auditd.conf
+#   log_file = /var/log/audit/audit.log
+#
+#   Using the location of the audit log file, determine if the audit log is
+#   group-owned by "root" using the following command:
+#
+#   $ sudo stat -c "%G %n" /var/log/audit/audit.log
+#   root /var/log/audit/audit.log
+#
+#   If the audit log is not group-owned by "root" or the configured
+#   alternative logging group, this is a finding.
+#
+# Fix Text:
+#   Configure RHEL 10 to prevent unauthorized read access by ensuring that
+#   audit logs are group-owned by root or by a restricted logging group.
+#
+#   Change the group of the directory of "/var/log/audit" to be owned by a
+#   correct group.
+#
+#   Identify the group that is configured to own audit logs:
+#
+#   $ sudo grep -P '^[ ]*log_group[ ]+=.*$' /etc/audit/auditd.conf
+#
+#   Change the ownership to that group:
+#
+#   $ sudo chgrp ${GROUP} /var/log/audit
+# =============================================================================
+
+- name: "RHEL-10-400165 | RHEL 10 must enforce group ownership of audit logs by root or by a restricted logging group to prevent unauthorized read access."
+  when: rhel_10_400165 | bool
+  tags:
+    - RHEL-10-400165
+    - medium
+    - CCI-000162
+  block:
+    - name: "RHEL-10-400165 | Check group owner of /var/log/audit/audit.log"
+      ansible.builtin.stat:
+        path: /var/log/audit/audit.log
+      register: rhel_10_400165_stat
+
+    - name: "RHEL-10-400165 | Set root group ownership on audit log"
+      ansible.builtin.file:
+        path: /var/log/audit/audit.log
+        group: root
+      when:
+        - rhel_10_400165_stat.stat.exists
+        - rhel_10_400165_stat.stat.gr_name != 'root'
+
+    - name: "RHEL-10-400165 | Re-check group owner of /var/log/audit/audit.log"
+      ansible.builtin.stat:
+        path: /var/log/audit/audit.log
+      register: rhel_10_400165_verify
+
+    - name: "RHEL-10-400165 | Assert audit log is group-owned by root"
+      ansible.builtin.assert:
+        that:
+          - rhel_10_400165_verify.stat.exists
+          - rhel_10_400165_verify.stat.gr_name == 'root'
+        fail_msg: "result=FAIL stig_id=RHEL-10-400165 detail=/var/log/audit/audit.log is not group-owned by root (group={{ rhel_10_400165_verify.stat.gr_name | default('file missing') }})."
+        success_msg: "result=PASS stig_id=RHEL-10-400165 detail=/var/log/audit/audit.log is group-owned by root."
+
+  rescue:
+    - name: "RHEL-10-400165 | RESCUE - record failure and continue"
+      ansible.builtin.debug:
+        msg: "result=ERROR stig_id=RHEL-10-400165 detail=Task failed unexpectedly — see prior error for details."

@@ -1,0 +1,108 @@
+---
+# =============================================================================
+# STIG ID  : RHEL-10-701120
+# Rule ID  : SV-281314r1184771_rule
+# Severity : medium
+# CCI      : CCI-000381
+# Title    : RHEL 10 must disable the Transparent Inter Process Communication (TIPC) kernel module.
+#
+# Description:
+#   It is detrimental for operating systems to provide, or install by
+#   default, functionality exceeding requirements or mission objectives.
+#   These unnecessary capabilities or services are often overlooked and
+#   therefore, may remain unsecured. They increase the risk to the platform
+#   by providing additional attack vectors. Failing to disconnect unused
+#   protocols can result in a system compromise. The TIPC is a protocol that
+#   is specially designed for intra-cluster communication. It can be
+#   configured to transmit messages either on User Datagram Protocol (UDP) or
+#   directly across Ethernet. Message delivery is sequence guaranteed, loss
+#   free, and flow controlled. Disabling TIPC protects the system against
+#   exploitation of any flaws in its implementation.
+#
+# Check Text:
+#   Verify RHEL 10 disables the ability to load the tipc kernel module with
+#   the following command:
+#
+#   $ sudo grep -rs tipc /etc/modprobe.conf /etc/modprobe.d/* | grep -v '#'
+#   /etc/modprobe.d/tipc-blacklist.conf:install tipc /bin/false
+#   /etc/modprobe.d/tipc-blacklist.conf:blacklist tipc
+#
+#   If the command does not return any output, or the lines are commented
+#   out, and use of tipc is not documented with the information system
+#   security officer as an operational requirement, this is a finding.
+#
+# Fix Text:
+#   Configure RHEL 10 to disable the ability to load the tipc kernel module.
+#
+#   Create a drop-in if it does not already exist:
+#
+#   $ sudo vi /etc/modprobe.d/tipc.conf
+#
+#   Add the following lines to the file:
+#
+#   install tipc /bin/false
+#   blacklist tipc
+# =============================================================================
+
+- name: "RHEL-10-701120 | RHEL 10 must disable the Transparent Inter Process Communication (TIPC) kernel module."
+  when: rhel_10_701120 | bool
+  tags:
+    - RHEL-10-701120
+    - medium
+    - CCI-000381
+  block:
+    - name: "RHEL-10-701120 | Check tipc install rule in modprobe"
+      ansible.builtin.command:
+        cmd: grep -rs 'install tipc /bin/false' /etc/modprobe.conf /etc/modprobe.d/
+      register: rhel_10_701120_install_check
+      changed_when: false
+      failed_when: false
+
+    - name: "RHEL-10-701120 | Check tipc blacklist rule in modprobe"
+      ansible.builtin.command:
+        cmd: grep -rs 'blacklist tipc' /etc/modprobe.conf /etc/modprobe.d/
+      register: rhel_10_701120_blacklist_check
+      changed_when: false
+      failed_when: false
+
+    - name: "RHEL-10-701120 | Set tipc install rule in /etc/modprobe.d/tipc.conf"
+      ansible.builtin.lineinfile:
+        path: /etc/modprobe.d/tipc.conf
+        line: 'install tipc /bin/false'
+        state: present
+        create: true
+        mode: '0644'
+        owner: root
+        group: root
+      when: rhel_10_701120_install_check.rc != 0
+
+    - name: "RHEL-10-701120 | Set tipc blacklist rule in /etc/modprobe.d/tipc.conf"
+      ansible.builtin.lineinfile:
+        path: /etc/modprobe.d/tipc.conf
+        line: 'blacklist tipc'
+        state: present
+        create: true
+        mode: '0644'
+        owner: root
+        group: root
+      when: rhel_10_701120_blacklist_check.rc != 0
+
+    - name: "RHEL-10-701120 | Re-check tipc configuration in modprobe"
+      ansible.builtin.command:
+        cmd: grep -rs 'tipc' /etc/modprobe.conf /etc/modprobe.d/
+      register: rhel_10_701120_verify
+      changed_when: false
+      failed_when: false
+
+    - name: "RHEL-10-701120 | Assert tipc is disabled in modprobe"
+      ansible.builtin.assert:
+        that:
+          - "'install tipc /bin/false' in rhel_10_701120_verify.stdout"
+          - "'blacklist tipc' in rhel_10_701120_verify.stdout"
+        fail_msg: "result=FAIL stig_id=RHEL-10-701120 detail=tipc is not fully disabled in modprobe (install and/or blacklist missing)."
+        success_msg: "result=PASS stig_id=RHEL-10-701120 detail=tipc is disabled via modprobe install and blacklist rules."
+
+  rescue:
+    - name: "RHEL-10-701120 | RESCUE - record failure and continue"
+      ansible.builtin.debug:
+        msg: "result=ERROR stig_id=RHEL-10-701120 detail=Task failed unexpectedly — see prior error for details."

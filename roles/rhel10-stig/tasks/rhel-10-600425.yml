@@ -1,0 +1,88 @@
+---
+# =============================================================================
+# STIG ID  : RHEL-10-600425
+# Rule ID  : SV-281197r1166543_rule
+# Severity : medium
+# CCI      : CCI-002238
+# Title    : RHEL 10 must maintain an account lock until the locked account is released by an administrator.
+#
+# Description:
+#   By limiting the number of failed login attempts, the risk of unauthorized
+#   system access via user password guessing, otherwise known as
+#   brute-forcing, is reduced. Limits are imposed by locking the account.
+#   Satisfies: SRG-OS-000329-GPOS-00128, SRG-OS-000021-GPOS-00005
+#
+# Check Text:
+#   Verify RHEL 10 is configured to lock an account after three unsuccessful
+#   login attempts until released by an administrator with the following
+#   command:
+#
+#   $ sudo grep 'unlock_time =' /etc/security/faillock.conf
+#   unlock_time = 0
+#
+#   If the "unlock_time" option is not set to "0", or the line is missing or
+#   commented out, this is a finding.
+#
+# Fix Text:
+#   Configure RHEL 10 to lock an account after three unsuccessful login
+#   attempts until released by an administrator with the following command:
+#
+#   $ authselect enable-feature with-faillock
+#
+#   Edit the "/etc/security/faillock.conf" file as follows:
+#
+#   unlock_time = 0
+# =============================================================================
+
+- name: "RHEL-10-600425 | RHEL 10 must maintain an account lock until the locked account is released by an administrator."
+  when: rhel_10_600425 | bool
+  tags:
+    - RHEL-10-600425
+    - medium
+    - CCI-002238
+  block:
+    - name: "RHEL-10-600425 | Check unlock_time in /etc/security/faillock.conf"
+      ansible.builtin.command:
+        cmd: grep "unlock_time" /etc/security/faillock.conf
+      register: rhel_10_600425_check
+      changed_when: false
+      failed_when: false
+
+    - name: "RHEL-10-600425 | Backup /etc/security/faillock.conf before modification"
+      ansible.builtin.copy:
+        src: /etc/security/faillock.conf
+        dest: "/etc/security/faillock.conf.bak.{{ ansible_date_time.epoch }}"
+        remote_src: true
+        mode: preserve
+      when: >
+        rhel_10_600425_check.rc != 0 or
+        rhel_10_600425_check.stdout | regex_search('unlock_time\s*=\s*0') is none
+
+    - name: "RHEL-10-600425 | Set unlock_time = 0 in /etc/security/faillock.conf"
+      ansible.builtin.lineinfile:
+        path: /etc/security/faillock.conf
+        regexp: '^#?\s*unlock_time\s*='
+        line: 'unlock_time = 0'
+        state: present
+      when: >
+        rhel_10_600425_check.rc != 0 or
+        rhel_10_600425_check.stdout | regex_search('unlock_time\s*=\s*0') is none
+
+    - name: "RHEL-10-600425 | Re-check unlock_time"
+      ansible.builtin.command:
+        cmd: grep "unlock_time" /etc/security/faillock.conf
+      register: rhel_10_600425_verify
+      changed_when: false
+      failed_when: false
+
+    - name: "RHEL-10-600425 | Assert unlock_time is set to 0"
+      ansible.builtin.assert:
+        that:
+          - rhel_10_600425_verify.rc == 0
+          - rhel_10_600425_verify.stdout | regex_search('unlock_time\s*=\s*0') is not none
+        fail_msg: "result=FAIL stig_id=RHEL-10-600425 detail=unlock_time is not set to 0 in /etc/security/faillock.conf (current={{ rhel_10_600425_verify.stdout | trim }})."
+        success_msg: "result=PASS stig_id=RHEL-10-600425 detail=unlock_time is set to 0 (admin unlock required) in /etc/security/faillock.conf."
+  rescue:
+    - name: "RHEL-10-600425 | RESCUE - record failure and continue"
+      ansible.builtin.debug:
+        msg: "result=ERROR stig_id=RHEL-10-600425 detail=Task failed unexpectedly — see prior error for details."

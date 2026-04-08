@@ -1,0 +1,97 @@
+---
+# =============================================================================
+# STIG ID  : RHEL-10-701200
+# Rule ID  : SV-281322r1167116_rule
+# Severity : medium
+# CCI      : CCI-001665
+# Title    : RHEL 10 must disable the kdump service.
+#
+# Description:
+#   Kernel core dumps may contain the full contents of system memory at the
+#   time of the crash. Kernel core dumps consume a considerable amount of
+#   disk space and may result in denial of service by exhausting the
+#   available space on the target file system partition. Unless the system is
+#   used for kernel development or testing, there is little need to run the
+#   kdump service.
+#
+# Check Text:
+#   Verify RHEL 10 disables the kdump service in system boot configuration
+#   with the following command:
+#
+#   $ sudo systemctl is-enabled kdump
+#   masked
+#
+#   Verify the kdump service is not active (i.e., not running) through
+#   current runtime configuration with the following command:
+#
+#   $ sudo systemctl is-active kdump
+#   failed
+#
+#   Verify the kdump service is masked with the following command:
+#
+#   $ sudo systemctl show kdump | grep "LoadState\|UnitFileState"
+#   LoadState=masked
+#   UnitFileState=masked
+#
+#   If the "kdump" service is loaded or active and is not masked, this is a
+#   finding.
+#
+# Fix Text:
+#   Configure RHEL 10 to disable and mask the kdump service.
+#
+#   To disable the kdump service, run the following command:
+#
+#   $ sudo systemctl disable --now kdump
+#   Removed '/etc/systemd/system/multi-user.target.wants/kdump.service'.
+#
+#   To mask the kdump service, run the following command:
+#
+#   $ sudo systemctl mask --now kdump
+#   Created symlink '/etc/systemd/system/kdump.service' ? '/dev/null'.
+# =============================================================================
+
+- name: "RHEL-10-701200 | RHEL 10 must disable the kdump service."
+  when: rhel_10_701200 | bool
+  tags:
+    - RHEL-10-701200
+    - medium
+    - CCI-001665
+  block:
+    - name: "RHEL-10-701200 | Check if kdump service is installed and its state"
+      ansible.builtin.command:
+        cmd: systemctl is-enabled kdump
+      register: rhel_10_701200_check
+      changed_when: false
+      failed_when: false
+
+    - name: "RHEL-10-701200 | Disable and mask kdump service"
+      ansible.builtin.systemd:
+        name: kdump
+        enabled: false
+        masked: true
+        state: stopped
+      when:
+        - rhel_10_701200_check.rc == 0 or rhel_10_701200_check.stdout | trim not in ['masked', 'not-found', '']
+        - rhel_10_701200_check.stdout | trim != 'masked'
+      failed_when: false
+
+    - name: "RHEL-10-701200 | Re-check kdump service state"
+      ansible.builtin.command:
+        cmd: systemctl is-enabled kdump
+      register: rhel_10_701200_verify
+      changed_when: false
+      failed_when: false
+
+    - name: "RHEL-10-701200 | Assert kdump is masked or not installed"
+      ansible.builtin.assert:
+        that: >
+          rhel_10_701200_verify.stdout | trim == 'masked' or
+          rhel_10_701200_verify.stdout | trim == 'not-found' or
+          rhel_10_701200_verify.rc == 4
+        fail_msg: "result=FAIL stig_id=RHEL-10-701200 detail=kdump service is not masked (state={{ rhel_10_701200_verify.stdout | trim }})."
+        success_msg: "result=PASS stig_id=RHEL-10-701200 detail=kdump service is masked or not installed (state={{ rhel_10_701200_verify.stdout | trim }})."
+
+  rescue:
+    - name: "RHEL-10-701200 | RESCUE - record failure and continue"
+      ansible.builtin.debug:
+        msg: "result=ERROR stig_id=RHEL-10-701200 detail=Task failed unexpectedly — see prior error for details."

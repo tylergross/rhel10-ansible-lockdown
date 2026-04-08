@@ -1,0 +1,96 @@
+---
+# =============================================================================
+# STIG ID  : RHEL-10-400310
+# Rule ID  : SV-281079r1165592_rule
+# Severity : medium
+# CCI      : CCI-000213
+# Title    : RHEL 10 must set the umask value to "077" for all local interactive user accounts.
+#
+# Description:
+#   The umask controls the default access mode assigned to newly created
+#   files. A umask of "077" limits new files to mode 600 or less permissive.
+#   Although umask can be represented as a four-digit number, the first digit
+#   representing special access modes is typically ignored or required to be
+#   "0". This requirement applies to the globally configured system defaults
+#   and the local interactive user defaults for each account on the system.
+#
+# Check Text:
+#   Verify RHEL 10 sets the default umask for all local interactive users to
+#   "077".
+#
+#   Identify the locations of all local interactive user home directories by
+#   looking at the "/etc/passwd" file.
+#
+#   Check all local interactive user initialization files for interactive
+#   users with the following command:
+#
+#   Note: The example is for a system that is configured to create users'
+#   home directories in the "/home" directory.
+#
+#   $ sudo find /home -maxdepth 2 -type f -name ".[^.]*" -exec grep -iH -d
+#   skip --exclude=.bash_history umask {} \;
+#   /home/disauser/.bash_history:grep -i umask /etc/bashrc /etc/csh.cshrc
+#   /etc/profile
+#   /home/disauser/.bash_history:grep -i umask /etc/login.defs
+#
+#   If any local interactive user initialization files are found to have a
+#   umask statement that sets a value less restrictive than "077", this is a
+#   finding.
+#
+# Fix Text:
+#   Configure RHEL 10 to set the umask value for all local interactive user
+#   accounts to "077".
+#
+#   Remove the umask statement from all local interactive users'
+#   initialization files.
+#
+#   If the account is for an application, the requirement for a umask less
+#   restrictive than "077" can be documented with the information system
+#   security officer. However, the user agreement for access to the account
+#   must specify that the local interactive user must log in to their account
+#   first and then switch the user to the application account with the
+#   correct option to gain the account's environment variables.
+# =============================================================================
+
+- name: "RHEL-10-400310 | RHEL 10 must set the umask value to 077 for all local interactive user accounts."
+  when: rhel_10_400310 | bool
+  tags:
+    - RHEL-10-400310
+    - medium
+    - CCI-000213
+  block:
+    - name: "RHEL-10-400310 | Find local user init files with umask less restrictive than 077"
+      ansible.builtin.shell:
+        cmd: >
+          find /home -maxdepth 2 -type f -name ".[^.]*" -exec grep -lEi 'umask\s+[0-7]*[1-7][0-7]|umask\s+0[0-6][0-7][0-7]' {} \;
+      register: rhel_10_400310_check
+      changed_when: false
+      failed_when: false
+
+    - name: "RHEL-10-400310 | Remove or comment out overly permissive umask lines from user init files"
+      ansible.builtin.replace:
+        path: "{{ item }}"
+        regexp: '^(\s*umask\s+(?!077\b)(?![0-7]*[1-7]{1}[0-7]{0}$))\s*\d+\s*$'
+        replace: '# umask setting removed by STIG RHEL-10-400310 — use system default (077)'
+      loop: "{{ rhel_10_400310_check.stdout_lines }}"
+      when: rhel_10_400310_check.stdout_lines | length > 0
+
+    - name: "RHEL-10-400310 | Re-check for overly permissive umask in user init files"
+      ansible.builtin.shell:
+        cmd: >
+          find /home -maxdepth 2 -type f -name ".[^.]*" -exec grep -lEi 'umask\s+[0-7]*[1-7][0-7]|umask\s+0[0-6][0-7][0-7]' {} \;
+      register: rhel_10_400310_verify
+      changed_when: false
+      failed_when: false
+
+    - name: "RHEL-10-400310 | Assert no local user init files set umask less restrictive than 077"
+      ansible.builtin.assert:
+        that:
+          - rhel_10_400310_verify.stdout_lines | length == 0
+        fail_msg: "result=FAIL stig_id=RHEL-10-400310 detail=User init files with umask less restrictive than 077 found: {{ rhel_10_400310_verify.stdout_lines | join(', ') }}."
+        success_msg: "result=PASS stig_id=RHEL-10-400310 detail=No local user init files set a umask less restrictive than 077."
+
+  rescue:
+    - name: "RHEL-10-400310 | RESCUE - record failure and continue"
+      ansible.builtin.debug:
+        msg: "result=ERROR stig_id=RHEL-10-400310 detail=Task failed unexpectedly — see prior error for details."

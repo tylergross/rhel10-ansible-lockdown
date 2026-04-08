@@ -1,0 +1,78 @@
+---
+# =============================================================================
+# STIG ID  : RHEL-10-800190
+# Rule ID  : SV-281351r1184698_rule
+# Severity : medium
+# CCI      : CCI-002385
+# Title    : RHEL 10 must not send Internet Control Message Protocol (ICMP) redirects.
+#
+# Description:
+#   ICMP redirect messages are used by routers to inform hosts that a more
+#   direct route exists for a particular destination. These messages contain
+#   information from the system's route table, possibly revealing portions of
+#   the network topology. The ability to send ICMP redirects is only
+#   appropriate for systems acting as routers. Satisfies:
+#   SRG-OS-000420-GPOS-00186, SRG-OS-000142-GPOS-00082
+#
+# Check Text:
+#   Verify RHEL 10 does not send IPv4 ICMP redirect messages.
+#
+#   Check the value of the "net.ipv4.conf.all.send_redirects" variables with
+#   the following command:
+#
+#   $ sudo sysctl net.ipv4.conf.all.send_redirects
+#   net.ipv4.conf.all.send_redirects = 0
+#
+#   If "net.ipv4.conf.all.send_redirects" is not set to "0" and is not
+#   documented with the information system security officer as an operational
+#   requirement or is missing, this is a finding.
+#
+# Fix Text:
+#   Configure RHEL 10 to not send IPv4 ICMP redirect messages.
+#
+#   Create a configuration file if it does not already exist:
+#
+#   $ sudo vi /etc/sysctl.d/ipv4_send_redirects.conf
+#
+#   Add the following line to the file:
+#
+#   net.ipv4.conf.all.send_redirects = 0
+#
+#   Reload settings from all system configuration files with the following
+#   command:
+#
+#   $ sudo sysctl --system
+# =============================================================================
+
+- name: "RHEL-10-800190 | RHEL 10 must not send Internet Control Message Protocol (ICMP) redirects."
+  when: rhel_10_800190 | bool
+  tags:
+    - RHEL-10-800190
+    - medium
+    - CCI-002385
+  block:
+    - name: "RHEL-10-800190 | Set sysctl net.ipv4.conf.all.send_redirects = 0"
+      ansible.posix.sysctl:
+        name: net.ipv4.conf.all.send_redirects
+        value: '0'
+        state: present
+        reload: true
+        sysctl_file: /etc/sysctl.d/rhel10-stig.conf
+
+    - name: "RHEL-10-800190 | Verify net.ipv4.conf.all.send_redirects"
+      ansible.builtin.command:
+        cmd: sysctl net.ipv4.conf.all.send_redirects
+      register: rhel_10_800190_sysctl
+      changed_when: false
+      failed_when: false
+
+    - name: "RHEL-10-800190 | Assert net.ipv4.conf.all.send_redirects = 0"
+      ansible.builtin.assert:
+        that: "'= 0' in rhel_10_800190_sysctl.stdout"
+        fail_msg: "result=FAIL stig_id=RHEL-10-800190 detail=net.ipv4.conf.all.send_redirects is not set to 0 (output={{ rhel_10_800190_sysctl.stdout | trim }})."
+        success_msg: "result=PASS stig_id=RHEL-10-800190 detail=net.ipv4.conf.all.send_redirects is set to 0."
+
+  rescue:
+    - name: "RHEL-10-800190 | RESCUE - record failure and continue"
+      ansible.builtin.debug:
+        msg: "result=ERROR stig_id=RHEL-10-800190 detail=Task failed unexpectedly — see prior error for details."

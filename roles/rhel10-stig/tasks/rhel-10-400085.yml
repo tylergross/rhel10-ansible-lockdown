@@ -1,0 +1,70 @@
+---
+# =============================================================================
+# STIG ID  : RHEL-10-400085
+# Rule ID  : SV-281034r1165457_rule
+# Severity : medium
+# CCI      : CCI-001314
+# Title    : RHEL 10 must be configured so that the "/var/log" directory is group-owned by "root".
+#
+# Description:
+#   Only authorized personnel should be aware of errors and the details of
+#   the errors. Error messages are an indicator of an organization's
+#   operational state or can identify the RHEL 10 system or platform.
+#   Additionally, personally identifiable information (PII) and operational
+#   information must not be revealed through error messages to unauthorized
+#   personnel or their designated representatives. The structure and content
+#   of error messages must be carefully considered by the organization and
+#   development team. The extent to which the information system is able to
+#   identify and handle error conditions is guided by organizational policy
+#   and operational requirements.
+#
+# Check Text:
+#   Verify RHEL 10 is configured so that the "/var/log" directory is
+#   group-owned by "root" with the following command:
+#
+#   $ stat -c "%G %n" /var/log
+#   root /var/log
+#
+#   If "/var/log" does not have a group owner of "root", this is a finding.
+#
+# Fix Text:
+#   Configure RHEL 10 so that the group owner of the directory "/var/log" is
+#   set to "root" by running the following command:
+#
+#   $ sudo chgrp root /var/log
+# =============================================================================
+
+- name: "RHEL-10-400085 | RHEL 10 must be configured so that the /var/log directory is group-owned by root."
+  when: rhel_10_400085 | bool
+  tags:
+    - RHEL-10-400085
+    - medium
+    - CCI-001314
+  block:
+    - name: "RHEL-10-400085 | Check group owner of /var/log"
+      ansible.builtin.stat:
+        path: /var/log
+      register: rhel_10_400085_stat
+
+    - name: "RHEL-10-400085 | Set correct group owner on /var/log"
+      ansible.builtin.file:
+        path: /var/log
+        group: root
+      when: rhel_10_400085_stat.stat.gr_name != 'root'
+
+    - name: "RHEL-10-400085 | Re-check group owner of /var/log"
+      ansible.builtin.stat:
+        path: /var/log
+      register: rhel_10_400085_verify
+
+    - name: "RHEL-10-400085 | Assert correct group owner on /var/log"
+      ansible.builtin.assert:
+        that:
+          - rhel_10_400085_verify.stat.gr_name == 'root'
+        fail_msg: "result=FAIL stig_id=RHEL-10-400085 detail=/var/log is not group-owned by root (group={{ rhel_10_400085_verify.stat.gr_name }})."
+        success_msg: "result=PASS stig_id=RHEL-10-400085 detail=/var/log is group-owned by root."
+
+  rescue:
+    - name: "RHEL-10-400085 | RESCUE - record failure and continue"
+      ansible.builtin.debug:
+        msg: "result=ERROR stig_id=RHEL-10-400085 detail=Task failed unexpectedly — see prior error for details."

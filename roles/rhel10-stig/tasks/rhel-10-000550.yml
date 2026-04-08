@@ -1,0 +1,54 @@
+---
+# =============================================================================
+# STIG ID  : RHEL-10-000550
+# Rule ID  : SV-280939r1184729_rule
+# Severity : medium
+# CCI      : CCI-002385
+# Title    : RHEL 10 must use a separate file system for "/var".
+#
+# Description:
+#   Ensuring that "/var" is mounted on its own partition enables the setting
+#   of more restrictive mount options. This helps protect system services
+#   such as daemons or other programs that use it. It is not uncommon for the
+#   "/var" directory to contain world-writable directories installed by other
+#   software packages.
+#
+# Check Text:
+#   Verify RHEL 10 uses a separate file system/partition for "/var" with the
+#   following command:
+#
+#   $ mount | grep /var
+#   /dev/mapper/luks-51150299-f295-4145-b8f0-ebe9c6dfd5a0 on /var type xfs
+#   (rw,nodev,relatime,seclabel,attr2)
+#   Note: Options displayed for mount may differ.
+#
+#   If a separate entry for "/var" is not in use, this is a finding.
+#
+# Fix Text:
+#   Configure RHEL 10 to use a separate file system for the "/var" directory
+#   by migrating the "/var" path onto a separate file system.
+# =============================================================================
+
+- name: "RHEL-10-000550 | RHEL 10 must use a separate file system for /var."
+  when: rhel_10_000550 | bool
+  tags:
+    - RHEL-10-000550
+    - medium
+    - CCI-002385
+  block:
+    - name: "RHEL-10-000550 | Check /var is a distinct mountpoint"
+      ansible.builtin.command: findmnt --noheadings --mountpoint /var
+      register: rhel_10_000550_findmnt
+      changed_when: false
+      failed_when: false
+
+    - name: "RHEL-10-000550 | Assert /var is on a separate filesystem"
+      ansible.builtin.assert:
+        that: rhel_10_000550_findmnt.rc == 0
+        fail_msg: "result=FAIL stig_id=RHEL-10-000550 detail=/var is not mounted on a separate filesystem. Remediation requires migrating /var to a dedicated partition (typically requires offline partition work or a system reinstall)."
+        success_msg: "result=PASS stig_id=RHEL-10-000550 detail=/var is on a separate filesystem."
+
+  rescue:
+    - name: "RHEL-10-000550 | RESCUE - record failure and continue"
+      ansible.builtin.debug:
+        msg: "result=ERROR stig_id=RHEL-10-000550 detail=Task failed unexpectedly — see prior error for details."

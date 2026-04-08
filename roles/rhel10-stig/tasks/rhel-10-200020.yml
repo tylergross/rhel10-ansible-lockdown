@@ -1,0 +1,65 @@
+---
+# =============================================================================
+# STIG ID  : RHEL-10-200020
+# Rule ID  : SV-280944r1184749_rule
+# Severity : high
+# CCI      : CCI-000381
+# Title    : RHEL 10 must not have the "telnet-server" package installed.
+#
+# Description:
+#   It is detrimental for operating systems to provide, or install by
+#   default, functionality exceeding requirements or mission objectives.
+#   These unnecessary capabilities are often overlooked and therefore, may
+#   remain unsecure. They increase the risk to the platform by providing
+#   additional attack vectors. The telnet service provides an unencrypted
+#   remote access service, which does not provide for the confidentiality and
+#   integrity of user passwords or the remote session. If a privileged user
+#   were to log in using this service, the privileged user password could be
+#   compromised. Removing the "telnet-server" package decreases the risk of
+#   accidental (or intentional) activation of the telnet service.
+#
+# Check Text:
+#   Verify RHEL 10 does not have the "telnet-server" package installed with
+#   the following command:
+#
+#   $ sudo dnf list --installed telnet-server
+#   Error: No matching Packages to list
+#
+#   If the "telnet-server" package is installed, this is a finding.
+#
+# Fix Text:
+#   Configure RHEL 10 to not have the "telnet-server" package installed with
+#   the following command:
+#
+#   $ sudo dnf -y remove telnet-server
+# =============================================================================
+
+- name: "RHEL-10-200020 | RHEL 10 must not have the telnet-server package installed."
+  when: rhel_10_200020 | bool
+  tags:
+    - RHEL-10-200020
+    - high
+    - CCI-000381
+  block:
+    - name: "RHEL-10-200020 | Remove telnet-server if installed"
+      ansible.builtin.package:
+        name: telnet-server
+        state: absent
+
+    - name: "RHEL-10-200020 | Verify telnet-server is not installed"
+      ansible.builtin.command: rpm -q telnet-server
+      register: rhel_10_200020_check
+      changed_when: false
+      failed_when: false
+
+    - name: "RHEL-10-200020 | Assert telnet-server is not installed"
+      ansible.builtin.assert:
+        that: rhel_10_200020_check.rc != 0
+        fail_msg: >-
+          result=FAIL stig_id=RHEL-10-200020
+          detail=Package telnet-server is still installed. Remove with: dnf -y remove telnet-server
+        success_msg: "result=PASS stig_id=RHEL-10-200020 detail=Package telnet-server is not installed."
+  rescue:
+    - name: "RHEL-10-200020 | RESCUE - record failure and continue"
+      ansible.builtin.debug:
+        msg: "result=ERROR stig_id=RHEL-10-200020 detail=Task failed unexpectedly — see prior error for details."

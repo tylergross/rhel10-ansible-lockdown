@@ -1,0 +1,74 @@
+---
+# =============================================================================
+# STIG ID  : RHEL-10-200634
+# Rule ID  : SV-280981r1165298_rule
+# Severity : medium
+# CCI      : CCI-002475
+# Title    : RHEL 10 must be configured so that the file integrity tool verifies Access Control Lists (ACLs).
+#
+# Description:
+#   RHEL 10 installation media ships with an optional file integrity tool
+#   called Advanced Intrusion Detection Environment (AIDE). AIDE is highly
+#   configurable at install time. This requirement assumes the "aide.conf"
+#   file is under the "/etc" directory. ACLs can provide permissions beyond
+#   those permitted through the file mode and must be verified by the file
+#   integrity tools.
+#
+# Check Text:
+#   Verify RHEL 10 AIDE is verifying ACLs.
+#
+#   Verify ACL settings for all uncommented file and directory selection
+#   lists with the following command:
+#
+#   $ sudo grep -E '^[^#]*acl' /etc/aide.conf
+#   FIPSR = p+i+n+u+g+s+m+growing+acl+selinux+xattrs+sha512
+#   /usr/sbin/auditctl p+i+n+u+g+s+b+acl+xattrs+sha512
+#   /usr/sbin/auditd p+i+n+u+g+s+b+acl+xattrs+sha512
+#   /usr/sbin/ausearch p+i+n+u+g+s+b+acl+xattrs+sha512
+#   /usr/sbin/aureport p+i+n+u+g+s+b+acl+xattrs+sha512
+#   /usr/sbin/augenrules p+i+n+u+g+s+b+acl+xattrs+sha512
+#   DIR = p+i+n+u+g+acl+selinux+xattrs
+#   PERMS = p+i+u+g+acl+selinux
+#
+#   Open the file and verify no additional uncommented file and directory
+#   selection lines are missing the "acl" rule.
+#
+#   If the "acl" rule is not being used on all uncommented selection lines in
+#   the "/etc/aide.conf" file, or ACLs are not being checked by another file
+#   integrity tool, this is a finding.
+#
+# Fix Text:
+#   Configure RHEL 10 so that the file integrity tool checks file and
+#   directory ACLs.
+#
+#   If AIDE is installed, ensure the "acl" rule is present on all uncommented
+#   file and directory selection lists.
+# =============================================================================
+
+- name: "RHEL-10-200634 | RHEL 10 must be configured so that the file integrity tool verifies Access Control Lists (ACLs)."
+  when: rhel_10_200634 | bool
+  tags:
+    - RHEL-10-200634
+    - medium
+    - CCI-002475
+  block:
+    - name: "RHEL-10-200634 | Check aide.conf for ACL rule"
+      ansible.builtin.shell: grep -E '^[^#]*acl' /etc/aide.conf
+      register: rhel_10_200634_check
+      changed_when: false
+      failed_when: false
+
+    - name: "RHEL-10-200634 | Assert ACL rule is present in aide.conf"
+      ansible.builtin.assert:
+        that:
+          - rhel_10_200634_check.rc == 0
+          - rhel_10_200634_check.stdout | trim != ''
+        fail_msg: >-
+          result=FAIL stig_id=RHEL-10-200634
+          detail=No uncommented ACL rule found in /etc/aide.conf.
+          Ensure all selection lines include the 'acl' attribute.
+        success_msg: "result=PASS stig_id=RHEL-10-200634 detail=ACL rule is present in /etc/aide.conf."
+  rescue:
+    - name: "RHEL-10-200634 | RESCUE - record failure and continue"
+      ansible.builtin.debug:
+        msg: "result=ERROR stig_id=RHEL-10-200634 detail=Task failed unexpectedly — see prior error for details."

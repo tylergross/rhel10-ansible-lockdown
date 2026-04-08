@@ -1,0 +1,58 @@
+---
+# =============================================================================
+# STIG ID  : RHEL-10-600460
+# Rule ID  : SV-281201r1166555_rule
+# Severity : medium
+# CCI      : CCI-004066
+# Title    : RHEL 10 must not have accounts configured with blank or null passwords.
+#
+# Description:
+#   If an account has an empty password, anyone could log in and run commands
+#   with the privileges of that account. Accounts with empty passwords should
+#   never be used in operational environments.
+#
+# Check Text:
+#   Verify RHEL 10 prohibits null or blank passwords with the following
+#   command:
+#
+#   $ sudo awk -F: '!$2 {print $1}' /etc/shadow
+#
+#   If the command returns any results, this is a finding.
+#
+# Fix Text:
+#   Configure RHEL 10 so that all accounts have a password, or lock the
+#   account with the following commands:
+#
+#   Perform a password reset:
+#
+#   $ sudo passwd [username]
+#
+#   To lock an account:
+#
+#   $ sudo passwd -l [username]
+# =============================================================================
+
+- name: "RHEL-10-600460 | RHEL 10 must not have accounts configured with blank or null passwords."
+  when: rhel_10_600460 | bool
+  tags:
+    - RHEL-10-600460
+    - medium
+    - CCI-004066
+  block:
+    - name: "RHEL-10-600460 | Find accounts with blank or null passwords in /etc/shadow"
+      ansible.builtin.shell:
+        cmd: awk -F':' '!$2 {print $1}' /etc/shadow
+      register: rhel_10_600460_check
+      changed_when: false
+      failed_when: false
+
+    - name: "RHEL-10-600460 | Assert no accounts have blank or null passwords"
+      ansible.builtin.assert:
+        that:
+          - rhel_10_600460_check.stdout_lines | length == 0
+        fail_msg: "result=FAIL stig_id=RHEL-10-600460 detail=Account(s) with blank or null passwords detected in /etc/shadow ({{ rhel_10_600460_check.stdout | trim }}). Set a password or lock these accounts."
+        success_msg: "result=PASS stig_id=RHEL-10-600460 detail=No accounts have blank or null passwords in /etc/shadow."
+  rescue:
+    - name: "RHEL-10-600460 | RESCUE - record failure and continue"
+      ansible.builtin.debug:
+        msg: "result=ERROR stig_id=RHEL-10-600460 detail=Task failed unexpectedly — see prior error for details."

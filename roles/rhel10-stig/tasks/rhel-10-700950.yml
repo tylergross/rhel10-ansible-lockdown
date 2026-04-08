@@ -1,0 +1,97 @@
+---
+# =============================================================================
+# STIG ID  : RHEL-10-700950
+# Rule ID  : SV-281298r1166846_rule
+# Severity : high
+# CCI      : CCI-002235
+# Title    : RHEL 10 must disable the systemd Ctrl-Alt-Delete burst key sequence.
+#
+# Description:
+#   A locally logged-on user who presses Ctrl-Alt-Delete when at the console
+#   can reboot the system. If accidentally pressed, as could happen in the
+#   case of a mixed operating system environment, this can create the risk of
+#   short-term loss of availability of systems due to unintentional reboot.
+#   In a graphical user environment, risk of unintentional reboot from the
+#   Ctrl-Alt-Delete sequence is reduced because the user will be prompted
+#   before any action is taken.
+#
+# Check Text:
+#   Verify RHEL 10 is configured to not reboot the system when
+#   Ctrl-Alt-Delete is pressed seven times within two seconds with the
+#   following command:
+#
+#   $ grep -iR CtrlAltDelBurstAction /etc/systemd/
+#   /etc/systemd/system.conf:CtrlAltDelBurstAction=none
+#
+#   If the "CtrlAltDelBurstAction" is not set to "none", is commented out, or
+#   is missing, this is a finding.
+#
+# Fix Text:
+#   Configure RHEL 10 to disable the "CtrlAltDelBurstAction".
+#
+#   Update the "/etc/systemd/system.conf" configuration file as follows:
+#
+#   $ sudo vi /etc/systemd/system.conf
+#
+#   CtrlAltDelBurstAction=none
+#
+#   Reload the daemon for this change to take effect:
+#
+#   $ sudo systemctl daemon-reload
+# =============================================================================
+
+- name: "RHEL-10-700950 | RHEL 10 must disable the systemd Ctrl-Alt-Delete burst key sequence."
+  when: rhel_10_700950 | bool
+  tags:
+    - RHEL-10-700950
+    - high
+    - CCI-002235
+  block:
+    - name: "RHEL-10-700950 | Check CtrlAltDelBurstAction in /etc/systemd/system.conf"
+      ansible.builtin.command:
+        cmd: grep -iR CtrlAltDelBurstAction /etc/systemd/
+      register: rhel_10_700950_check
+      changed_when: false
+      failed_when: false
+
+    - name: "RHEL-10-700950 | Backup /etc/systemd/system.conf before modification"
+      ansible.builtin.copy:
+        src: /etc/systemd/system.conf
+        dest: "/etc/systemd/system.conf.bak.{{ ansible_date_time.iso8601_basic_short }}"
+        remote_src: true
+        mode: '0644'
+        owner: root
+        group: root
+      when: "'CtrlAltDelBurstAction=none' not in rhel_10_700950_check.stdout"
+
+    - name: "RHEL-10-700950 | Set CtrlAltDelBurstAction to none in /etc/systemd/system.conf"
+      ansible.builtin.lineinfile:
+        path: /etc/systemd/system.conf
+        regexp: '^#?CtrlAltDelBurstAction'
+        line: 'CtrlAltDelBurstAction=none'
+        state: present
+      when: "'CtrlAltDelBurstAction=none' not in rhel_10_700950_check.stdout"
+
+    - name: "RHEL-10-700950 | Reload systemd daemon"
+      ansible.builtin.command:
+        cmd: systemctl daemon-reload
+      when: "'CtrlAltDelBurstAction=none' not in rhel_10_700950_check.stdout"
+      changed_when: true
+
+    - name: "RHEL-10-700950 | Re-check CtrlAltDelBurstAction in systemd config"
+      ansible.builtin.command:
+        cmd: grep -iR CtrlAltDelBurstAction /etc/systemd/
+      register: rhel_10_700950_verify
+      changed_when: false
+      failed_when: false
+
+    - name: "RHEL-10-700950 | Assert CtrlAltDelBurstAction is set to none"
+      ansible.builtin.assert:
+        that: "'CtrlAltDelBurstAction=none' in rhel_10_700950_verify.stdout"
+        fail_msg: "result=FAIL stig_id=RHEL-10-700950 detail=CtrlAltDelBurstAction is not set to none in /etc/systemd/system.conf."
+        success_msg: "result=PASS stig_id=RHEL-10-700950 detail=CtrlAltDelBurstAction is set to none in /etc/systemd/system.conf."
+
+  rescue:
+    - name: "RHEL-10-700950 | RESCUE - record failure and continue"
+      ansible.builtin.debug:
+        msg: "result=ERROR stig_id=RHEL-10-700950 detail=Task failed unexpectedly — see prior error for details."

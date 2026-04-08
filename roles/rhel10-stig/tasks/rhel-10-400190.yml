@@ -1,0 +1,93 @@
+---
+# =============================================================================
+# STIG ID  : RHEL-10-400190
+# Rule ID  : SV-281055r1165520_rule
+# Severity : medium
+# CCI      : CCI-000162
+# Title    : RHEL 10 must enforce the audit log directory to have a mode of "0750" or less permissive to prevent unauthorized read access.
+#
+# Description:
+#   If users can write to audit logs, audit trails can be modified or
+#   destroyed. Satisfies: SRG-OS-000057-GPOS-00027, SRG-OS-000058-GPOS-00028,
+#   SRG-OS-000059-GPOS-00029
+#
+# Check Text:
+#   Verify RHEL 10 enforces the audit log directory to have a mode of "0750"
+#   or less permissive to prevent unauthorized read access.
+#
+#   Determine where the audit logs are stored with the following command:
+#
+#   $ sudo grep "^log_file" /etc/audit/auditd.conf
+#   log_file = /var/log/audit/audit.log
+#
+#   Find the group that owns audit logs:
+#
+#   $ sudo grep "^log_group" /etc/audit/auditd.conf
+#   log_group = root
+#
+#   Run the following command to check the mode of the system audit logs:
+#
+#   $ sudo stat -c "%a %n" [audit_log_directory]
+#
+#   Replace "[audit_log_directory]" to the correct audit log directory path;
+#   by default this location is "/var/log/audit".
+#
+#   If the log_group is "root" or is not set, the correct permissions are
+#   "0700".
+#
+#   If the log_group is owned by anyone other than "root", the correct
+#   permissions are "0750".
+#
+#   If audit logs have a more permissive mode than is required, this is a
+#   finding.
+#
+# Fix Text:
+#   Configure RHEL 10 so that the audit log directories have a mode of "0750"
+#   or less permissive to prevent unauthorized read access with the following
+#   command:
+#
+#   $ sudo chmod 0700 /var/log/audit
+#
+#   Note: The correct permissions are "0700" if the directory is owned by
+#   "root"; otherwise, the correct permissions are "0750".
+#
+#   Restart the audit daemon with the following command for the changes to
+#   take effect:
+#
+#   $ sudo service auditd restart
+# =============================================================================
+
+- name: "RHEL-10-400190 | RHEL 10 must enforce the audit log directory to have a mode of 0750 or less permissive to prevent unauthorized read access."
+  when: rhel_10_400190 | bool
+  tags:
+    - RHEL-10-400190
+    - medium
+    - CCI-000162
+  block:
+    - name: "RHEL-10-400190 | Check mode of /var/log/audit directory"
+      ansible.builtin.stat:
+        path: /var/log/audit
+      register: rhel_10_400190_stat
+
+    - name: "RHEL-10-400190 | Set mode 0700 on /var/log/audit directory"
+      ansible.builtin.file:
+        path: /var/log/audit
+        mode: '0700'
+      when: rhel_10_400190_stat.stat.mode | int(base=8) > 0o700
+
+    - name: "RHEL-10-400190 | Re-check mode of /var/log/audit directory"
+      ansible.builtin.stat:
+        path: /var/log/audit
+      register: rhel_10_400190_verify
+
+    - name: "RHEL-10-400190 | Assert /var/log/audit has mode 0700 or less permissive"
+      ansible.builtin.assert:
+        that:
+          - rhel_10_400190_verify.stat.mode | int(base=8) <= 0o700
+        fail_msg: "result=FAIL stig_id=RHEL-10-400190 detail=/var/log/audit has mode more permissive than 0700 (mode={{ rhel_10_400190_verify.stat.mode }})."
+        success_msg: "result=PASS stig_id=RHEL-10-400190 detail=/var/log/audit has mode 0700 or less permissive (mode={{ rhel_10_400190_verify.stat.mode }})."
+
+  rescue:
+    - name: "RHEL-10-400190 | RESCUE - record failure and continue"
+      ansible.builtin.debug:
+        msg: "result=ERROR stig_id=RHEL-10-400190 detail=Task failed unexpectedly — see prior error for details."

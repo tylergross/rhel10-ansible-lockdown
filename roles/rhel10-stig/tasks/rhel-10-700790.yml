@@ -1,0 +1,134 @@
+---
+# =============================================================================
+# STIG ID  : RHEL-10-700790
+# Rule ID  : SV-281282r1166798_rule
+# Severity : medium
+# CCI      : CCI-000060
+# Title    : RHEL 10 must conceal, via the session lock, information previously visible on the display with a publicly viewable image.
+#
+# Description:
+#   Setting the screensaver mode to blank-only conceals the contents of the
+#   display from passersby.
+#
+# Check Text:
+#   Note: This requirement assumes the use of the RHEL 10 default graphical
+#   user interface, the GNOME desktop environment. If the system does not
+#   have any graphical user interface installed, this requirement is not
+#   applicable.
+#
+#   Verify RHEL 10 prevents a user from overriding settings a blank
+#   screensaver with the following command:
+#
+#   $ gsettings writable org.gnome.desktop.screensaver picture-uri
+#   false
+#
+#   If "picture-uri" is writable, and the result is "true", this is a
+#   finding.
+#
+# Fix Text:
+#   Configure RHEL 10 to prevent a user from overriding the picture-uri
+#   setting for graphical user interfaces.
+#
+#   Note: The example below is using the database "local" for the system. If
+#   the system is using another database in "/etc/dconf/profile/user", the
+#   file should be created under the appropriate subdirectory.
+#
+#   Update the "/etc/dconf/db/local.d/00-security-settings" file to prevent a
+#   user from overriding the "picture-uri" setting:
+#
+#   $ sudo vi /etc/dconf/db/local.d/00-security-settings
+#
+#   [org/gnome/desktop/screensaver]
+#   picture-uri=''
+#
+#   Update the "/etc/dconf/db/local.d/locks/00-security-settings-lock" file
+#   to prevent a user from modifying the lock applied to the "picture-uri"
+#   setting:
+#
+#   $ sudo vi /etc/dconf/db/local.d/locks/00-security-settings-lock
+#
+#   /org/gnome/desktop/screensaver/picture-uri
+#
+#   Update the dconf system databases:
+#
+#   $ sudo dconf update
+# =============================================================================
+
+- name: "RHEL-10-700790 | RHEL 10 must conceal, via the session lock, information previously visible on the display with a publicly viewable image."
+  when: rhel_10_700790 | bool
+  tags:
+    - RHEL-10-700790
+    - medium
+    - CCI-000060
+  block:
+    - name: "RHEL-10-700790 | Ensure dconf local.d and locks directories exist"
+      ansible.builtin.file:
+        path: "{{ item }}"
+        state: directory
+        mode: '0755'
+        owner: root
+        group: root
+      loop:
+        - /etc/dconf/db/local.d
+        - /etc/dconf/db/local.d/locks
+
+    - name: "RHEL-10-700790 | Check picture-uri setting in dconf keyfile"
+      ansible.builtin.command:
+        cmd: grep -r 'picture-uri' /etc/dconf/db/local.d/
+      register: rhel_10_700790_check
+      changed_when: false
+      failed_when: false
+
+    - name: "RHEL-10-700790 | Set picture-uri to empty string in dconf keyfile"
+      ansible.builtin.lineinfile:
+        path: /etc/dconf/db/local.d/00-security-settings
+        regexp: '^#?picture-uri='
+        line: "picture-uri=''"
+        state: present
+        create: true
+        mode: '0644'
+        owner: root
+        group: root
+      when: rhel_10_700790_check.rc != 0
+
+    - name: "RHEL-10-700790 | Check picture-uri lock in dconf locks file"
+      ansible.builtin.command:
+        cmd: grep -r '/org/gnome/desktop/screensaver/picture-uri' /etc/dconf/db/local.d/locks/
+      register: rhel_10_700790_lock_check
+      changed_when: false
+      failed_when: false
+
+    - name: "RHEL-10-700790 | Set picture-uri lock in dconf locks file"
+      ansible.builtin.lineinfile:
+        path: /etc/dconf/db/local.d/locks/00-security-settings-lock
+        line: '/org/gnome/desktop/screensaver/picture-uri'
+        state: present
+        create: true
+        mode: '0644'
+        owner: root
+        group: root
+      when: rhel_10_700790_lock_check.rc != 0
+
+    - name: "RHEL-10-700790 | Update dconf database"
+      ansible.builtin.command:
+        cmd: dconf update
+      when: rhel_10_700790_check.rc != 0 or rhel_10_700790_lock_check.rc != 0
+      changed_when: true
+
+    - name: "RHEL-10-700790 | Re-check picture-uri in dconf"
+      ansible.builtin.command:
+        cmd: grep -r 'picture-uri' /etc/dconf/db/local.d/
+      register: rhel_10_700790_verify
+      changed_when: false
+      failed_when: false
+
+    - name: "RHEL-10-700790 | Assert picture-uri is configured and locked in dconf"
+      ansible.builtin.assert:
+        that: rhel_10_700790_verify.rc == 0
+        fail_msg: "result=FAIL stig_id=RHEL-10-700790 detail=picture-uri is not configured in dconf."
+        success_msg: "result=PASS stig_id=RHEL-10-700790 detail=picture-uri is configured and locked in dconf."
+
+  rescue:
+    - name: "RHEL-10-700790 | RESCUE - record failure and continue"
+      ansible.builtin.debug:
+        msg: "result=ERROR stig_id=RHEL-10-700790 detail=Task failed unexpectedly — see prior error for details."

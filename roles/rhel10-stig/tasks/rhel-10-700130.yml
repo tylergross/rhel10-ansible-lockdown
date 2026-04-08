@@ -1,0 +1,109 @@
+---
+# =============================================================================
+# STIG ID  : RHEL-10-700130
+# Rule ID  : SV-281234r1166654_rule
+# Severity : medium
+# CCI      : CCI-000213
+# Title    : RHEL 10 must prevent files with the "setuid" and "setgid" bit set from being executed on the "/boot/efi" directory.
+#
+# Description:
+#   The "nosuid" mount option causes the system not to execute "setuid" and
+#   "setgid" files with owner privileges. This option must be used for
+#   mounting any file system not containing approved "setuid" and "setguid"
+#   files. Executing files from untrusted file systems increases the
+#   opportunity for nonprivileged users to attain unauthorized administrative
+#   access.
+#
+# Check Text:
+#   Note: For systems that use BIOS and for vfat systems, this requirement is
+#   not applicable.
+#
+#   Verify RHEL 10 is configured so that the "/boot/efi "directory is mounted
+#   with the "nosuid" option with the following command:
+#
+#   $ mount | grep '\s/boot/efi\s'
+#   /dev/sda1 on /boot/efi type vfat
+#   (rw,nosuid,relatime,fmask=0077,dmask=0077,codepage=437,iocharset=ascii,shortname=winnt,errors=remount-ro)
+#
+#   If the "/boot/efi" file system does not have the "nosuid" option set,
+#   this is a finding.
+#
+# Fix Text:
+#   Configure RHEL 10 to prevent files with the "setuid" and "setgid" bit set
+#   from being executed on the "/boot/efi" directory.
+#
+#   Modify "/etc/fstab" to use the "nosuid" option on the "/boot/efi"
+#   directory.
+#
+#   To reload all implicit mount units and update the dependency graph so
+#   that new options will apply correctly at next remount, run the following
+#   command:
+#
+#   $ sudo systemctl daemon-reload
+#
+#   Use the following command to apply the changes immediately without a
+#   reboot:
+#
+#   $ sudo mount -o remount /boot/efi
+# =============================================================================
+
+- name: "RHEL-10-700130 | RHEL 10 must prevent files with the setuid and setgid bit set from being executed on the /boot/efi directory."
+  when: rhel_10_700130 | bool
+  tags:
+    - RHEL-10-700130
+    - medium
+    - CCI-000213
+  block:
+    - name: "RHEL-10-700130 | Check if /boot/efi is mounted"
+      ansible.builtin.command:
+        cmd: findmnt -kn -o OPTIONS /boot/efi
+      register: rhel_10_700130_check
+      changed_when: false
+      failed_when: false
+
+    - name: "RHEL-10-700130 | Backup /etc/fstab before modification"
+      ansible.builtin.copy:
+        src: /etc/fstab
+        dest: "/etc/fstab.bak.{{ ansible_date_time.epoch }}"
+        remote_src: true
+        mode: preserve
+      when: >
+        rhel_10_700130_check.rc == 0 and
+        'nosuid' not in (rhel_10_700130_check.stdout | default(''))
+
+    - name: "RHEL-10-700130 | Add nosuid to /boot/efi mount options in /etc/fstab"
+      ansible.builtin.replace:
+        path: /etc/fstab
+        regexp: '^(\S+\s+/boot/efi\s+\S+\s+)(\S+)(\s+.*)$'
+        replace: '\1\2,nosuid\3'
+      when: >
+        rhel_10_700130_check.rc == 0 and
+        'nosuid' not in (rhel_10_700130_check.stdout | default(''))
+
+    - name: "RHEL-10-700130 | Remount /boot/efi to apply nosuid"
+      ansible.builtin.command:
+        cmd: mount -o remount /boot/efi
+      when: >
+        rhel_10_700130_check.rc == 0 and
+        'nosuid' not in (rhel_10_700130_check.stdout | default(''))
+      changed_when: true
+
+    - name: "RHEL-10-700130 | Re-check /boot/efi is mounted with nosuid"
+      ansible.builtin.command:
+        cmd: findmnt -kn -o OPTIONS /boot/efi
+      register: rhel_10_700130_verify
+      changed_when: false
+      failed_when: false
+
+    - name: "RHEL-10-700130 | Assert /boot/efi has nosuid or is not mounted"
+      ansible.builtin.assert:
+        that: >
+          rhel_10_700130_verify.rc != 0 or
+          'nosuid' in (rhel_10_700130_verify.stdout | default(''))
+        fail_msg: "result=FAIL stig_id=RHEL-10-700130 detail=/boot/efi is mounted without the nosuid option."
+        success_msg: "result=PASS stig_id=RHEL-10-700130 detail=/boot/efi has nosuid option or is not mounted (not applicable)."
+
+  rescue:
+    - name: "RHEL-10-700130 | RESCUE - record failure and continue"
+      ansible.builtin.debug:
+        msg: "result=ERROR stig_id=RHEL-10-700130 detail=Task failed unexpectedly — see prior error for details."

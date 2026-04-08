@@ -1,0 +1,93 @@
+---
+# =============================================================================
+# STIG ID  : RHEL-10-600600
+# Rule ID  : SV-281212r1166588_rule
+# Severity : medium
+# CCI      : CCI-000044
+# Title    : RHEL 10 must configure the use of the pam_faillock.so module in the "/etc/pam.d/system-auth" file.
+#
+# Description:
+#   If the pam_faillock.so module is not loaded, the system will not
+#   correctly lock out accounts to prevent password guessing attacks.
+#
+# Check Text:
+#   Verify RHEL 10 includes the use of the pam_faillock.so module in the
+#   "/etc/pam.d/system-auth" file:
+#
+#   $ sudo grep pam_faillock.so /etc/pam.d/system-auth
+#   auth required pam_faillock.so preauth
+#   auth required pam_faillock.so authfail
+#   account required pam_faillock.so
+#
+#   If the pam_faillock.so module is not present in the
+#   "/etc/pam.d/system-auth" file with the "preauth" line listed before
+#   pam_unix.so, this is a finding.
+#
+#   If the system administrator can demonstrate that the required
+#   configuration is contained in a PAM configuration file included or
+#   substacked from the "system-auth" file, this is not a finding.
+#
+# Fix Text:
+#   Configure RHEL 10 to include the use of the pam_faillock.so module in the
+#   "/etc/pam.d/system-auth" file.
+#
+#   If PAM is managed with authselect, enable the feature with the following
+#   command:
+#
+#   $ sudo authselect enable-feature with-faillock
+#
+#   Otherwise, add/modify the appropriate sections of the
+#   "/etc/pam.d/system-auth" file to match the following lines:
+#
+#   Note: The "preauth" line must be listed before pam_unix.so.
+#
+#   auth required pam_faillock.so preauth
+#   auth required pam_faillock.so authfail
+#   account required pam_faillock.so
+# =============================================================================
+
+- name: "RHEL-10-600600 | RHEL 10 must configure the use of the pam_faillock.so module in the /etc/pam.d/system-auth file."
+  when: rhel_10_600600 | bool
+  tags:
+    - RHEL-10-600600
+    - medium
+    - CCI-000044
+  block:
+    - name: "RHEL-10-600600 | Check pam_faillock.so in /etc/pam.d/system-auth"
+      ansible.builtin.command:
+        cmd: grep pam_faillock.so /etc/pam.d/system-auth
+      register: rhel_10_600600_check
+      changed_when: false
+      failed_when: false
+
+    - name: "RHEL-10-600600 | Check authselect active profile"
+      ansible.builtin.command:
+        cmd: authselect current --raw
+      register: rhel_10_600600_authselect
+      changed_when: false
+      failed_when: false
+
+    - name: "RHEL-10-600600 | Enable faillock via authselect"
+      ansible.builtin.command:
+        cmd: authselect enable-feature with-faillock
+      when:
+        - rhel_10_600600_check.rc != 0
+        - rhel_10_600600_authselect.rc == 0
+
+    - name: "RHEL-10-600600 | Re-check pam_faillock.so in /etc/pam.d/system-auth"
+      ansible.builtin.command:
+        cmd: grep pam_faillock.so /etc/pam.d/system-auth
+      register: rhel_10_600600_verify
+      changed_when: false
+      failed_when: false
+
+    - name: "RHEL-10-600600 | Assert pam_faillock.so is present in system-auth"
+      ansible.builtin.assert:
+        that: rhel_10_600600_verify.rc == 0
+        fail_msg: "result=FAIL stig_id=RHEL-10-600600 detail=pam_faillock.so is not present in /etc/pam.d/system-auth. Run: authselect enable-feature with-faillock."
+        success_msg: "result=PASS stig_id=RHEL-10-600600 detail=pam_faillock.so is configured in /etc/pam.d/system-auth."
+
+  rescue:
+    - name: "RHEL-10-600600 | RESCUE - record failure and continue"
+      ansible.builtin.debug:
+        msg: "result=ERROR stig_id=RHEL-10-600600 detail=Task failed unexpectedly — see prior error for details."

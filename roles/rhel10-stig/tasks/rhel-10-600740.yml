@@ -1,0 +1,86 @@
+---
+# =============================================================================
+# STIG ID  : RHEL-10-600740
+# Rule ID  : SV-281222r1184626_rule
+# Severity : high
+# CCI      : CCI-004062
+# Title    : RHEL 10 must be configured to use the shadow file to store only encrypted representations of passwords.
+#
+# Description:
+#   Passwords must be protected at all times, and encryption is the standard
+#   method for protecting passwords. If passwords are not encrypted, they can
+#   be plainly read (i.e., clear text) and easily compromised. Passwords that
+#   are encrypted with a weak algorithm are no more protected than if they
+#   are kept in plain text. This setting ensures user and group account
+#   administration utilities are configured to store only encrypted
+#   representations of passwords. Additionally, the "crypt_style"
+#   configuration option ensures the use of a strong hashing algorithm that
+#   makes password cracking attacks more difficult.
+#
+# Check Text:
+#   Verify RHEL 10 is configured so that the shadow file stores only
+#   encrypted representations of passwords with a hash value of SHA512 with
+#   the following command:
+#
+#   $ sudo grep -i encrypt_method /etc/login.defs
+#   ENCRYPT_METHOD SHA512
+#
+#   If "ENCRYPT_METHOD" does not have a value of "SHA512", or the line is
+#   commented out, this is a finding.
+#
+# Fix Text:
+#   Configure RHEL 10 to store only SHA512 encrypted representations of
+#   passwords.
+#
+#   Add or update the following line in the "/etc/login.defs" file:
+#
+#   ENCRYPT_METHOD SHA512
+# =============================================================================
+
+- name: "RHEL-10-600740 | RHEL 10 must be configured to use the shadow file to store only encrypted representations of passwords."
+  when: rhel_10_600740 | bool
+  tags:
+    - RHEL-10-600740
+    - high
+    - CCI-004062
+  block:
+    - name: "RHEL-10-600740 | Check ENCRYPT_METHOD in /etc/login.defs"
+      ansible.builtin.command:
+        cmd: grep -iE '^ENCRYPT_METHOD\s+SHA512' /etc/login.defs
+      register: rhel_10_600740_check
+      changed_when: false
+      failed_when: false
+
+    - name: "RHEL-10-600740 | Backup /etc/login.defs"
+      ansible.builtin.copy:
+        src: /etc/login.defs
+        dest: "/etc/login.defs.bak.{{ ansible_date_time.epoch }}"
+        remote_src: true
+        mode: preserve
+      when: rhel_10_600740_check.rc != 0
+
+    - name: "RHEL-10-600740 | Set ENCRYPT_METHOD SHA512 in /etc/login.defs"
+      ansible.builtin.lineinfile:
+        path: /etc/login.defs
+        regexp: '^#?\s*ENCRYPT_METHOD'
+        line: 'ENCRYPT_METHOD SHA512'
+        state: present
+      when: rhel_10_600740_check.rc != 0
+
+    - name: "RHEL-10-600740 | Re-check ENCRYPT_METHOD in /etc/login.defs"
+      ansible.builtin.command:
+        cmd: grep -iE '^ENCRYPT_METHOD\s+SHA512' /etc/login.defs
+      register: rhel_10_600740_verify
+      changed_when: false
+      failed_when: false
+
+    - name: "RHEL-10-600740 | Assert ENCRYPT_METHOD is SHA512"
+      ansible.builtin.assert:
+        that: rhel_10_600740_verify.rc == 0
+        fail_msg: "result=FAIL stig_id=RHEL-10-600740 detail=ENCRYPT_METHOD is not set to SHA512 in /etc/login.defs."
+        success_msg: "result=PASS stig_id=RHEL-10-600740 detail=ENCRYPT_METHOD SHA512 is configured in /etc/login.defs."
+
+  rescue:
+    - name: "RHEL-10-600740 | RESCUE - record failure and continue"
+      ansible.builtin.debug:
+        msg: "result=ERROR stig_id=RHEL-10-600740 detail=Task failed unexpectedly — see prior error for details."

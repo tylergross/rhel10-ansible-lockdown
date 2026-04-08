@@ -1,0 +1,100 @@
+---
+# =============================================================================
+# STIG ID  : RHEL-10-700850
+# Rule ID  : SV-281288r1166816_rule
+# Severity : medium
+# CCI      : CCI-000778
+# Title    : RHEL 10 must be configured to disable USB mass storage.
+#
+# Description:
+#   USB mass storage permits easy introduction of unknown devices, thereby
+#   facilitating malicious activity. Satisfies: SRG-OS-000114-GPOS-00059,
+#   SRG-OS-000378-GPOS-00163
+#
+# Check Text:
+#   Verify RHEL 10 disables the ability to load the USB Storage kernel module
+#   with the following command:
+#
+#   $ sudo grep -rs usb-storage /etc/modprobe.conf /etc/modprobe.d/*
+#   /etc/modprobe.d/usb-storage.conf:install usb-storage /bin/false
+#   /etc/modprobe.d/usb-storage.conf:blacklist usb-storage
+#
+#   If the command does not return any output, or either line is commented
+#   out, and use of USB Storage is not documented with the information system
+#   security officer as an operational requirement, this is a finding.
+#
+# Fix Text:
+#   Configure RHEL 10 to prevent the usb-storage kernel module from being
+#   loaded.
+#
+#   Add the following lines to the file "/etc/modprobe.d/usb-storage.conf"
+#   (or create "usb-storage.conf" if it does not exist):
+#
+#   $ sudo vi /etc/modprobe.d/usb-storage.conf
+#
+#   install usb-storage /bin/false
+#   blacklist usb-storage
+# =============================================================================
+
+- name: "RHEL-10-700850 | RHEL 10 must be configured to disable USB mass storage."
+  when: rhel_10_700850 | bool
+  tags:
+    - RHEL-10-700850
+    - medium
+    - CCI-000778
+  block:
+    - name: "RHEL-10-700850 | Check usb-storage install rule in modprobe"
+      ansible.builtin.command:
+        cmd: grep -rs 'install usb-storage /bin/false' /etc/modprobe.conf /etc/modprobe.d/
+      register: rhel_10_700850_install_check
+      changed_when: false
+      failed_when: false
+
+    - name: "RHEL-10-700850 | Check usb-storage blacklist rule in modprobe"
+      ansible.builtin.command:
+        cmd: grep -rs 'blacklist usb-storage' /etc/modprobe.conf /etc/modprobe.d/
+      register: rhel_10_700850_blacklist_check
+      changed_when: false
+      failed_when: false
+
+    - name: "RHEL-10-700850 | Set usb-storage install rule in /etc/modprobe.d/usb-storage.conf"
+      ansible.builtin.lineinfile:
+        path: /etc/modprobe.d/usb-storage.conf
+        line: 'install usb-storage /bin/false'
+        state: present
+        create: true
+        mode: '0644'
+        owner: root
+        group: root
+      when: rhel_10_700850_install_check.rc != 0
+
+    - name: "RHEL-10-700850 | Set usb-storage blacklist rule in /etc/modprobe.d/usb-storage.conf"
+      ansible.builtin.lineinfile:
+        path: /etc/modprobe.d/usb-storage.conf
+        line: 'blacklist usb-storage'
+        state: present
+        create: true
+        mode: '0644'
+        owner: root
+        group: root
+      when: rhel_10_700850_blacklist_check.rc != 0
+
+    - name: "RHEL-10-700850 | Re-check usb-storage configuration in modprobe"
+      ansible.builtin.command:
+        cmd: grep -rs 'usb-storage' /etc/modprobe.conf /etc/modprobe.d/
+      register: rhel_10_700850_verify
+      changed_when: false
+      failed_when: false
+
+    - name: "RHEL-10-700850 | Assert usb-storage is disabled in modprobe"
+      ansible.builtin.assert:
+        that:
+          - "'install usb-storage /bin/false' in rhel_10_700850_verify.stdout"
+          - "'blacklist usb-storage' in rhel_10_700850_verify.stdout"
+        fail_msg: "result=FAIL stig_id=RHEL-10-700850 detail=usb-storage is not fully disabled in modprobe (install and/or blacklist missing)."
+        success_msg: "result=PASS stig_id=RHEL-10-700850 detail=usb-storage is disabled via modprobe install and blacklist rules."
+
+  rescue:
+    - name: "RHEL-10-700850 | RESCUE - record failure and continue"
+      ansible.builtin.debug:
+        msg: "result=ERROR stig_id=RHEL-10-700850 detail=Task failed unexpectedly — see prior error for details."

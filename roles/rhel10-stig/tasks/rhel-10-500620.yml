@@ -1,0 +1,79 @@
+---
+# =============================================================================
+# STIG ID  : RHEL-10-500620
+# Rule ID  : SV-281148r1166396_rule
+# Severity : medium
+# CCI      : CCI-000172
+# Title    : RHEL 10 must generate audit records for successful and unsuccessful uses of the "init" command.
+#
+# Description:
+#   Misuse of the "init" command may cause availability issues for the
+#   system.
+#
+# Check Text:
+#   Verify RHEL 10 is configured to audit the execution of the "init" command
+#   with the following command:
+#
+#   $ sudo auditctl -l | grep /usr/sbin/init
+#   -a always,exit -S all -F path=/usr/sbin/init -F perm=x -F auid>=1000 -F
+#   auid!=-1 -F key=privileged-init
+#
+#   If the command does not return a line, or the line is commented out, this
+#   is a finding.
+#
+# Fix Text:
+#   Configure RHEL 10 to generate audit records upon successful and
+#   unsuccessful uses of the "init" command by adding or updating the
+#   following rule in the "/etc/audit/rules.d/audit.rules" file:
+#
+#   -a always,exit -F path=/usr/sbin/init -F perm=x -F auid>=1000 -F
+#   auid!=unset -k privileged-init
+#
+#   Restart the audit daemon with the following command for the changes to
+#   take effect:
+#
+#   $ sudo service auditd restart
+# =============================================================================
+
+- name: "RHEL-10-500620 | RHEL 10 must generate audit records for successful and unsuccessful uses of the init command."
+  when: rhel_10_500620 | bool
+  tags:
+    - RHEL-10-500620
+    - medium
+    - CCI-000172
+  block:
+    - name: "RHEL-10-500620 | Check audit rule for init command"
+      ansible.builtin.command:
+        cmd: auditctl -l
+      register: rhel_10_500620_rules
+      changed_when: false
+      failed_when: false
+
+    - name: "RHEL-10-500620 | Add audit rule for init command"
+      ansible.builtin.lineinfile:
+        path: /etc/audit/rules.d/rhel10-stig.rules
+        line: "-a always,exit -F path=/usr/sbin/init -F perm=x -F auid>=1000 -F auid!=unset -k privileged-init"
+        create: true
+        mode: '0640'
+        owner: root
+        group: root
+      when: "'privileged-init' not in rhel_10_500620_rules.stdout"
+      notify: restart auditd
+
+    - name: "RHEL-10-500620 | Re-check audit rule for init command"
+      ansible.builtin.command:
+        cmd: auditctl -l
+      register: rhel_10_500620_verify
+      changed_when: false
+      failed_when: false
+
+    - name: "RHEL-10-500620 | Assert audit rule for init command is present"
+      ansible.builtin.assert:
+        that: "'privileged-init' in rhel_10_500620_verify.stdout"
+        fail_msg: "result=FAIL stig_id=RHEL-10-500620 detail=Audit rule for /usr/sbin/init (key=privileged-init) is missing."
+        success_msg: "result=PASS stig_id=RHEL-10-500620 detail=Audit rule for /usr/sbin/init (key=privileged-init) is present."
+
+  rescue:
+    - name: "RHEL-10-500620 | RESCUE - record failure and continue"
+      ansible.builtin.debug:
+        msg: "result=ERROR stig_id=RHEL-10-500620 detail=Task failed unexpectedly — see prior error for details."

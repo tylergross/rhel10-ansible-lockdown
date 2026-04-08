@@ -1,0 +1,94 @@
+---
+# =============================================================================
+# STIG ID  : RHEL-10-500110
+# Rule ID  : SV-281108r1166276_rule
+# Severity : medium
+# CCI      : CCI-001855
+# Title    : RHEL 10 must take action when allocated audit record storage volume reaches 95 percent of the repository maximum audit record storage capacity.
+#
+# Description:
+#   If action is not taken when storage volume reaches 95 percent
+#   utilization, the auditing system may fail when the storage volume reaches
+#   capacity.
+#
+# Check Text:
+#   Verify RHEL 10 is configured to take action if allocated audit record
+#   storage volume reaches 95 percent of the repository maximum audit record
+#   storage capacity with the following command:
+#
+#   $ sudo grep admin_space_left_action /etc/audit/auditd.conf
+#   admin_space_left_action = single
+#
+#   If the value of the "admin_space_left_action" is not set to "single", or
+#   if the line is commented out, ask the system administrator (SA) to
+#   indicate how the system is providing real-time alerts to the SA and
+#   information system security officer (ISSO).
+#
+#   If there is no evidence that real-time alerts are configured on the
+#   system, this is a finding.
+#
+# Fix Text:
+#   Configure RHEL 10 auditd service to take action if allocated audit record
+#   storage volume reaching 95 percent of the repository maximum audit record
+#   storage capacity.
+#
+#   Edit the following line in "/etc/audit/auditd.conf" to ensure the system
+#   is forced into single user mode if the audit record storage volume is
+#   about to reach maximum capacity:
+#
+#   admin_space_left_action = single
+#
+#   Restart the audit daemon with the following command for the changes to
+#   take effect:
+#
+#   $ sudo service auditd restart
+# =============================================================================
+
+- name: "RHEL-10-500110 | RHEL 10 must take action when allocated audit record storage volume reaches 95 percent of the repository maximum audit record storage capacity."
+  when: rhel_10_500110 | bool
+  tags:
+    - RHEL-10-500110
+    - medium
+    - CCI-001855
+  block:
+    - name: "RHEL-10-500110 | Check admin_space_left_action in /etc/audit/auditd.conf"
+      ansible.builtin.command:
+        cmd: grep -E '^\s*admin_space_left_action\s*=\s*single' /etc/audit/auditd.conf
+      register: rhel_10_500110_check
+      changed_when: false
+      failed_when: false
+
+    - name: "RHEL-10-500110 | Backup /etc/audit/auditd.conf before modification"
+      ansible.builtin.copy:
+        src: /etc/audit/auditd.conf
+        dest: "/etc/audit/auditd.conf.bak.{{ ansible_date_time.epoch }}"
+        remote_src: true
+        mode: preserve
+      when: rhel_10_500110_check.rc != 0
+
+    - name: "RHEL-10-500110 | Set admin_space_left_action = single in /etc/audit/auditd.conf"
+      ansible.builtin.lineinfile:
+        path: /etc/audit/auditd.conf
+        regexp: '^\s*admin_space_left_action\s*='
+        line: 'admin_space_left_action = single'
+        state: present
+      when: rhel_10_500110_check.rc != 0
+      notify: restart auditd
+
+    - name: "RHEL-10-500110 | Re-check admin_space_left_action in /etc/audit/auditd.conf"
+      ansible.builtin.command:
+        cmd: grep -E '^\s*admin_space_left_action\s*=\s*single' /etc/audit/auditd.conf
+      register: rhel_10_500110_verify
+      changed_when: false
+      failed_when: false
+
+    - name: "RHEL-10-500110 | Assert admin_space_left_action = single is configured"
+      ansible.builtin.assert:
+        that: rhel_10_500110_verify.rc == 0
+        fail_msg: "result=FAIL stig_id=RHEL-10-500110 detail=admin_space_left_action is not set to single in /etc/audit/auditd.conf."
+        success_msg: "result=PASS stig_id=RHEL-10-500110 detail=admin_space_left_action = single is configured in /etc/audit/auditd.conf."
+
+  rescue:
+    - name: "RHEL-10-500110 | RESCUE - record failure and continue"
+      ansible.builtin.debug:
+        msg: "result=ERROR stig_id=RHEL-10-500110 detail=Task failed unexpectedly — see prior error for details."

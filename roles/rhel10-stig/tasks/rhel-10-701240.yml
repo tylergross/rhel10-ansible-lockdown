@@ -1,0 +1,96 @@
+---
+# =============================================================================
+# STIG ID  : RHEL-10-701240
+# Rule ID  : SV-281326r1184637_rule
+# Severity : medium
+# CCI      : CCI-000186
+# Title    : RHEL 10 must, for PKI-based authentication, enforce authorized access to the corresponding private key.
+#
+# Description:
+#   If the private key is discovered, an attacker can use the key to
+#   authenticate as an authorized user and gain access to the network
+#   infrastructure. The cornerstone of the PKI is the private key used to
+#   encrypt or digitally sign information. If the private key is stolen, this
+#   will lead to the compromise of the authentication and nonrepudiation
+#   gained through PKI because the attacker can use the private key to
+#   digitally sign documents and pretend to be the authorized user. Both the
+#   holders of a digital certificate and the issuing authority must protect
+#   the computers, storage devices, or whatever they use to keep the private
+#   keys.
+#
+# Check Text:
+#   Note: If the system administrator demonstrates the use of an approved
+#   alternate multifactor authentication method, this requirement is not
+#   applicable.
+#
+#   Verify RHEL 10 SSH private key files have a passcode.
+#
+#   For each private key stored on the system, use the following command:
+#
+#   $ sudo ssh-keygen -y -f /path/to/file
+#
+#   The expected output is a password prompt:
+#   "Enter passphrase:"
+#
+#   If the password prompt is not displayed, and the contents of the key are
+#   displayed, this is a finding.
+#
+# Fix Text:
+#   Configure RHEL 10, for PKI-based authentication, enforces authorized
+#   access to the corresponding private key.
+#
+#   Create a new private and public key pair that uses a passcode with the
+#   following command:
+#
+#   $ sudo ssh-keygen -N [passphrase]
+# =============================================================================
+
+- name: "RHEL-10-701240 | RHEL 10 must, for PKI-based authentication, enforce authorized access to the corresponding private key."
+  when: rhel_10_701240 | bool
+  tags:
+    - RHEL-10-701240
+    - medium
+    - CCI-000186
+  block:
+    - name: "RHEL-10-701240 | Find user SSH private key files in home directories"
+      ansible.builtin.find:
+        paths: /home
+        patterns:
+          - 'id_rsa'
+          - 'id_ecdsa'
+          - 'id_ed25519'
+          - 'id_dsa'
+        recurse: true
+        depth: 4
+        file_type: file
+      register: rhel_10_701240_key_files
+
+    - name: "RHEL-10-701240 | Test each private key for passphrase protection"
+      ansible.builtin.command:
+        cmd: "ssh-keygen -y -P '' -f {{ item.path }}"
+      loop: "{{ rhel_10_701240_key_files.files | default([]) }}"
+      loop_control:
+        label: "{{ item.path }}"
+      register: rhel_10_701240_passphrase_tests
+      changed_when: false
+      failed_when: false
+      no_log: true
+
+    - name: "RHEL-10-701240 | Identify keys without passphrase protection"
+      ansible.builtin.set_fact:
+        rhel_10_701240_unprotected_keys: >-
+          {{ rhel_10_701240_passphrase_tests.results | default([])
+             | selectattr('rc', 'equalto', 0)
+             | map(attribute='item.path')
+             | list }}
+
+    - name: "RHEL-10-701240 | Assert no unprotected private keys exist"
+      ansible.builtin.assert:
+        that: (rhel_10_701240_unprotected_keys | length) == 0
+        fail_msg: "result=FAIL stig_id=RHEL-10-701240 detail=Found {{ rhel_10_701240_unprotected_keys | length }} SSH private key(s) without passphrase protection. Manual remediation required — recreate keys with a passphrase."
+        success_msg: "result=PASS stig_id=RHEL-10-701240 detail=All SSH private keys in user home directories are protected with a passphrase ({{ rhel_10_701240_key_files.files | length }} key(s) checked)."
+
+  rescue:
+    - name: "RHEL-10-701240 | RESCUE - record failure and continue"
+      ansible.builtin.debug:
+        msg: "result=ERROR stig_id=RHEL-10-701240 detail=Task failed unexpectedly — see prior error for details."

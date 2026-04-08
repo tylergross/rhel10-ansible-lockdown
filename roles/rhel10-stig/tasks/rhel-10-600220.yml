@@ -1,0 +1,99 @@
+---
+# =============================================================================
+# STIG ID  : RHEL-10-600220
+# Rule ID  : SV-281181r1195421_rule
+# Severity : medium
+# CCI      : CCI-004066
+# Title    : RHEL 10 must enforce that passwords be created with a minimum of 15 characters.
+#
+# Description:
+#   The shorter the password, the lower the number of possible combinations
+#   that must be tested before the password is compromised. Password
+#   complexity, or strength, is a measure of the effectiveness of a password
+#   in resisting attempts at guessing and brute-force attacks. Password
+#   length is one factor of several that helps to determine strength and how
+#   long it takes to crack a password. Use of more characters in a password
+#   helps to increase exponentially the time and/or resources required to
+#   compromise the password. RHEL 10 uses "pwquality" as a mechanism to
+#   enforce password complexity. Configurations are set in the
+#   "etc/security/pwquality.conf" file. The "minlen", sometimes noted as
+#   minimum length, acts as a "score" of complexity based on the credit
+#   components of the "pwquality" module. By setting the credit components to
+#   a negative value, those components will not only be required but will not
+#   count toward the total "score" of "minlen". This will enable "minlen" to
+#   require a 15-character minimum. The DOD minimum password requirement is
+#   15 characters.
+#
+# Check Text:
+#   Verify RHEL 10 enforces a minimum 15-character password length with the
+#   following command:
+#
+#   $ sudo grep -s minlen /etc/security/pwquality.conf
+#   /etc/security/pwquality.conf.d/*.conf
+#   /etc/security/pwquality.conf:minlen = 15
+#
+#   If the command does not return a "minlen" value of "15" or greater, does
+#   not return a line, or the line is commented out, this is a finding.
+#
+# Fix Text:
+#   Configure RHEL 10 to enforce a minimum 15-character password length.
+#
+#   Add or update the following line in the "/etc/security/pwquality.conf"
+#   file or a configuration file in the "/etc/security/pwquality.conf.d/"
+#   directory to contain the "minlen" parameter:
+#
+#   minlen = 15
+# =============================================================================
+
+- name: "RHEL-10-600220 | RHEL 10 must enforce that passwords be created with a minimum of 15 characters."
+  when: rhel_10_600220 | bool
+  tags:
+    - RHEL-10-600220
+    - medium
+    - CCI-004066
+  block:
+    - name: "RHEL-10-600220 | Check minlen in /etc/security/pwquality.conf"
+      ansible.builtin.command:
+        cmd: grep -s "^minlen" /etc/security/pwquality.conf
+      register: rhel_10_600220_check
+      changed_when: false
+      failed_when: false
+
+    - name: "RHEL-10-600220 | Backup /etc/security/pwquality.conf before modification"
+      ansible.builtin.copy:
+        src: /etc/security/pwquality.conf
+        dest: "/etc/security/pwquality.conf.bak.{{ ansible_date_time.epoch }}"
+        remote_src: true
+        mode: preserve
+      when: >
+        rhel_10_600220_check.rc != 0 or
+        (rhel_10_600220_check.stdout | regex_search('minlen\s*=\s*(\d+)', '\1') | first | int) < 15
+
+    - name: "RHEL-10-600220 | Set minlen = 15 in /etc/security/pwquality.conf"
+      ansible.builtin.lineinfile:
+        path: /etc/security/pwquality.conf
+        regexp: '^#?\s*minlen\s*='
+        line: 'minlen = 15'
+        state: present
+      when: >
+        rhel_10_600220_check.rc != 0 or
+        (rhel_10_600220_check.stdout | regex_search('minlen\s*=\s*(\d+)', '\1') | first | int) < 15
+
+    - name: "RHEL-10-600220 | Re-check minlen"
+      ansible.builtin.command:
+        cmd: grep -s "^minlen" /etc/security/pwquality.conf
+      register: rhel_10_600220_verify
+      changed_when: false
+      failed_when: false
+
+    - name: "RHEL-10-600220 | Assert minlen is 15 or greater"
+      ansible.builtin.assert:
+        that:
+          - rhel_10_600220_verify.rc == 0
+          - (rhel_10_600220_verify.stdout | regex_search('minlen\s*=\s*(\d+)', '\1') | first | int) >= 15
+        fail_msg: "result=FAIL stig_id=RHEL-10-600220 detail=minlen is not set to 15 or greater in /etc/security/pwquality.conf (current={{ rhel_10_600220_verify.stdout | trim }})."
+        success_msg: "result=PASS stig_id=RHEL-10-600220 detail=minlen is set to 15 or greater in /etc/security/pwquality.conf ({{ rhel_10_600220_verify.stdout | trim }})."
+  rescue:
+    - name: "RHEL-10-600220 | RESCUE - record failure and continue"
+      ansible.builtin.debug:
+        msg: "result=ERROR stig_id=RHEL-10-600220 detail=Task failed unexpectedly — see prior error for details."

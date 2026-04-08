@@ -1,0 +1,89 @@
+---
+# =============================================================================
+# STIG ID  : RHEL-10-600410
+# Rule ID  : SV-281194r1166534_rule
+# Severity : medium
+# CCI      : CCI-002238
+# Title    : RHEL 10 must automatically lock an account when three unsuccessful login attempts occur.
+#
+# Description:
+#   By limiting the number of failed login attempts, the risk of unauthorized
+#   system access via user password guessing, otherwise known as brute-force
+#   attacks, is reduced. Limits are imposed by locking the account.
+#   Satisfies: SRG-OS-000329-GPOS-00128, SRG-OS-000021-GPOS-00005
+#
+# Check Text:
+#   Verify RHEL 10 is configured to lock an account after three unsuccessful
+#   login attempts with the following command:
+#
+#   $ sudo grep 'deny =' /etc/security/faillock.conf
+#   deny = 3
+#
+#   If the "deny" option is not set to "3" or less (but not "0"), or is
+#   missing or commented out, this is a finding.
+#
+# Fix Text:
+#   Configure RHEL 10 to lock an account when three unsuccessful login
+#   attempts occur.
+#
+#   Add/modify the "/etc/security/faillock.conf" file to match the following
+#   line:
+#
+#   deny = 3
+# =============================================================================
+
+- name: "RHEL-10-600410 | RHEL 10 must automatically lock an account when three unsuccessful login attempts occur."
+  when: rhel_10_600410 | bool
+  tags:
+    - RHEL-10-600410
+    - medium
+    - CCI-002238
+  block:
+    - name: "RHEL-10-600410 | Check deny setting in /etc/security/faillock.conf"
+      ansible.builtin.command:
+        cmd: grep -w "deny" /etc/security/faillock.conf
+      register: rhel_10_600410_check
+      changed_when: false
+      failed_when: false
+
+    - name: "RHEL-10-600410 | Backup /etc/security/faillock.conf before modification"
+      ansible.builtin.copy:
+        src: /etc/security/faillock.conf
+        dest: "/etc/security/faillock.conf.bak.{{ ansible_date_time.epoch }}"
+        remote_src: true
+        mode: preserve
+      when: >
+        rhel_10_600410_check.rc != 0 or
+        (rhel_10_600410_check.stdout | regex_search('deny\s*=\s*(\d+)', '\1') | first | int) == 0 or
+        (rhel_10_600410_check.stdout | regex_search('deny\s*=\s*(\d+)', '\1') | first | int) > 3
+
+    - name: "RHEL-10-600410 | Set deny = 3 in /etc/security/faillock.conf"
+      ansible.builtin.lineinfile:
+        path: /etc/security/faillock.conf
+        regexp: '^#?\s*deny\s*='
+        line: 'deny = 3'
+        state: present
+      when: >
+        rhel_10_600410_check.rc != 0 or
+        (rhel_10_600410_check.stdout | regex_search('deny\s*=\s*(\d+)', '\1') | first | int) == 0 or
+        (rhel_10_600410_check.stdout | regex_search('deny\s*=\s*(\d+)', '\1') | first | int) > 3
+
+    - name: "RHEL-10-600410 | Re-check deny setting"
+      ansible.builtin.command:
+        cmd: grep -w "deny" /etc/security/faillock.conf
+      register: rhel_10_600410_verify
+      changed_when: false
+      failed_when: false
+
+    - name: "RHEL-10-600410 | Assert deny is set to 3 or less (but not 0)"
+      ansible.builtin.assert:
+        that:
+          - rhel_10_600410_verify.rc == 0
+          - (rhel_10_600410_verify.stdout | regex_search('deny\s*=\s*(\d+)', '\1') | first | int) > 0
+          - (rhel_10_600410_verify.stdout | regex_search('deny\s*=\s*(\d+)', '\1') | first | int) <= 3
+        fail_msg: "result=FAIL stig_id=RHEL-10-600410 detail=deny is not set to 3 or less in /etc/security/faillock.conf (current={{ rhel_10_600410_verify.stdout | trim }})."
+        success_msg: "result=PASS stig_id=RHEL-10-600410 detail=deny is set to 3 or less in /etc/security/faillock.conf ({{ rhel_10_600410_verify.stdout | trim }})."
+  rescue:
+    - name: "RHEL-10-600410 | RESCUE - record failure and continue"
+      ansible.builtin.debug:
+        msg: "result=ERROR stig_id=RHEL-10-600410 detail=Task failed unexpectedly — see prior error for details."

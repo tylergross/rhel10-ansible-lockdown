@@ -1,0 +1,94 @@
+---
+# =============================================================================
+# STIG ID  : RHEL-10-700620
+# Rule ID  : SV-281265r1184765_rule
+# Severity : medium
+# CCI      : CCI-004045
+# Title    : RHEL 10 must not permit direct logins to the root account using remote access via Secure Shell (SSH).
+#
+# Description:
+#   Even though the communications channel may be encrypted, an additional
+#   layer of security is gained by extending the policy of not logging
+#   directly on as root. In addition, logging in with a user-specific account
+#   provides individual accountability of actions performed on the system and
+#   helps to minimize direct attack attempts on root's password. OpenSSH uses
+#   the first occurrence of a keyword it sees, and drop-in files are read in
+#   lexicographical order at the start of the configuration. Red Hat
+#   recommends using drop-in files rather than changing base configuration
+#   files.
+#
+# Check Text:
+#   Verify RHEL 10 remote access using SSH prevents users from logging on
+#   directly as "root" with the following command:
+#
+#   $ sudo /usr/sbin/sshd -dd 2>&1 | awk '/filename/ {print $4}' | tr -d '\r'
+#   | tr '\n' ' ' | xargs sudo grep -iH '^\s*permitrootlogin'
+#   /etc/ssh/sshd_config.d/10-stig.conf:PermitRootLogin no
+#
+#   Verify the runtime setting with the following command:
+#
+#   $ sudo sshd -T | grep -i permitrootlogin
+#   permitrootlogin no
+#
+#   If the "PermitRootLogin" keyword is not set to "no" in a drop-in that
+#   lexicographically precedes 50-redhat.conf, or if no output is returned,
+#   this is a finding.
+#
+# Fix Text:
+#   Configure RHEL 10 to prevent SSH users from logging on directly as root.
+#
+#   In "/etc/ssh/sshd_config.d", create a drop-in file that will
+#   lexicographically precede 50-redhat.conf and add the following line:
+#
+#   PermitRootLogin no
+#
+#   Restart the SSH daemon with the following command for the settings to
+#   take effect:
+#
+#   $ sudo systemctl restart sshd.service
+# =============================================================================
+
+- name: "RHEL-10-700620 | RHEL 10 must not permit direct logins to the root account using remote access via Secure Shell (SSH)."
+  when: rhel_10_700620 | bool
+  tags:
+    - RHEL-10-700620
+    - medium
+    - CCI-004045
+  block:
+    - name: "RHEL-10-700620 | Check PermitRootLogin in sshd runtime config"
+      ansible.builtin.command:
+        cmd: sshd -T
+      register: rhel_10_700620_runtime
+      changed_when: false
+      failed_when: false
+
+    - name: "RHEL-10-700620 | Set PermitRootLogin to no in /etc/ssh/sshd_config.d/10-stig.conf"
+      ansible.builtin.lineinfile:
+        path: /etc/ssh/sshd_config.d/10-stig.conf
+        regexp: '^#?PermitRootLogin'
+        line: 'PermitRootLogin no'
+        state: present
+        create: true
+        mode: '0600'
+        owner: root
+        group: root
+      when: "'permitrootlogin no' not in rhel_10_700620_runtime.stdout | lower"
+      notify: restart sshd
+
+    - name: "RHEL-10-700620 | Re-check PermitRootLogin in sshd runtime config"
+      ansible.builtin.command:
+        cmd: sshd -T
+      register: rhel_10_700620_verify
+      changed_when: false
+      failed_when: false
+
+    - name: "RHEL-10-700620 | Assert PermitRootLogin is set to no"
+      ansible.builtin.assert:
+        that: "'permitrootlogin no' in rhel_10_700620_verify.stdout | lower"
+        fail_msg: "result=FAIL stig_id=RHEL-10-700620 detail=sshd runtime does not have PermitRootLogin no."
+        success_msg: "result=PASS stig_id=RHEL-10-700620 detail=sshd PermitRootLogin is set to no."
+
+  rescue:
+    - name: "RHEL-10-700620 | RESCUE - record failure and continue"
+      ansible.builtin.debug:
+        msg: "result=ERROR stig_id=RHEL-10-700620 detail=Task failed unexpectedly — see prior error for details."

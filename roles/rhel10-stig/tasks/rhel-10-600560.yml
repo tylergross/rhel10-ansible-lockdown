@@ -1,0 +1,61 @@
+---
+# =============================================================================
+# STIG ID  : RHEL-10-600560
+# Rule ID  : SV-281211r1166585_rule
+# Severity : high
+# CCI      : CCI-002038
+# Title    : RHEL 10 must require users to provide a password for privilege escalation.
+#
+# Description:
+#   Without reauthentication, users may access resources or perform tasks for
+#   which they do not have authorization. When operating systems provide the
+#   capability to escalate a functional capability, it is critical that the
+#   user reauthenticate. Satisfies: SRG-OS-000373-GPOS-00156,
+#   SRG-OS-000373-GPOS-00157, SRG-OS-000373-GPOS-00158
+#
+# Check Text:
+#   Verify RHEL 10 has no occurrences of "NOPASSWD" in "/etc/sudoers" with
+#   the following command:
+#
+#   $ sudo grep -ir nopasswd /etc/sudoers /etc/sudoers.d/ | grep -v '#'
+#
+#   If any occurrences of "NOPASSWD" are returned from the command and have
+#   not been documented with the information system security officer as an
+#   organizationally defined administrative group using multifactor
+#   authentication, this is a finding.
+#
+# Fix Text:
+#   Configure RHEL 10 to not allow users to execute privileged actions
+#   without authenticating with a password.
+#
+#   Remove any occurrence of "NOPASSWD" found in the "/etc/sudoers" file or
+#   files in the "/etc/sudoers.d" directory:
+#
+#   $ sudo find /etc/sudoers /etc/sudoers.d -type f -exec sed -i '/NOPASSWD/
+#   s/^/# /g' {} \;
+# =============================================================================
+
+- name: "RHEL-10-600560 | RHEL 10 must require users to provide a password for privilege escalation."
+  when: rhel_10_600560 | bool
+  tags:
+    - RHEL-10-600560
+    - high
+    - CCI-002038
+  block:
+    - name: "RHEL-10-600560 | Check for NOPASSWD in sudoers files"
+      ansible.builtin.shell:
+        cmd: grep -ir nopasswd /etc/sudoers /etc/sudoers.d/ | grep -v '#'
+      register: rhel_10_600560_check
+      changed_when: false
+      failed_when: false
+
+    - name: "RHEL-10-600560 | Assert no NOPASSWD entries exist in sudoers"
+      ansible.builtin.assert:
+        that: rhel_10_600560_check.stdout | trim == ''
+        fail_msg: "result=FAIL stig_id=RHEL-10-600560 detail=NOPASSWD entries found in sudoers — users can escalate without a password. Comment out or remove all NOPASSWD occurrences."
+        success_msg: "result=PASS stig_id=RHEL-10-600560 detail=No NOPASSWD entries found in sudoers."
+
+  rescue:
+    - name: "RHEL-10-600560 | RESCUE - record failure and continue"
+      ansible.builtin.debug:
+        msg: "result=ERROR stig_id=RHEL-10-600560 detail=Task failed unexpectedly — see prior error for details."

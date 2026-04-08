@@ -1,0 +1,107 @@
+---
+# =============================================================================
+# STIG ID  : RHEL-10-700730
+# Rule ID  : SV-281276r1166780_rule
+# Severity : medium
+# CCI      : CCI-000056
+# Title    : RHEL 10 must prevent a user from overriding the disabling of the graphical user smart card removal action.
+#
+# Description:
+#   A session lock is a temporary action taken when a user stops work and
+#   moves away from the immediate physical vicinity of the information system
+#   but does not want to log out because of the temporary nature of the
+#   absence. The session lock is implemented at the point where session
+#   activity can be determined. Rather than be forced to wait for a period of
+#   time to expire before the user session can be locked, RHEL 10 must
+#   provide users with the ability to manually invoke a session lock so users
+#   can secure their session if they must temporarily vacate the immediate
+#   physical vicinity. Satisfies: SRG-OS-000028-GPOS-00009,
+#   SRG-OS-000030-GPOS-00011
+#
+# Check Text:
+#   Note: This requirement assumes the use of the RHEL 10 default graphical
+#   user interface, the GNOME desktop environment. If the system does not
+#   have any graphical user interface installed, this requirement is not
+#   applicable.
+#
+#   Verify RHEL 10 disables ability of the user to override the smart card
+#   removal action setting with the following command:
+#
+#   $ gsettings writable org.gnome.settings-daemon.peripherals.smartcard
+#   removal-action
+#   false
+#
+#   If "removal-action" is writable and the result is "true", this is a
+#   finding.
+#
+# Fix Text:
+#   Configure RHEL 10 to prevent a user from overriding the disabling of the
+#   graphical user smart card removal action.
+#
+#   Add the following line to
+#   "/etc/dconf/db/local.d/locks/00-security-settings-lock" to prevent user
+#   override of the smart card removal action:
+#
+#   /org/gnome/settings-daemon/peripherals/smartcard/removal-action
+#
+#   Update the dconf system databases:
+#
+#   $ sudo dconf update
+# =============================================================================
+
+- name: "RHEL-10-700730 | RHEL 10 must prevent a user from overriding the disabling of the graphical user smart card removal action."
+  when: rhel_10_700730 | bool
+  tags:
+    - RHEL-10-700730
+    - medium
+    - CCI-000056
+  block:
+    - name: "RHEL-10-700730 | Ensure dconf locks directory exists"
+      ansible.builtin.file:
+        path: /etc/dconf/db/local.d/locks
+        state: directory
+        mode: '0755'
+        owner: root
+        group: root
+
+    - name: "RHEL-10-700730 | Check smartcard removal-action lock in dconf locks file"
+      ansible.builtin.command:
+        cmd: grep -r 'removal-action' /etc/dconf/db/local.d/locks/
+      register: rhel_10_700730_check
+      changed_when: false
+      failed_when: false
+
+    - name: "RHEL-10-700730 | Set smartcard removal-action lock in dconf locks file"
+      ansible.builtin.lineinfile:
+        path: /etc/dconf/db/local.d/locks/00-security-settings-lock
+        line: '/org/gnome/settings-daemon/peripherals/smartcard/removal-action'
+        state: present
+        create: true
+        mode: '0644'
+        owner: root
+        group: root
+      when: rhel_10_700730_check.rc != 0
+
+    - name: "RHEL-10-700730 | Update dconf database"
+      ansible.builtin.command:
+        cmd: dconf update
+      when: rhel_10_700730_check.rc != 0
+      changed_when: true
+
+    - name: "RHEL-10-700730 | Re-check smartcard removal-action lock in dconf"
+      ansible.builtin.command:
+        cmd: grep -r 'removal-action' /etc/dconf/db/local.d/locks/
+      register: rhel_10_700730_verify
+      changed_when: false
+      failed_when: false
+
+    - name: "RHEL-10-700730 | Assert smartcard removal-action is locked in dconf"
+      ansible.builtin.assert:
+        that: rhel_10_700730_verify.rc == 0
+        fail_msg: "result=FAIL stig_id=RHEL-10-700730 detail=smartcard removal-action is not locked in dconf."
+        success_msg: "result=PASS stig_id=RHEL-10-700730 detail=smartcard removal-action is locked in dconf."
+
+  rescue:
+    - name: "RHEL-10-700730 | RESCUE - record failure and continue"
+      ansible.builtin.debug:
+        msg: "result=ERROR stig_id=RHEL-10-700730 detail=Task failed unexpectedly — see prior error for details."

@@ -1,0 +1,69 @@
+---
+# =============================================================================
+# STIG ID  : RHEL-10-800070
+# Rule ID  : SV-281339r1167167_rule
+# Severity : medium
+# CCI      : CCI-000213
+# Title    : RHEL 10 must not have unauthorized IP tunnels configured.
+#
+# Description:
+#   IP tunneling mechanisms can be used to bypass network filtering. If
+#   tunneling is required, it must be documented with the information system
+#   security officer (ISSO).
+#
+# Check Text:
+#   Verify RHEL 10 does not have unauthorized IP tunnels configured.
+#
+#   Determine if the IPsec service is active with the following command:
+#
+#   $ systemctl is-active ipsec
+#   Inactive
+#
+#   If the IPsec service is active, check for configured IPsec connections
+#   ("conn"), with the following command:
+#
+#   $ sudo grep -rni conn /etc/ipsec.conf /etc/ipsec.d/
+#
+#   Verify any returned results are documented with the ISSO.
+#
+#   If the IPsec tunnels are active and not approved, this is a finding.
+#
+# Fix Text:
+#   Configure RHEL 10 to not have unauthorized IP tunnels configured.
+#
+#   Remove all unapproved tunnels from the system, or document them with the
+#   ISSO.
+# =============================================================================
+
+- name: "RHEL-10-800070 | RHEL 10 must not have unauthorized IP tunnels configured."
+  when: rhel_10_800070 | bool
+  tags:
+    - RHEL-10-800070
+    - medium
+    - CCI-000213
+  block:
+    - name: "RHEL-10-800070 | Check if ipsec service is active"
+      ansible.builtin.command:
+        cmd: systemctl is-active ipsec
+      register: rhel_10_800070_svc
+      changed_when: false
+      failed_when: false
+
+    - name: "RHEL-10-800070 | Check for configured IPsec connections"
+      ansible.builtin.command:
+        cmd: grep -rni conn /etc/ipsec.conf /etc/ipsec.d/
+      register: rhel_10_800070_conn
+      changed_when: false
+      failed_when: false
+      when: rhel_10_800070_svc.stdout | trim == 'active'
+
+    - name: "RHEL-10-800070 | Assert ipsec tunnels are inactive or have no connections"
+      ansible.builtin.assert:
+        that: rhel_10_800070_svc.stdout | trim != 'active' or rhel_10_800070_conn.rc != 0
+        fail_msg: "result=FAIL stig_id=RHEL-10-800070 detail=IPsec service is active and has configured connections. Verify all tunnels are documented and approved by the ISSO."
+        success_msg: "result=PASS stig_id=RHEL-10-800070 detail=IPsec service is not active or has no configured connections."
+
+  rescue:
+    - name: "RHEL-10-800070 | RESCUE - record failure and continue"
+      ansible.builtin.debug:
+        msg: "result=ERROR stig_id=RHEL-10-800070 detail=Task failed unexpectedly — see prior error for details."

@@ -1,0 +1,58 @@
+---
+# =============================================================================
+# STIG ID  : RHEL-10-600520
+# Rule ID  : SV-281207r1166573_rule
+# Severity : medium
+# CCI      : CCI-002696
+# Title    : RHEL 10 must restrict privilege elevation to authorized personnel.
+#
+# Description:
+#   If the "sudoers" file is not configured correctly, any user defined on
+#   the system can initiate privileged actions on the target system.
+#
+# Check Text:
+#   Verify RHEL 10 restricts privilege elevation to authorized personnel with
+#   the following command:
+#
+#   $ sudo grep -riw ALL /etc/sudoers /etc/sudoers.d/ | grep -v "#"
+#
+#   If the either of the following entries is returned, this is a finding:
+#
+#   ALL ALL=(ALL) ALL
+#   ALL ALL=(ALL:ALL) ALL
+#
+# Fix Text:
+#   Configure RHEL 10 to restrict privilege elevation to authorized
+#   personnel.
+#
+#   Remove the following entries from the "/etc/sudoers" file or
+#   configuration file under "/etc/sudoers.d/":
+#
+#   ALL ALL=(ALL) ALL
+#   ALL ALL=(ALL:ALL) ALL
+# =============================================================================
+
+- name: "RHEL-10-600520 | RHEL 10 must restrict privilege elevation to authorized personnel."
+  when: rhel_10_600520 | bool
+  tags:
+    - RHEL-10-600520
+    - medium
+    - CCI-002696
+  block:
+    - name: "RHEL-10-600520 | Check for ALL ALL=(ALL) ALL entries in sudoers"
+      ansible.builtin.shell:
+        cmd: grep -riw ALL /etc/sudoers /etc/sudoers.d/ | grep -v '#' | grep -E '^ALL\s+ALL=\(ALL(|:ALL)\)\s+ALL'
+      register: rhel_10_600520_check
+      changed_when: false
+      failed_when: false
+
+    - name: "RHEL-10-600520 | Assert no unrestricted ALL ALL=(ALL) ALL entries exist"
+      ansible.builtin.assert:
+        that: rhel_10_600520_check.stdout | trim == ''
+        fail_msg: "result=FAIL stig_id=RHEL-10-600520 detail=Unrestricted sudoers entries found (ALL ALL=(ALL) ALL or ALL ALL=(ALL:ALL) ALL). Remove these from /etc/sudoers and /etc/sudoers.d/."
+        success_msg: "result=PASS stig_id=RHEL-10-600520 detail=No unrestricted ALL ALL=(ALL) ALL entries found in sudoers."
+
+  rescue:
+    - name: "RHEL-10-600520 | RESCUE - record failure and continue"
+      ansible.builtin.debug:
+        msg: "result=ERROR stig_id=RHEL-10-600520 detail=Task failed unexpectedly — see prior error for details."

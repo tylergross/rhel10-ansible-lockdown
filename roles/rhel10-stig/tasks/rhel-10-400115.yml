@@ -1,0 +1,76 @@
+---
+# =============================================================================
+# STIG ID  : RHEL-10-400115
+# Rule ID  : SV-281040r1184734_rule
+# Severity : medium
+# CCI      : CCI-001499
+# Title    : RHEL 10 must be configured so that library files are group-owned by "root" or a system account.
+#
+# Description:
+#   If RHEL 10 allowed any user to make changes to software libraries, those
+#   changes might be implemented without undergoing the appropriate testing
+#   and approvals that are part of a robust change management process. This
+#   requirement applies to RHEL 10 with software libraries that are
+#   accessible and configurable, as in the case of interpreted languages.
+#   Software libraries also include privileged programs that execute with
+#   escalated privileges.
+#
+# Check Text:
+#   Verify RHEL 10 is configured so that the systemwide shared library files
+#   are group-owned by "root" or a system account with the following command:
+#
+#   $ sudo find -L /lib /lib64 /usr/lib /usr/lib64 ! -group root ! -type d
+#   -exec stat -L -c "%G %n" {} \;
+#
+#   If any systemwide shared library file is returned and is not group-owned
+#   by "root" or a required system account, this is a finding.
+#
+# Fix Text:
+#   Configure RHEL 10 so that the systemwide shared library files (/lib,
+#   /lib64, /usr/lib, and /usr/lib64) are protected from unauthorized access.
+#
+#   Run the following command, replacing "[FILE]" with any library file not
+#   group-owned by "root".
+#
+#   $ sudo chgrp root [FILE]
+# =============================================================================
+
+- name: "RHEL-10-400115 | RHEL 10 must be configured so that library files are group-owned by root or a system account."
+  when: rhel_10_400115 | bool
+  tags:
+    - RHEL-10-400115
+    - medium
+    - CCI-001499
+  block:
+    - name: "RHEL-10-400115 | Find library files not group-owned by root"
+      ansible.builtin.command:
+        cmd: find -L /lib /lib64 /usr/lib /usr/lib64 ! -group root ! -type d -print
+      register: rhel_10_400115_check
+      changed_when: false
+      failed_when: false
+
+    - name: "RHEL-10-400115 | Set root group ownership on library files not group-owned by root"
+      ansible.builtin.file:
+        path: "{{ item }}"
+        group: root
+      loop: "{{ rhel_10_400115_check.stdout_lines }}"
+      when: rhel_10_400115_check.stdout_lines | length > 0
+
+    - name: "RHEL-10-400115 | Re-check library files not group-owned by root"
+      ansible.builtin.command:
+        cmd: find -L /lib /lib64 /usr/lib /usr/lib64 ! -group root ! -type d -print
+      register: rhel_10_400115_verify
+      changed_when: false
+      failed_when: false
+
+    - name: "RHEL-10-400115 | Assert all library files are group-owned by root"
+      ansible.builtin.assert:
+        that:
+          - rhel_10_400115_verify.stdout_lines | length == 0
+        fail_msg: "result=FAIL stig_id=RHEL-10-400115 detail=Library files not group-owned by root: {{ rhel_10_400115_verify.stdout_lines | join(', ') }}."
+        success_msg: "result=PASS stig_id=RHEL-10-400115 detail=All library files in standard directories are group-owned by root."
+
+  rescue:
+    - name: "RHEL-10-400115 | RESCUE - record failure and continue"
+      ansible.builtin.debug:
+        msg: "result=ERROR stig_id=RHEL-10-400115 detail=Task failed unexpectedly — see prior error for details."

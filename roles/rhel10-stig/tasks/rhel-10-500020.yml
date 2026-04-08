@@ -1,0 +1,84 @@
+---
+# =============================================================================
+# STIG ID  : RHEL-10-500020
+# Rule ID  : SV-281100r1165655_rule
+# Severity : medium
+# CCI      : CCI-000044
+# Title    : RHEL 10 must log username information when unsuccessful login attempts occur.
+#
+# Description:
+#   Without auditing of these events, it may be harder or impossible to
+#   identify what an attacker did after an attack.
+#
+# Check Text:
+#   Verify RHEL 10 "/etc/security/faillock.conf" is configured to log
+#   username information when unsuccessful login attempts occur with the
+#   following command:
+#
+#   $ sudo grep audit /etc/security/faillock.conf
+#   audit
+#
+#   If the "audit" option is not set, is missing, or is commented out, this
+#   is a finding.
+#
+# Fix Text:
+#   Configure RHEL 10 to log username information when unsuccessful login
+#   attempts occur.
+#
+#   Enable the feature using the following command:
+#
+#   $ sudo authselect enable-feature with-faillock
+#
+#   Add/modify the "/etc/security/faillock.conf" file to match the following
+#   line:
+#
+#   audit
+# =============================================================================
+
+- name: "RHEL-10-500020 | RHEL 10 must log username information when unsuccessful login attempts occur."
+  when: rhel_10_500020 | bool
+  tags:
+    - RHEL-10-500020
+    - medium
+    - CCI-000044
+  block:
+    - name: "RHEL-10-500020 | Check audit option in /etc/security/faillock.conf"
+      ansible.builtin.command:
+        cmd: grep -E '^\s*audit\s*$' /etc/security/faillock.conf
+      register: rhel_10_500020_check
+      changed_when: false
+      failed_when: false
+
+    - name: "RHEL-10-500020 | Backup /etc/security/faillock.conf before modification"
+      ansible.builtin.copy:
+        src: /etc/security/faillock.conf
+        dest: "/etc/security/faillock.conf.bak.{{ ansible_date_time.epoch }}"
+        remote_src: true
+        mode: preserve
+      when: rhel_10_500020_check.rc != 0
+
+    - name: "RHEL-10-500020 | Add audit option to /etc/security/faillock.conf"
+      ansible.builtin.lineinfile:
+        path: /etc/security/faillock.conf
+        regexp: '^\s*#?\s*audit\s*$'
+        line: 'audit'
+        state: present
+      when: rhel_10_500020_check.rc != 0
+
+    - name: "RHEL-10-500020 | Re-check audit option in /etc/security/faillock.conf"
+      ansible.builtin.command:
+        cmd: grep -E '^\s*audit\s*$' /etc/security/faillock.conf
+      register: rhel_10_500020_verify
+      changed_when: false
+      failed_when: false
+
+    - name: "RHEL-10-500020 | Assert audit option is configured"
+      ansible.builtin.assert:
+        that: rhel_10_500020_verify.rc == 0
+        fail_msg: "result=FAIL stig_id=RHEL-10-500020 detail=audit option is not set in /etc/security/faillock.conf."
+        success_msg: "result=PASS stig_id=RHEL-10-500020 detail=audit option is configured in /etc/security/faillock.conf."
+
+  rescue:
+    - name: "RHEL-10-500020 | RESCUE - record failure and continue"
+      ansible.builtin.debug:
+        msg: "result=ERROR stig_id=RHEL-10-500020 detail=Task failed unexpectedly — see prior error for details."

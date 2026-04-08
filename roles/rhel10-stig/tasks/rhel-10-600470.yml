@@ -1,0 +1,52 @@
+---
+# =============================================================================
+# STIG ID  : RHEL-10-600470
+# Rule ID  : SV-281202r1166558_rule
+# Severity : medium
+# CCI      : CCI-000764
+# Title    : RHEL 10 must have a unique group ID (GID) for each group in "/etc/group".
+#
+# Description:
+#   To ensure accountability and prevent unauthenticated access, groups must
+#   be identified uniquely to prevent potential misuse and compromise of the
+#   system.
+#
+# Check Text:
+#   Verify RHEL 10 contains no duplicate GIDs for interactive users with the
+#   following command:
+#
+#   $ cut -d : -f 3 /etc/group | uniq -d
+#
+#   If the system has duplicate GIDs, this is a finding.
+#
+# Fix Text:
+#   Configure RHEL 10 to contain no duplicate GIDs for interactive users.
+#
+#   Edit the file "/etc/group", and provide each group that has a duplicate
+#   GID with a unique GID.
+# =============================================================================
+
+- name: "RHEL-10-600470 | RHEL 10 must have a unique group ID (GID) for each group in /etc/group."
+  when: rhel_10_600470 | bool
+  tags:
+    - RHEL-10-600470
+    - medium
+    - CCI-000764
+  block:
+    - name: "RHEL-10-600470 | Check for duplicate GIDs in /etc/group"
+      ansible.builtin.shell:
+        cmd: cut -d':' -f3 /etc/group | sort | uniq -d
+      register: rhel_10_600470_check
+      changed_when: false
+      failed_when: false
+
+    - name: "RHEL-10-600470 | Assert no duplicate GIDs exist"
+      ansible.builtin.assert:
+        that:
+          - rhel_10_600470_check.stdout_lines | length == 0
+        fail_msg: "result=FAIL stig_id=RHEL-10-600470 detail=Duplicate GIDs found in /etc/group ({{ rhel_10_600470_check.stdout | trim }}). Edit /etc/group to assign unique GIDs."
+        success_msg: "result=PASS stig_id=RHEL-10-600470 detail=No duplicate GIDs exist in /etc/group."
+  rescue:
+    - name: "RHEL-10-600470 | RESCUE - record failure and continue"
+      ansible.builtin.debug:
+        msg: "result=ERROR stig_id=RHEL-10-600470 detail=Task failed unexpectedly — see prior error for details."

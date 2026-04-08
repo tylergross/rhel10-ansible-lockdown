@@ -1,0 +1,76 @@
+---
+# =============================================================================
+# STIG ID  : RHEL-10-701130
+# Rule ID  : SV-281315r1167095_rule
+# Severity : medium
+# CCI      : CCI-002824
+# Title    : RHEL 10 must implement address space layout randomization (ASLR) to protect its memory from unauthorized code execution.
+#
+# Description:
+#   ASLR makes it more difficult for an attacker to predict the location of
+#   attack code they have introduced into a process's address space during an
+#   attempt at exploitation. Additionally, ASLR makes it more difficult for
+#   an attacker to know the location of existing code to repurpose it using
+#   return-oriented programming techniques.
+#
+# Check Text:
+#   Verify RHEL 10 is implementing ASLR.
+#
+#   Check the status of the "kernel.randomize_va_space" kernel parameter with
+#   the following command:
+#
+#   $ sudo sysctl kernel.randomize_va_space
+#   kernel.randomize_va_space = 2
+#
+#   If "kernel.randomize_va_space" is not set to "2" or is missing, this is a
+#   finding.
+#
+# Fix Text:
+#   Configure RHEL 10 to implement ASLR.
+#
+#   Create the drop-in if it does not already exist:
+#
+#   $ sudo vi /etc/sysctl.d/99-kernel_randomize_va_space.conf
+#
+#   Add the following line to the file:
+#
+#   kernel.randomize_va_space = 2
+#
+#   Reload settings from all system configuration files with the following
+#   command:
+#
+#   $ sudo sysctl --system
+# =============================================================================
+
+- name: "RHEL-10-701130 | RHEL 10 must implement address space layout randomization (ASLR) to protect its memory from unauthorized code execution."
+  when: rhel_10_701130 | bool
+  tags:
+    - RHEL-10-701130
+    - medium
+    - CCI-002824
+  block:
+    - name: "RHEL-10-701130 | Set sysctl kernel.randomize_va_space = 2"
+      ansible.posix.sysctl:
+        name: kernel.randomize_va_space
+        value: '2'
+        state: present
+        reload: true
+        sysctl_file: /etc/sysctl.d/rhel10-stig.conf
+
+    - name: "RHEL-10-701130 | Verify kernel.randomize_va_space"
+      ansible.builtin.command:
+        cmd: sysctl kernel.randomize_va_space
+      register: rhel_10_701130_sysctl
+      changed_when: false
+      failed_when: false
+
+    - name: "RHEL-10-701130 | Assert kernel.randomize_va_space = 2"
+      ansible.builtin.assert:
+        that: "'= 2' in rhel_10_701130_sysctl.stdout"
+        fail_msg: "result=FAIL stig_id=RHEL-10-701130 detail=kernel.randomize_va_space is not set to 2 (output={{ rhel_10_701130_sysctl.stdout | trim }})."
+        success_msg: "result=PASS stig_id=RHEL-10-701130 detail=kernel.randomize_va_space is set to 2."
+
+  rescue:
+    - name: "RHEL-10-701130 | RESCUE - record failure and continue"
+      ansible.builtin.debug:
+        msg: "result=ERROR stig_id=RHEL-10-701130 detail=Task failed unexpectedly — see prior error for details."

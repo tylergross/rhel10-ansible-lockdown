@@ -1,0 +1,98 @@
+---
+# =============================================================================
+# STIG ID  : RHEL-10-700135
+# Rule ID  : SV-281235r1166657_rule
+# Severity : medium
+# CCI      : CCI-001764
+# Title    : RHEL 10 must mount "/dev/shm" with the "nodev" option.
+#
+# Description:
+#   The "nodev" mount option causes the system to not interpret character or
+#   block special devices. Executing character or block special devices from
+#   untrusted file systems increases the opportunity for nonprivileged users
+#   to attain unauthorized administrative access. The only legitimate
+#   location for device files is the "/dev" directory located on the root
+#   partition, with the exception of chroot jails if implemented.
+#
+# Check Text:
+#   Verify RHEL 10 is configured so that "/dev/shm" is mounted with the
+#   "nodev" option with the following command:
+#
+#   $ mount | grep /dev/shm
+#   tmpfs on /dev/shm type tmpfs (rw,nodev,nosuid,noexec,seclabel)
+#
+#   If the "/dev/shm" file system is mounted without the "nodev" option, this
+#   is a finding.
+#
+# Fix Text:
+#   Configure RHEL 10 to mount "/dev/shm" with the "nodev" option.
+#
+#   Modify "/etc/fstab" to use the "nodev" option on the "/dev/shm" file
+#   system.
+#
+#   To reload all implicit mount units and update the dependency graph so
+#   that new options will apply correctly at next remount, run the following
+#   command:
+#
+#   $ sudo systemctl daemon-reload
+#
+#   Use the following command to apply the changes immediately without a
+#   reboot:
+#
+#   $ sudo mount -o remount /dev/shm
+# =============================================================================
+
+- name: "RHEL-10-700135 | RHEL 10 must mount /dev/shm with the nodev option."
+  when: rhel_10_700135 | bool
+  tags:
+    - RHEL-10-700135
+    - medium
+    - CCI-001764
+  block:
+    - name: "RHEL-10-700135 | Check /dev/shm is mounted with nodev"
+      ansible.builtin.command:
+        cmd: findmnt -kn -o OPTIONS /dev/shm
+      register: rhel_10_700135_check
+      changed_when: false
+      failed_when: false
+
+    - name: "RHEL-10-700135 | Backup /etc/fstab before modification"
+      ansible.builtin.copy:
+        src: /etc/fstab
+        dest: "/etc/fstab.bak.{{ ansible_date_time.epoch }}"
+        remote_src: true
+        mode: preserve
+      when: "'nodev' not in (rhel_10_700135_check.stdout | default(''))"
+
+    - name: "RHEL-10-700135 | Ensure /dev/shm entry with nodev exists in /etc/fstab"
+      ansible.builtin.lineinfile:
+        path: /etc/fstab
+        regexp: '^tmpfs\s+/dev/shm\s+'
+        line: 'tmpfs /dev/shm tmpfs defaults,nodev,nosuid,noexec 0 0'
+        state: present
+        create: false
+      when: "'nodev' not in (rhel_10_700135_check.stdout | default(''))"
+
+    - name: "RHEL-10-700135 | Remount /dev/shm to apply nodev"
+      ansible.builtin.command:
+        cmd: mount -o remount /dev/shm
+      when: "'nodev' not in (rhel_10_700135_check.stdout | default(''))"
+      changed_when: true
+
+    - name: "RHEL-10-700135 | Re-check /dev/shm is mounted with nodev"
+      ansible.builtin.command:
+        cmd: findmnt -kn -o OPTIONS /dev/shm
+      register: rhel_10_700135_verify
+      changed_when: false
+      failed_when: false
+
+    - name: "RHEL-10-700135 | Assert /dev/shm is mounted with nodev"
+      ansible.builtin.assert:
+        that: "'nodev' in (rhel_10_700135_verify.stdout | default(''))"
+        fail_msg: "result=FAIL stig_id=RHEL-10-700135 detail=/dev/shm is mounted without the nodev option."
+        success_msg: "result=PASS stig_id=RHEL-10-700135 detail=/dev/shm is mounted with the nodev option."
+
+  rescue:
+    - name: "RHEL-10-700135 | RESCUE - record failure and continue"
+      ansible.builtin.debug:
+        msg: "result=ERROR stig_id=RHEL-10-700135 detail=Task failed unexpectedly — see prior error for details."

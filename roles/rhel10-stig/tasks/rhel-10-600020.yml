@@ -1,0 +1,85 @@
+---
+# =============================================================================
+# STIG ID  : RHEL-10-600020
+# Rule ID  : SV-281168r1195416_rule
+# Severity : medium
+# CCI      : CCI-002696
+# Title    : RHEL 10 must not assign an interactive login shell for system accounts.
+#
+# Description:
+#   Ensuring shells are not given to system accounts upon login makes it more
+#   difficult for attackers to use system accounts.
+#
+# Check Text:
+#   Verify RHEL 10 system accounts do not have an interactive login shell
+#   with the following command:
+#
+#   $ awk -F: '($3<1000){print $1 ":" $3 ":" $7}' /etc/passwd
+#   root:0:/bin/bash
+#   bin:1:/sbin/nologin
+#   daemon:2:/sbin/nologin
+#   adm:3:/sbin/nologin
+#   lp:4:/sbin/nologin
+#
+#   Identify the listed system accounts that have a shell other than nologin.
+#
+#   If any system account (other than the root account) has a login shell and
+#   it is not documented with the information system security officer (ISSO),
+#   this is a finding.
+#
+# Fix Text:
+#   Configure RHEL 10 so that all noninteractive accounts on the system do
+#   not have an interactive shell assigned to them.
+#
+#   If the system account needs a shell assigned for mission operations,
+#   document the need with the ISSO.
+#
+#   Run the following command to disable the interactive shell for a specific
+#   noninteractive user account:
+#
+#   Replace <user> with the user that has a login shell.
+#
+#   $ sudo usermod --shell /sbin/nologin <user>
+#
+#   Do not perform the steps in this section on the root account. Doing so
+#   will cause the system to become inaccessible.
+# =============================================================================
+
+- name: "RHEL-10-600020 | RHEL 10 must not assign an interactive login shell for system accounts."
+  when: rhel_10_600020 | bool
+  tags:
+    - RHEL-10-600020
+    - medium
+    - CCI-002696
+  block:
+    - name: "RHEL-10-600020 | Find system accounts with interactive login shells"
+      ansible.builtin.command:
+        cmd: awk -F':' '($3<1000 && $3!=0 && $7 !~ /nologin/ && $7 !~ /false/ && $7 != "") {print $1}' /etc/passwd
+      register: rhel_10_600020_check
+      changed_when: false
+      failed_when: false
+
+    - name: "RHEL-10-600020 | Set nologin shell for non-root system accounts with interactive shells"
+      ansible.builtin.user:
+        name: "{{ item }}"
+        shell: /sbin/nologin
+      loop: "{{ rhel_10_600020_check.stdout_lines }}"
+      when: rhel_10_600020_check.stdout_lines | length > 0
+
+    - name: "RHEL-10-600020 | Re-check system accounts with interactive login shells"
+      ansible.builtin.command:
+        cmd: awk -F':' '($3<1000 && $3!=0 && $7 !~ /nologin/ && $7 !~ /false/ && $7 != "") {print $1}' /etc/passwd
+      register: rhel_10_600020_verify
+      changed_when: false
+      failed_when: false
+
+    - name: "RHEL-10-600020 | Assert no system accounts have interactive login shells"
+      ansible.builtin.assert:
+        that:
+          - rhel_10_600020_verify.stdout_lines | length == 0
+        fail_msg: "result=FAIL stig_id=RHEL-10-600020 detail=System accounts with interactive shells remain ({{ rhel_10_600020_verify.stdout | trim }}). Review and document with ISSO or set shell to /sbin/nologin."
+        success_msg: "result=PASS stig_id=RHEL-10-600020 detail=No system accounts have interactive login shells assigned."
+  rescue:
+    - name: "RHEL-10-600020 | RESCUE - record failure and continue"
+      ansible.builtin.debug:
+        msg: "result=ERROR stig_id=RHEL-10-600020 detail=Task failed unexpectedly — see prior error for details."

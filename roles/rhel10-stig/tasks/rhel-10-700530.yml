@@ -1,0 +1,91 @@
+---
+# =============================================================================
+# STIG ID  : RHEL-10-700530
+# Rule ID  : SV-281256r1184756_rule
+# Severity : medium
+# CCI      : CCI-002696
+# Title    : RHEL 10 must be configured so that the Secure Shell (SSH) daemon does not allow rhosts authentication.
+#
+# Description:
+#   SSH trust relationships mean a compromise on one host can allow an
+#   attacker to move trivially to other hosts. OpenSSH uses the first
+#   occurrence of a keyword it sees, and drop-in files are read in
+#   lexicographical order at the start of the configuration. Red Hat
+#   recommends using drop-in files rather than changing base configuration
+#   files.
+#
+# Check Text:
+#   Verify RHEL 10 SSH daemons do not allow rhosts authentication with the
+#   following command:
+#
+#   $ sudo /usr/sbin/sshd -dd 2>&1 | awk '/filename/ {print $4}' | tr -d '\r'
+#   | tr '\n' ' ' | xargs sudo grep -iH '^\s*ignorerhosts'
+#   /etc/ssh/sshd_config.d/10-stig.conf:IgnoreRhosts yes
+#
+#   Verify the runtime setting with the following command:
+#
+#   $ sudo sshd -T | grep -i ignorerhosts
+#   ignorerhosts yes
+#
+#   If the "IgnoreRhosts" keyword is not set to "yes" in a drop-in that
+#   lexicographically precedes 50-redhat.conf, or if no output is returned,
+#   this is a finding.
+#
+# Fix Text:
+#   Configure RHEL 10 SSH daemons to not allow rhosts authentication.
+#
+#   In "/etc/ssh/sshd_config.d", create a drop file that will
+#   lexicographically precede 50-redhat.conf and add the following line:
+#
+#   IgnoreRhosts yes
+#
+#   Restart the SSH service with the following command for the changes to
+#   take effect:
+#
+#   $ sudo systemctl restart sshd.service
+# =============================================================================
+
+- name: "RHEL-10-700530 | RHEL 10 must be configured so that the Secure Shell (SSH) daemon does not allow rhosts authentication."
+  when: rhel_10_700530 | bool
+  tags:
+    - RHEL-10-700530
+    - medium
+    - CCI-002696
+  block:
+    - name: "RHEL-10-700530 | Check IgnoreRhosts in sshd runtime config"
+      ansible.builtin.command:
+        cmd: sshd -T
+      register: rhel_10_700530_runtime
+      changed_when: false
+      failed_when: false
+
+    - name: "RHEL-10-700530 | Set IgnoreRhosts yes in /etc/ssh/sshd_config.d/10-stig.conf"
+      ansible.builtin.lineinfile:
+        path: /etc/ssh/sshd_config.d/10-stig.conf
+        regexp: '^#?IgnoreRhosts'
+        line: 'IgnoreRhosts yes'
+        state: present
+        create: true
+        mode: '0600'
+        owner: root
+        group: root
+      when: "'ignorerhosts yes' not in rhel_10_700530_runtime.stdout | lower"
+      notify: restart sshd
+
+    - name: "RHEL-10-700530 | Re-check IgnoreRhosts in sshd runtime config"
+      ansible.builtin.command:
+        cmd: sshd -T
+      register: rhel_10_700530_verify
+      changed_when: false
+      failed_when: false
+
+    - name: "RHEL-10-700530 | Assert IgnoreRhosts is set to yes"
+      ansible.builtin.assert:
+        that: "'ignorerhosts yes' in rhel_10_700530_verify.stdout | lower"
+        fail_msg: "result=FAIL stig_id=RHEL-10-700530 detail=sshd runtime config does not have IgnoreRhosts yes."
+        success_msg: "result=PASS stig_id=RHEL-10-700530 detail=sshd IgnoreRhosts is set to yes."
+
+  rescue:
+    - name: "RHEL-10-700530 | RESCUE - record failure and continue"
+      ansible.builtin.debug:
+        msg: "result=ERROR stig_id=RHEL-10-700530 detail=Task failed unexpectedly — see prior error for details."

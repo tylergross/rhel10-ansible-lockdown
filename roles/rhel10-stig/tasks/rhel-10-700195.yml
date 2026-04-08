@@ -1,0 +1,105 @@
+---
+# =============================================================================
+# STIG ID  : RHEL-10-700195
+# Rule ID  : SV-281247r1166693_rule
+# Severity : medium
+# CCI      : CCI-001764
+# Title    : RHEL 10 must mount "/var/tmp" with the "nosuid" option.
+#
+# Description:
+#   The "nosuid" mount option causes the system to not execute "setuid" and
+#   "setgid" files with owner privileges. This option must be used for
+#   mounting any file system not containing approved "setuid" and "setguid"
+#   files. Executing files from untrusted file systems increases the
+#   opportunity for nonprivileged users to attain unauthorized administrative
+#   access.
+#
+# Check Text:
+#   Verify RHEL 10 is configured so that "/var/tmp" is mounted with the
+#   "nosuid" option:
+#
+#   $ mount | grep /var/tmp
+#   /dev/mapper/luks-c98555c8-0462-4b97-9afa-6db8c4bfee3b on /var/tmp type
+#   xfs (rw,nosuid,nodev,noexec,relatime,seclabel,attr2)
+#
+#   If the "/var/tmp" file system is mounted without the "nosuid" option,
+#   this is a finding.
+#
+# Fix Text:
+#   Configure RHEL 10 to mount "/var/tmp" with the "nosuid" option.
+#
+#   Modify "/etc/fstab" to use the "nosuid" option on the "/var/tmp"
+#   directory.
+#
+#   To reload all implicit mount units and update the dependency graph so
+#   that new options will apply correctly at next remount, run the following
+#   command:
+#
+#   $ sudo systemctl daemon-reload
+#
+#   Use the following command to apply the changes immediately without a
+#   reboot:
+#
+#   $ sudo mount -o remount /var/tmp
+# =============================================================================
+
+- name: "RHEL-10-700195 | RHEL 10 must mount /var/tmp with the nosuid option."
+  when: rhel_10_700195 | bool
+  tags:
+    - RHEL-10-700195
+    - medium
+    - CCI-001764
+  block:
+    - name: "RHEL-10-700195 | Check /var/tmp is mounted with nosuid"
+      ansible.builtin.command:
+        cmd: findmnt -kn -o OPTIONS /var/tmp
+      register: rhel_10_700195_check
+      changed_when: false
+      failed_when: false
+
+    - name: "RHEL-10-700195 | Backup /etc/fstab before modification"
+      ansible.builtin.copy:
+        src: /etc/fstab
+        dest: "/etc/fstab.bak.{{ ansible_date_time.epoch }}"
+        remote_src: true
+        mode: preserve
+      when: >
+        rhel_10_700195_check.rc == 0 and
+        'nosuid' not in (rhel_10_700195_check.stdout | default(''))
+
+    - name: "RHEL-10-700195 | Add nosuid to /var/tmp mount options in /etc/fstab"
+      ansible.builtin.replace:
+        path: /etc/fstab
+        regexp: '^(\S+\s+/var/tmp\s+\S+\s+)(\S+)(\s+.*)$'
+        replace: '\1\2,nosuid\3'
+      when: >
+        rhel_10_700195_check.rc == 0 and
+        'nosuid' not in (rhel_10_700195_check.stdout | default(''))
+
+    - name: "RHEL-10-700195 | Remount /var/tmp to apply nosuid"
+      ansible.builtin.command:
+        cmd: mount -o remount /var/tmp
+      when: >
+        rhel_10_700195_check.rc == 0 and
+        'nosuid' not in (rhel_10_700195_check.stdout | default(''))
+      changed_when: true
+
+    - name: "RHEL-10-700195 | Re-check /var/tmp is mounted with nosuid"
+      ansible.builtin.command:
+        cmd: findmnt -kn -o OPTIONS /var/tmp
+      register: rhel_10_700195_verify
+      changed_when: false
+      failed_when: false
+
+    - name: "RHEL-10-700195 | Assert /var/tmp is mounted with nosuid"
+      ansible.builtin.assert:
+        that: >
+          rhel_10_700195_verify.rc != 0 or
+          'nosuid' in (rhel_10_700195_verify.stdout | default(''))
+        fail_msg: "result=FAIL stig_id=RHEL-10-700195 detail=/var/tmp is mounted without the nosuid option."
+        success_msg: "result=PASS stig_id=RHEL-10-700195 detail=/var/tmp is mounted with the nosuid option."
+
+  rescue:
+    - name: "RHEL-10-700195 | RESCUE - record failure and continue"
+      ansible.builtin.debug:
+        msg: "result=ERROR stig_id=RHEL-10-700195 detail=Task failed unexpectedly — see prior error for details."

@@ -1,0 +1,9 @@
+---
+# rhel10-stig | vars override file
+# Override default values here without editing defaults/main.yml.
+# Set a variable to false to disable a specific STIG control.
+#
+# Example - disable a single control:
+#   rhel_10_700970: false
+#
+# All available control variables are listed in defaults/main.yml.

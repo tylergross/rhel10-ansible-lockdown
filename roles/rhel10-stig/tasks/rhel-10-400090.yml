@@ -1,0 +1,72 @@
+---
+# =============================================================================
+# STIG ID  : RHEL-10-400090
+# Rule ID  : SV-281035r1165460_rule
+# Severity : medium
+# CCI      : CCI-001314
+# Title    : RHEL 10 must be configured so that the "/var/log/"messages file is owned by root.
+#
+# Description:
+#   Only authorized personnel should be aware of errors and the details of
+#   the errors. Error messages are an indicator of an organization's
+#   operational state or can identify the RHEL 10 system or platform.
+#   Additionally, personally identifiable information (PII) and operational
+#   information must not be revealed through error messages to unauthorized
+#   personnel or their designated representatives. The structure and content
+#   of error messages must be carefully considered by the organization and
+#   development team. The extent to which the information system is able to
+#   identify and handle error conditions is guided by organizational policy
+#   and operational requirements.
+#
+# Check Text:
+#   Verify RHEL 10 is configured so that the "/var/log/messages" file is
+#   owned by root with the following command:
+#
+#   $ stat -c "%U %n" /var/log/messages
+#   root /var/log/messages
+#
+#   If "/var/log/messages" does not have an owner of "root", this is a
+#   finding.
+#
+# Fix Text:
+#   Configure RHEL 10 so that the owner of the "/var/log/messages" file is
+#   set to "root" by running the following command:
+#
+#   $ sudo chown root /var/log/messages
+# =============================================================================
+
+- name: "RHEL-10-400090 | RHEL 10 must be configured so that the /var/log/messages file is owned by root."
+  when: rhel_10_400090 | bool
+  tags:
+    - RHEL-10-400090
+    - medium
+    - CCI-001314
+  block:
+    - name: "RHEL-10-400090 | Check owner of /var/log/messages"
+      ansible.builtin.stat:
+        path: /var/log/messages
+      register: rhel_10_400090_stat
+
+    - name: "RHEL-10-400090 | Set correct owner on /var/log/messages"
+      ansible.builtin.file:
+        path: /var/log/messages
+        owner: root
+      when: rhel_10_400090_stat.stat.exists and rhel_10_400090_stat.stat.pw_name != 'root'
+
+    - name: "RHEL-10-400090 | Re-check owner of /var/log/messages"
+      ansible.builtin.stat:
+        path: /var/log/messages
+      register: rhel_10_400090_verify
+
+    - name: "RHEL-10-400090 | Assert correct owner on /var/log/messages"
+      ansible.builtin.assert:
+        that:
+          - rhel_10_400090_verify.stat.exists
+          - rhel_10_400090_verify.stat.pw_name == 'root'
+        fail_msg: "result=FAIL stig_id=RHEL-10-400090 detail=/var/log/messages is not owned by root (owner={{ rhel_10_400090_verify.stat.pw_name | default('file missing') }})."
+        success_msg: "result=PASS stig_id=RHEL-10-400090 detail=/var/log/messages is owned by root."
+
+  rescue:
+    - name: "RHEL-10-400090 | RESCUE - record failure and continue"
+      ansible.builtin.debug:
+        msg: "result=ERROR stig_id=RHEL-10-400090 detail=Task failed unexpectedly — see prior error for details."

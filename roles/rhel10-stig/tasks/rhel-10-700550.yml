@@ -1,0 +1,96 @@
+---
+# =============================================================================
+# STIG ID  : RHEL-10-700550
+# Rule ID  : SV-281258r1184758_rule
+# Severity : medium
+# CCI      : CCI-002696
+# Title    : RHEL 10 must be configured so that the Secure Shell (SSH) daemon disables remote X connections for interactive users.
+#
+# Description:
+#   When X11 forwarding is enabled, there may be additional exposure to the
+#   server and client displays if the sshd proxy display is configured to
+#   listen on the wildcard address. By default, sshd binds the forwarding
+#   server to the loopback address and sets the hostname part of the DISPLAY
+#   environment variable to localhost. This prevents remote hosts from
+#   connecting to the proxy display. OpenSSH uses the first occurrence of a
+#   keyword it sees, and drop-in files are read in lexicographical order at
+#   the start of the configuration. Red Hat recommends using drop-in files
+#   rather than changing base configuration files.
+#
+# Check Text:
+#   Verify RHEL 10 SSH daemons do not allow X11Forwarding with the following
+#   command:
+#
+#   $ sudo /usr/sbin/sshd -dd 2>&1 | awk '/filename/ {print $4}' | tr -d '\r'
+#   | tr '\n' ' ' | xargs sudo grep -iH '^\s*x11forwarding'
+#   /etc/ssh/sshd_config.d/10-stig.conf:X11forwarding no
+#   /etc/ssh/sshd_config.d/50-redhat.conf:X11Forwarding yes
+#
+#   Verify the runtime setting with the following command:
+#
+#   $ sudo sshd -T | grep -i x11forwarding
+#   x11forwarding no
+#
+#   If the "X11forwarding" keyword is not set to "no" in a drop-in that
+#   lexicographically precedes 50-redhat.conf, or if no output is returned,
+#   and X11 forwarding is not documented with the information system security
+#   officer as an operational requirement, this is a finding.
+#
+# Fix Text:
+#   Configure RHEL 10 SSH daemons to not allow X11 forwarding.
+#
+#   In "/etc/ssh/sshd_config.d", create a drop file that will
+#   lexicographically precede 50-redhat.conf and add the following line:
+#
+#   X11forwarding no
+#
+#   Restart the SSH service with the following command for the changes to
+#   take effect:
+#
+#   $ sudo systemctl restart sshd.service
+# =============================================================================
+
+- name: "RHEL-10-700550 | RHEL 10 must be configured so that the Secure Shell (SSH) daemon disables remote X connections for interactive users."
+  when: rhel_10_700550 | bool
+  tags:
+    - RHEL-10-700550
+    - medium
+    - CCI-002696
+  block:
+    - name: "RHEL-10-700550 | Check X11Forwarding in sshd runtime config"
+      ansible.builtin.command:
+        cmd: sshd -T
+      register: rhel_10_700550_runtime
+      changed_when: false
+      failed_when: false
+
+    - name: "RHEL-10-700550 | Set X11Forwarding no in /etc/ssh/sshd_config.d/10-stig.conf"
+      ansible.builtin.lineinfile:
+        path: /etc/ssh/sshd_config.d/10-stig.conf
+        regexp: '^#?X11Forwarding'
+        line: 'X11Forwarding no'
+        state: present
+        create: true
+        mode: '0600'
+        owner: root
+        group: root
+      when: "'x11forwarding no' not in rhel_10_700550_runtime.stdout | lower"
+      notify: restart sshd
+
+    - name: "RHEL-10-700550 | Re-check X11Forwarding in sshd runtime config"
+      ansible.builtin.command:
+        cmd: sshd -T
+      register: rhel_10_700550_verify
+      changed_when: false
+      failed_when: false
+
+    - name: "RHEL-10-700550 | Assert X11Forwarding is set to no"
+      ansible.builtin.assert:
+        that: "'x11forwarding no' in rhel_10_700550_verify.stdout | lower"
+        fail_msg: "result=FAIL stig_id=RHEL-10-700550 detail=sshd runtime config does not have X11Forwarding no."
+        success_msg: "result=PASS stig_id=RHEL-10-700550 detail=sshd X11Forwarding is set to no."
+
+  rescue:
+    - name: "RHEL-10-700550 | RESCUE - record failure and continue"
+      ansible.builtin.debug:
+        msg: "result=ERROR stig_id=RHEL-10-700550 detail=Task failed unexpectedly — see prior error for details."

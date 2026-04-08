@@ -1,0 +1,78 @@
+---
+# =============================================================================
+# STIG ID  : RHEL-10-800150
+# Rule ID  : SV-281347r1167191_rule
+# Severity : medium
+# CCI      : CCI-002385
+# Title    : RHEL 10 must not forward Internet Protocol version 4 (IPv4) source-routed packets by default.
+#
+# Description:
+#   Source-routed packets allow the source of the packet to suggest routers
+#   forward the packet along a different path than configured on the router,
+#   which can be used to bypass network security measures. Accepting
+#   source-routed packets in the IPv4 protocol has few legitimate uses. It
+#   must be disabled unless it is absolutely required, such as when IPv4
+#   forwarding is enabled and the system is legitimately functioning as a
+#   router. Satisfies: SRG-OS-000420-GPOS-00186, SRG-OS-000142-GPOS-00078
+#
+# Check Text:
+#   Verify RHEL 10 does not accept IPv4 source-routed packets by default.
+#
+#   Check the value of the "net.ipv4.conf.default.accept_source_route"
+#   variable with the following command:
+#
+#   $ sudo sysctl net.ipv4.conf.default.accept_source_route
+#   net.ipv4.conf.default.accept_source_route = 0
+#
+#   If "net.ipv4.conf.default.accept_source_route" is not set to "0" or is
+#   missing, this is a finding.
+#
+# Fix Text:
+#   Configure RHEL 10 to not forward IPv4 source-routed packets by default.
+#
+#   Create a configuration file if it does not already exist:
+#
+#   $ sudo vi /etc/sysctl.d/99-ipv4_accept_source_route.conf
+#
+#   Add the following line to the file:
+#
+#   net.ipv4.conf.default.accept_source_route = 0
+#
+#   Reload settings from all system configuration files with the following
+#   command:
+#
+#   $ sudo sysctl --system
+# =============================================================================
+
+- name: "RHEL-10-800150 | RHEL 10 must not forward Internet Protocol version 4 (IPv4) source-routed packets by default."
+  when: rhel_10_800150 | bool
+  tags:
+    - RHEL-10-800150
+    - medium
+    - CCI-002385
+  block:
+    - name: "RHEL-10-800150 | Set sysctl net.ipv4.conf.default.accept_source_route = 0"
+      ansible.posix.sysctl:
+        name: net.ipv4.conf.default.accept_source_route
+        value: '0'
+        state: present
+        reload: true
+        sysctl_file: /etc/sysctl.d/rhel10-stig.conf
+
+    - name: "RHEL-10-800150 | Verify net.ipv4.conf.default.accept_source_route"
+      ansible.builtin.command:
+        cmd: sysctl net.ipv4.conf.default.accept_source_route
+      register: rhel_10_800150_sysctl
+      changed_when: false
+      failed_when: false
+
+    - name: "RHEL-10-800150 | Assert net.ipv4.conf.default.accept_source_route = 0"
+      ansible.builtin.assert:
+        that: "'= 0' in rhel_10_800150_sysctl.stdout"
+        fail_msg: "result=FAIL stig_id=RHEL-10-800150 detail=net.ipv4.conf.default.accept_source_route is not set to 0 (output={{ rhel_10_800150_sysctl.stdout | trim }})."
+        success_msg: "result=PASS stig_id=RHEL-10-800150 detail=net.ipv4.conf.default.accept_source_route is set to 0."
+
+  rescue:
+    - name: "RHEL-10-800150 | RESCUE - record failure and continue"
+      ansible.builtin.debug:
+        msg: "result=ERROR stig_id=RHEL-10-800150 detail=Task failed unexpectedly — see prior error for details."

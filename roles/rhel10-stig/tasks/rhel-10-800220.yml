@@ -1,0 +1,79 @@
+---
+# =============================================================================
+# STIG ID  : RHEL-10-800220
+# Rule ID  : SV-281354r1167212_rule
+# Severity : medium
+# CCI      : CCI-002385
+# Title    : RHEL 10 must not accept router advertisements on all Internet Protocol version 6 (IPv6) interfaces.
+#
+# Description:
+#   An illicit router advertisement message could result in a
+#   man-in-the-middle attack. Satisfies: SRG-OS-000420-GPOS-00186,
+#   SRG-OS-000142-GPOS-00085
+#
+# Check Text:
+#   Note: If IPv6 is disabled on the system, this requirement is not
+#   applicable.
+#
+#   Verify RHEL 10 does not accept router advertisements on all IPv6
+#   interfaces, unless the system is a router.
+#
+#   Check that "net.ipv6.conf.all.accept_ra" is set to not accept router
+#   advertisements by using the following command:
+#
+#   $ sudo sysctl net.ipv6.conf.all.accept_ra
+#   net.ipv6.conf.all.accept_ra = 0
+#
+#   If "net.ipv6.conf.all.accept_ra" is not set to "0" or is missing, this is
+#   a finding.
+#
+# Fix Text:
+#   Configure RHEL 10 to not accept router advertisements on all IPv6
+#   interfaces, unless the system is a router.
+#
+#   Create a configuration file if it does not already exist:
+#
+#   $ sudo vi /etc/sysctl.d/ipv4_accept_ra.conf
+#
+#   Add the following line to the file:
+#
+#   net.ipv6.conf.all.accept_ra = 0
+#
+#   Reload settings from all system configuration files with the following
+#   command:
+#
+#   $ sudo sysctl --system
+# =============================================================================
+
+- name: "RHEL-10-800220 | RHEL 10 must not accept router advertisements on all Internet Protocol version 6 (IPv6) interfaces."
+  when: rhel_10_800220 | bool
+  tags:
+    - RHEL-10-800220
+    - medium
+    - CCI-002385
+  block:
+    - name: "RHEL-10-800220 | Set sysctl net.ipv6.conf.all.accept_ra = 0"
+      ansible.posix.sysctl:
+        name: net.ipv6.conf.all.accept_ra
+        value: '0'
+        state: present
+        reload: true
+        sysctl_file: /etc/sysctl.d/rhel10-stig.conf
+
+    - name: "RHEL-10-800220 | Verify net.ipv6.conf.all.accept_ra"
+      ansible.builtin.command:
+        cmd: sysctl net.ipv6.conf.all.accept_ra
+      register: rhel_10_800220_sysctl
+      changed_when: false
+      failed_when: false
+
+    - name: "RHEL-10-800220 | Assert net.ipv6.conf.all.accept_ra = 0"
+      ansible.builtin.assert:
+        that: "'= 0' in rhel_10_800220_sysctl.stdout"
+        fail_msg: "result=FAIL stig_id=RHEL-10-800220 detail=net.ipv6.conf.all.accept_ra is not set to 0 (output={{ rhel_10_800220_sysctl.stdout | trim }})."
+        success_msg: "result=PASS stig_id=RHEL-10-800220 detail=net.ipv6.conf.all.accept_ra is set to 0."
+
+  rescue:
+    - name: "RHEL-10-800220 | RESCUE - record failure and continue"
+      ansible.builtin.debug:
+        msg: "result=ERROR stig_id=RHEL-10-800220 detail=Task failed unexpectedly — see prior error for details."

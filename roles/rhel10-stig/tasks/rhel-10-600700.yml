@@ -1,0 +1,106 @@
+---
+# =============================================================================
+# STIG ID  : RHEL-10-600700
+# Rule ID  : SV-281218r1166606_rule
+# Severity : medium
+# CCI      : CCI-004062
+# Title    : RHEL 10 must be configured to use a sufficient number of hashing rounds for the shadow password suite.
+#
+# Description:
+#   Passwords must be protected at all times, and encryption is the standard
+#   method for protecting passwords. If passwords are not encrypted, they can
+#   be plainly read (i.e., clear text) and easily compromised. Passwords that
+#   are encrypted with a weak algorithm are no more protected than if they
+#   are kept in plain text. Using more hashing rounds makes password cracking
+#   attacks more difficult. Satisfies: SRG-OS-000073-GPOS-00041,
+#   SRG-OS-000120-GPOS-00061
+#
+# Check Text:
+#   Verify RHEL 10 uses a sufficient number of rounds for the shadow password
+#   suite hashing algorithm with the following command:
+#
+#   $ sudo grep rounds /etc/pam.d/system-auth
+#   password sufficient pam_unix.so sha512 rounds=100000
+#
+#   If the setting is not configured or "rounds" is less than 100000, this a
+#   finding.
+#
+# Fix Text:
+#   Configure RHEL 10 to use a sufficient number of hashing rounds for shadow
+#   password suite.
+#
+#   Add or modify the following line in "/etc/pam.d/system-auth" and set
+#   "rounds" to 100000:
+#
+#   password sufficient pam_unix.so sha512 rounds=100000
+# =============================================================================
+
+- name: "RHEL-10-600700 | RHEL 10 must be configured to use a sufficient number of hashing rounds for the shadow password suite."
+  when: rhel_10_600700 | bool
+  tags:
+    - RHEL-10-600700
+    - medium
+    - CCI-004062
+  block:
+    - name: "RHEL-10-600700 | Check rounds setting in /etc/pam.d/system-auth"
+      ansible.builtin.command:
+        cmd: grep -E 'rounds=[0-9]+' /etc/pam.d/system-auth
+      register: rhel_10_600700_check
+      changed_when: false
+      failed_when: false
+
+    - name: "RHEL-10-600700 | Parse current rounds value"
+      ansible.builtin.set_fact:
+        rhel_10_600700_rounds_ok: >-
+          {{ rhel_10_600700_check.rc == 0 and
+             (rhel_10_600700_check.stdout | regex_search('rounds=([0-9]+)', '\\1') | first | int) >= 100000 }}
+      when: rhel_10_600700_check.rc == 0
+
+    - name: "RHEL-10-600700 | Set rounds_ok false when not configured"
+      ansible.builtin.set_fact:
+        rhel_10_600700_rounds_ok: false
+      when: rhel_10_600700_check.rc != 0
+
+    - name: "RHEL-10-600700 | Backup /etc/pam.d/system-auth"
+      ansible.builtin.copy:
+        src: /etc/pam.d/system-auth
+        dest: "/etc/pam.d/system-auth.bak.{{ ansible_date_time.epoch }}"
+        remote_src: true
+        mode: preserve
+      when: not rhel_10_600700_rounds_ok
+
+    - name: "RHEL-10-600700 | Set rounds=100000 on pam_unix.so line in /etc/pam.d/system-auth"
+      ansible.builtin.replace:
+        path: /etc/pam.d/system-auth
+        regexp: '^(password\s+sufficient\s+pam_unix\.so(?!.*rounds=).*)$'
+        replace: '\1 rounds=100000'
+      when: not rhel_10_600700_rounds_ok
+
+    - name: "RHEL-10-600700 | Update existing rounds to 100000 if below threshold"
+      ansible.builtin.replace:
+        path: /etc/pam.d/system-auth
+        regexp: '(password\s+sufficient\s+pam_unix\.so.*)\brounds=\d+\b'
+        replace: '\1rounds=100000'
+      when: >
+        not rhel_10_600700_rounds_ok and
+        rhel_10_600700_check.rc == 0
+
+    - name: "RHEL-10-600700 | Re-check rounds in /etc/pam.d/system-auth"
+      ansible.builtin.command:
+        cmd: grep -E 'rounds=[0-9]+' /etc/pam.d/system-auth
+      register: rhel_10_600700_verify
+      changed_when: false
+      failed_when: false
+
+    - name: "RHEL-10-600700 | Assert rounds >= 100000 in system-auth"
+      ansible.builtin.assert:
+        that:
+          - rhel_10_600700_verify.rc == 0
+          - (rhel_10_600700_verify.stdout | regex_search('rounds=([0-9]+)', '\\1') | first | int) >= 100000
+        fail_msg: "result=FAIL stig_id=RHEL-10-600700 detail=rounds is not set to at least 100000 in /etc/pam.d/system-auth."
+        success_msg: "result=PASS stig_id=RHEL-10-600700 detail=rounds=100000 is configured in /etc/pam.d/system-auth."
+
+  rescue:
+    - name: "RHEL-10-600700 | RESCUE - record failure and continue"
+      ansible.builtin.debug:
+        msg: "result=ERROR stig_id=RHEL-10-600700 detail=Task failed unexpectedly — see prior error for details."

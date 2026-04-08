@@ -1,0 +1,68 @@
+---
+# =============================================================================
+# STIG ID  : RHEL-10-001000
+# Rule ID  : SV-282965r1197252_rule
+# Severity : high
+# CCI      : CCI-003376
+# Title    : RHEL 10 must be a vendor-supported release.
+#
+# Description:
+#   An operating system release is considered "supported" if the vendor
+#   continues to provide security patches for the product. With an
+#   unsupported release, it will not be possible to resolve security issues
+#   discovered in the system software. Red Hat offers the Extended Update
+#   Support (EUS) add-on to a Red Hat Enterprise Linux subscription, for a
+#   fee, for customers who wish to standardize on a specific minor release
+#   for an extended period. End-of-life dates for Red Hat Linux 10 releases
+#   are as follows: - Current end of Full Support for Red Hat Linux 10 is 31
+#   May 2030. - Current end of Maintenance Support for Red Hat Linux 10 is 31
+#   May 2035. - Current end of Extended Life Cycle Support (ELS) for Red Hat
+#   Linux 9 is 31 May 2038.
+#
+# Check Text:
+#   Verify RHEL 10 is a vendor-supported version with the following command:
+#
+#   $ cat /etc/redhat-release
+#   Red Hat Enterprise Linux release 10.0 (Coughlan)
+#
+#   If the installed version of RHEL 10 is not supported, this is a finding.
+#
+# Fix Text:
+#   Upgrade to a supported version of RHEL 10.
+# =============================================================================
+
+- name: "RHEL-10-001000 | RHEL 10 must be a vendor-supported release."
+  when: rhel_10_001000 | bool
+  tags:
+    - RHEL-10-001000
+    - high
+    - CCI-003376
+  block:
+    - name: "RHEL-10-001000 | Read OS release string"
+      ansible.builtin.command: cat /etc/redhat-release
+      register: rhel_10_001000_release
+      changed_when: false
+      failed_when: false
+
+    - name: "RHEL-10-001000 | Assert OS is RHEL 10"
+      ansible.builtin.assert:
+        that: rhel_10_001000_release.stdout is search('Red Hat Enterprise Linux release 10')
+        fail_msg: >-
+          result=FAIL stig_id=RHEL-10-001000
+          detail=System does not appear to be RHEL 10
+          (release={{ rhel_10_001000_release.stdout | trim }}).
+          Upgrade to a supported RHEL 10 release.
+        success_msg: "result=PASS stig_id=RHEL-10-001000 detail=OS is RHEL 10 ({{ rhel_10_001000_release.stdout | trim }})."
+
+    - name: "RHEL-10-001000 | Assert system is within vendor support window"
+      ansible.builtin.assert:
+        that: ansible_date_time.date < rhel_10_001000_eol_date
+        fail_msg: >-
+          result=FAIL stig_id=RHEL-10-001000
+          detail=System is outside the vendor Maintenance Support window
+          (today={{ ansible_date_time.date }} eol={{ rhel_10_001000_eol_date }}).
+          Upgrade to a supported RHEL release or obtain Extended Life Cycle Support.
+        success_msg: >-
+          result=PASS stig_id=RHEL-10-001000
+          detail=System is within vendor support window
+          (today={{ ansible_date_time.date }} eol={{ rhel_10_001000_eol_date }}).

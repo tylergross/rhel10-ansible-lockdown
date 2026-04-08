@@ -1,0 +1,63 @@
+---
+# =============================================================================
+# STIG ID  : RHEL-10-200680
+# Rule ID  : SV-280996r1195385_rule
+# Severity : medium
+# CCI      : CCI-000803
+# Title    : RHEL 10 must have the "libreswan" package installed.
+#
+# Description:
+#   Providing the ability for remote users or systems to initiate a secure
+#   virtual private network connection protects information when it is
+#   transmitted over a wide area network.
+#
+# Check Text:
+#   Note: If there is no operational need for Libreswan to be installed, this
+#   rule is not applicable.
+#
+#   Verify RHEL 10 has the "libreswan" service package installed with the
+#   following command:
+#
+#   $ sudo dnf list --installed libreswan
+#   Installed Packages
+#   libreswan.x86_64 5.2-1.el10_0 @AppStream
+#
+#   If the "libreswan" package is not installed, this is a finding.
+#
+# Fix Text:
+#   Configure RHEL 10 to have the "libreswan" service package installed with
+#   the following command:
+#
+#   $ sudo dnf -y install libreswan
+# =============================================================================
+
+- name: "RHEL-10-200680 | RHEL 10 must have the libreswan package installed."
+  when: rhel_10_200680 | bool
+  tags:
+    - RHEL-10-200680
+    - medium
+    - CCI-000803
+  block:
+    - name: "RHEL-10-200680 | Ensure libreswan is installed"
+      ansible.builtin.package:
+        name: libreswan
+        state: present
+
+    - name: "RHEL-10-200680 | Verify libreswan is installed"
+      ansible.builtin.command: rpm -q libreswan
+      register: rhel_10_200680_check
+      changed_when: false
+      failed_when: false
+
+    - name: "RHEL-10-200680 | Assert libreswan is installed"
+      ansible.builtin.assert:
+        that: rhel_10_200680_check.rc == 0
+        fail_msg: >-
+          result=FAIL stig_id=RHEL-10-200680
+          detail=Package libreswan is not installed.
+          Install with: dnf -y install libreswan
+        success_msg: "result=PASS stig_id=RHEL-10-200680 detail=Package libreswan is installed."
+  rescue:
+    - name: "RHEL-10-200680 | RESCUE - record failure and continue"
+      ansible.builtin.debug:
+        msg: "result=ERROR stig_id=RHEL-10-200680 detail=Task failed unexpectedly — see prior error for details."

@@ -1,0 +1,99 @@
+---
+# =============================================================================
+# STIG ID  : RHEL-10-701020
+# Rule ID  : SV-281304r1167062_rule
+# Severity : medium
+# CCI      : CCI-002824
+# Title    : RHEL 10 must enable mitigations against processor-based vulnerabilities.
+#
+# Description:
+#   Kernel page-table isolation is a kernel feature that mitigates the
+#   Meltdown security vulnerability and hardens the kernel against attempts
+#   to bypass kernel address space layout randomization (KASLR). Satisfies:
+#   SRG-OS-000433-GPOS-00193, SRG-OS-000095-GPOS-00049
+#
+# Check Text:
+#   Verify RHEL 10 enables kernel page-table isolation with the following
+#   command:
+#
+#   $ sudo grubby --info=ALL | grep args | grep -v 'pti=on'
+#
+#   If any output is returned, this is a finding.
+#
+#   Check that kernel page-table isolation is enabled by default to persist
+#   in kernel updates:
+#
+#   $ sudo grep pti /etc/default/grub
+#   GRUB_CMDLINE_LINUX="pti=on"
+#
+#   If "pti" is not set to "on", is missing, or is commented out, this is a
+#   finding.
+#
+# Fix Text:
+#   Configure RHEL 10 to enable kernel page-table isolation with the
+#   following command:
+#
+#   $ sudo grubby --update-kernel=ALL --args="pti=on"
+# =============================================================================
+
+- name: "RHEL-10-701020 | RHEL 10 must enable mitigations against processor-based vulnerabilities."
+  when: rhel_10_701020 | bool
+  tags:
+    - RHEL-10-701020
+    - medium
+    - CCI-002824
+  block:
+    - name: "RHEL-10-701020 | Check current GRUB2 kernel args for pti=on"
+      ansible.builtin.command:
+        cmd: grubby --info=ALL
+      register: rhel_10_701020_grubby
+      changed_when: false
+      failed_when: false
+
+    - name: "RHEL-10-701020 | Check /etc/default/grub for pti=on"
+      ansible.builtin.command:
+        cmd: grep -E 'pti=on' /etc/default/grub
+      register: rhel_10_701020_grub_check
+      changed_when: false
+      failed_when: false
+
+    - name: "RHEL-10-701020 | Set pti=on in all kernel entries via grubby"
+      ansible.builtin.command:
+        cmd: grubby --update-kernel=ALL --args="pti=on"
+      when: rhel_10_701020_grubby.stdout is not search('pti=on')
+      changed_when: true
+
+    - name: "RHEL-10-701020 | Backup /etc/default/grub before modification"
+      ansible.builtin.copy:
+        src: /etc/default/grub
+        dest: "/etc/default/grub.bak.{{ ansible_date_time.epoch }}"
+        remote_src: true
+        mode: preserve
+      when: rhel_10_701020_grub_check.rc != 0
+
+    - name: "RHEL-10-701020 | Ensure pti=on in GRUB_CMDLINE_LINUX in /etc/default/grub"
+      ansible.builtin.lineinfile:
+        path: /etc/default/grub
+        regexp: '^(GRUB_CMDLINE_LINUX=.*)"$'
+        line: '\1 pti=on"'
+        backrefs: true
+        state: present
+      when: rhel_10_701020_grub_check.rc != 0
+
+    - name: "RHEL-10-701020 | Re-check /etc/default/grub for pti=on"
+      ansible.builtin.command:
+        cmd: grep -E 'pti=on' /etc/default/grub
+      register: rhel_10_701020_verify
+      changed_when: false
+      failed_when: false
+
+    - name: "RHEL-10-701020 | Assert pti=on is configured in /etc/default/grub"
+      ansible.builtin.assert:
+        that: rhel_10_701020_verify.rc == 0
+        fail_msg: "result=FAIL stig_id=RHEL-10-701020 detail=pti=on is not configured in /etc/default/grub."
+        success_msg: "result=PASS stig_id=RHEL-10-701020 detail=pti=on is configured in /etc/default/grub."
+
+  rescue:
+    - name: "RHEL-10-701020 | RESCUE - record failure and continue"
+      ansible.builtin.debug:
+        msg: "result=ERROR stig_id=RHEL-10-701020 detail=Task failed unexpectedly — see prior error for details."

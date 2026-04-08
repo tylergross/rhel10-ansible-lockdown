@@ -1,0 +1,97 @@
+---
+# =============================================================================
+# STIG ID  : RHEL-10-600485
+# Rule ID  : SV-281204r1197240_rule
+# Severity : medium
+# CCI      : CCI-004066
+# Title    : RHEL 10 must ensure the password complexity module in the system-auth file is configured for three or fewer retries.
+#
+# Description:
+#   Use of a complex password helps to increase the time and resources
+#   required to compromise the password. Password complexity, or strength, is
+#   a measure of the effectiveness of a password in resisting attempts at
+#   guessing and brute-force attacks. "pwquality" enforces complex password
+#   construction configuration and has the ability to limit brute-force
+#   attacks on the system. RHEL 10 uses "pwquality" as a mechanism to enforce
+#   password complexity. This is set in both of the following:
+#   "/etc/pam.d/password-auth" "/etc/pam.d/system-auth" By limiting the
+#   number of attempts to meet the pwquality module complexity requirements
+#   before returning with an error, the system will audit abnormal attempts
+#   at password changes.
+#
+# Check Text:
+#   Verify RHEL 10 is configured to limit the "pwquality" retry option to "3"
+#   with the following command:
+#
+#   $ sudo grep -w retry /etc/security/pwquality.conf
+#   /etc/security/pwquality.conf.d/*.conf
+#   retry = 3
+#
+#   If the value of "retry" is set to "0" or greater than "3", is commented
+#   out, or is missing, this is a finding.
+#
+# Fix Text:
+#   Configure RHEL 10 to limit the "pwquality" retry option to "3".
+#
+#   Add or update the following line in the "/etc/security/pwquality.conf"
+#   file or a file in the "/etc/security/pwquality.conf.d/" directory to
+#   contain the "retry" parameter:
+#
+#   retry = 3
+# =============================================================================
+
+- name: "RHEL-10-600485 | RHEL 10 must ensure the password complexity module in the system-auth file is configured for three or fewer retries."
+  when: rhel_10_600485 | bool
+  tags:
+    - RHEL-10-600485
+    - medium
+    - CCI-004066
+  block:
+    - name: "RHEL-10-600485 | Check retry in /etc/security/pwquality.conf"
+      ansible.builtin.command:
+        cmd: grep -s "^retry" /etc/security/pwquality.conf
+      register: rhel_10_600485_check
+      changed_when: false
+      failed_when: false
+
+    - name: "RHEL-10-600485 | Backup /etc/security/pwquality.conf before modification"
+      ansible.builtin.copy:
+        src: /etc/security/pwquality.conf
+        dest: "/etc/security/pwquality.conf.bak.{{ ansible_date_time.epoch }}"
+        remote_src: true
+        mode: preserve
+      when: >
+        rhel_10_600485_check.rc != 0 or
+        (rhel_10_600485_check.stdout | regex_search('retry\s*=\s*(\d+)', '\1') | first | int) == 0 or
+        (rhel_10_600485_check.stdout | regex_search('retry\s*=\s*(\d+)', '\1') | first | int) > 3
+
+    - name: "RHEL-10-600485 | Set retry = 3 in /etc/security/pwquality.conf"
+      ansible.builtin.lineinfile:
+        path: /etc/security/pwquality.conf
+        regexp: '^#?\s*retry\s*='
+        line: 'retry = 3'
+        state: present
+      when: >
+        rhel_10_600485_check.rc != 0 or
+        (rhel_10_600485_check.stdout | regex_search('retry\s*=\s*(\d+)', '\1') | first | int) == 0 or
+        (rhel_10_600485_check.stdout | regex_search('retry\s*=\s*(\d+)', '\1') | first | int) > 3
+
+    - name: "RHEL-10-600485 | Re-check retry"
+      ansible.builtin.command:
+        cmd: grep -s "^retry" /etc/security/pwquality.conf
+      register: rhel_10_600485_verify
+      changed_when: false
+      failed_when: false
+
+    - name: "RHEL-10-600485 | Assert retry is between 1 and 3"
+      ansible.builtin.assert:
+        that:
+          - rhel_10_600485_verify.rc == 0
+          - (rhel_10_600485_verify.stdout | regex_search('retry\s*=\s*(\d+)', '\1') | first | int) > 0
+          - (rhel_10_600485_verify.stdout | regex_search('retry\s*=\s*(\d+)', '\1') | first | int) <= 3
+        fail_msg: "result=FAIL stig_id=RHEL-10-600485 detail=retry is not set to a value between 1 and 3 in /etc/security/pwquality.conf (current={{ rhel_10_600485_verify.stdout | trim }})."
+        success_msg: "result=PASS stig_id=RHEL-10-600485 detail=retry is set to 3 or fewer in /etc/security/pwquality.conf ({{ rhel_10_600485_verify.stdout | trim }})."
+  rescue:
+    - name: "RHEL-10-600485 | RESCUE - record failure and continue"
+      ansible.builtin.debug:
+        msg: "result=ERROR stig_id=RHEL-10-600485 detail=Task failed unexpectedly — see prior error for details."

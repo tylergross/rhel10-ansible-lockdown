@@ -1,0 +1,84 @@
+---
+# =============================================================================
+# STIG ID  : RHEL-10-400325
+# Rule ID  : SV-281082r1195406_rule
+# Severity : medium
+# CCI      : CCI-000213
+# Title    : RHEL 10 must define default permissions for all authenticated users in such a way that the user can read and modify only their own files.
+#
+# Description:
+#   Setting the most restrictive default permissions ensures that when new
+#   accounts are created, they do not have unnecessary access.
+#
+# Check Text:
+#   Verify RHEL 10 defines default permissions for all authenticated users in
+#   such a way that the user can only read and modify their own files with
+#   the following command:
+#
+#   Note: If the value of the "umask" parameter is set to "000" in
+#   "/etc/login.defs" file, the Severity is raised to a CAT I.
+#
+#   $ sudo grep -i umask /etc/login.defs
+#   umask 077
+#
+#   If the value for the "umask" parameter is not "077", or the "umask"
+#   parameter is missing or is commented out, this is a finding.
+#
+# Fix Text:
+#   Configure RHEL 10 to define default permissions for all authenticated
+#   users in such a way that the user can read and modify only their own
+#   files.
+#
+#   Add or edit the lines for the "umask" parameter in the "/etc/login.defs"
+#   file to "077":
+#
+#   umask 077
+# =============================================================================
+
+- name: "RHEL-10-400325 | RHEL 10 must define default permissions for all authenticated users in such a way that the user can read and modify only their own files."
+  when: rhel_10_400325 | bool
+  tags:
+    - RHEL-10-400325
+    - medium
+    - CCI-000213
+  block:
+    - name: "RHEL-10-400325 | Check umask setting in /etc/login.defs"
+      ansible.builtin.command:
+        cmd: grep -iE '^\s*UMASK\s+077\b' /etc/login.defs
+      register: rhel_10_400325_check
+      changed_when: false
+      failed_when: false
+
+    - name: "RHEL-10-400325 | Backup /etc/login.defs"
+      ansible.builtin.copy:
+        src: /etc/login.defs
+        dest: "/etc/login.defs.bak.{{ ansible_date_time.epoch }}"
+        remote_src: true
+        mode: preserve
+      when: rhel_10_400325_check.rc != 0
+
+    - name: "RHEL-10-400325 | Set UMASK 077 in /etc/login.defs"
+      ansible.builtin.lineinfile:
+        path: /etc/login.defs
+        regexp: '^\s*#?\s*UMASK\s+'
+        line: 'UMASK 077'
+        state: present
+      when: rhel_10_400325_check.rc != 0
+
+    - name: "RHEL-10-400325 | Re-check umask setting in /etc/login.defs"
+      ansible.builtin.command:
+        cmd: grep -iE '^\s*UMASK\s+077\b' /etc/login.defs
+      register: rhel_10_400325_verify
+      changed_when: false
+      failed_when: false
+
+    - name: "RHEL-10-400325 | Assert UMASK 077 is set in /etc/login.defs"
+      ansible.builtin.assert:
+        that: rhel_10_400325_verify.rc == 0
+        fail_msg: "result=FAIL stig_id=RHEL-10-400325 detail=UMASK 077 is not set in /etc/login.defs."
+        success_msg: "result=PASS stig_id=RHEL-10-400325 detail=UMASK 077 is correctly set in /etc/login.defs."
+
+  rescue:
+    - name: "RHEL-10-400325 | RESCUE - record failure and continue"
+      ansible.builtin.debug:
+        msg: "result=ERROR stig_id=RHEL-10-400325 detail=Task failed unexpectedly — see prior error for details."

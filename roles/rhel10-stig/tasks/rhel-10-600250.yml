@@ -1,0 +1,96 @@
+---
+# =============================================================================
+# STIG ID  : RHEL-10-600250
+# Rule ID  : SV-281184r1197239_rule
+# Severity : medium
+# CCI      : CCI-004066
+# Title    : RHEL 10 must enforce password complexity by requiring that at least one uppercase character be used.
+#
+# Description:
+#   Use of a complex password helps to increase the time and resources
+#   required to compromise the password. Password complexity, or strength, is
+#   a measure of the effectiveness of a password in resisting attempts at
+#   guessing and brute-force attacks. Password complexity is one factor of
+#   several that determines how long it takes to crack a password. The more
+#   complex the password, the greater the number of possible combinations
+#   that must be tested before the password is compromised. Requiring a
+#   minimum number of uppercase characters makes password guessing attacks
+#   more difficult by ensuring a larger search space. Satisfies:
+#   SRG-OS-000069-GPOS-00037, SRG-OS-000070-GPOS-00038
+#
+# Check Text:
+#   Verify RHEL 10 enforces password complexity by requiring that at least
+#   one uppercase character be used.
+#
+#   Check the value for "ucredit" with the following command:
+#
+#   $ sudo grep -s ucredit /etc/security/pwquality.conf
+#   /etc/security/pwquality.conf/*.conf
+#   /etc/security/pwquality.conf:ucredit = -1
+#
+#   If the value of "ucredit" is a positive number or is commented out, this
+#   is a finding.
+#
+# Fix Text:
+#   Configure RHEL 10 to enforce password complexity by requiring that at
+#   least one uppercase character be used by setting the "ucredit" option.
+#
+#   Add or update the following line in the "/etc/security/pwquality.conf"
+#   file or a configuration file in the "/etc/security/pwquality.conf.d/"
+#   directory to contain the "ucredit" parameter:
+#
+#   ucredit = -1
+# =============================================================================
+
+- name: "RHEL-10-600250 | RHEL 10 must enforce password complexity by requiring that at least one uppercase character be used."
+  when: rhel_10_600250 | bool
+  tags:
+    - RHEL-10-600250
+    - medium
+    - CCI-004066
+  block:
+    - name: "RHEL-10-600250 | Check ucredit in /etc/security/pwquality.conf"
+      ansible.builtin.command:
+        cmd: grep -s "^ucredit" /etc/security/pwquality.conf
+      register: rhel_10_600250_check
+      changed_when: false
+      failed_when: false
+
+    - name: "RHEL-10-600250 | Backup /etc/security/pwquality.conf before modification"
+      ansible.builtin.copy:
+        src: /etc/security/pwquality.conf
+        dest: "/etc/security/pwquality.conf.bak.{{ ansible_date_time.epoch }}"
+        remote_src: true
+        mode: preserve
+      when: >
+        rhel_10_600250_check.rc != 0 or
+        (rhel_10_600250_check.stdout | regex_search('ucredit\s*=\s*(-?\d+)', '\1') | first | int) >= 0
+
+    - name: "RHEL-10-600250 | Set ucredit = -1 in /etc/security/pwquality.conf"
+      ansible.builtin.lineinfile:
+        path: /etc/security/pwquality.conf
+        regexp: '^#?\s*ucredit\s*='
+        line: 'ucredit = -1'
+        state: present
+      when: >
+        rhel_10_600250_check.rc != 0 or
+        (rhel_10_600250_check.stdout | regex_search('ucredit\s*=\s*(-?\d+)', '\1') | first | int) >= 0
+
+    - name: "RHEL-10-600250 | Re-check ucredit"
+      ansible.builtin.command:
+        cmd: grep -s "^ucredit" /etc/security/pwquality.conf
+      register: rhel_10_600250_verify
+      changed_when: false
+      failed_when: false
+
+    - name: "RHEL-10-600250 | Assert ucredit is a negative number"
+      ansible.builtin.assert:
+        that:
+          - rhel_10_600250_verify.rc == 0
+          - (rhel_10_600250_verify.stdout | regex_search('ucredit\s*=\s*(-?\d+)', '\1') | first | int) < 0
+        fail_msg: "result=FAIL stig_id=RHEL-10-600250 detail=ucredit is not set to a negative value in /etc/security/pwquality.conf (current={{ rhel_10_600250_verify.stdout | trim }})."
+        success_msg: "result=PASS stig_id=RHEL-10-600250 detail=ucredit is set to a negative value in /etc/security/pwquality.conf ({{ rhel_10_600250_verify.stdout | trim }})."
+  rescue:
+    - name: "RHEL-10-600250 | RESCUE - record failure and continue"
+      ansible.builtin.debug:
+        msg: "result=ERROR stig_id=RHEL-10-600250 detail=Task failed unexpectedly — see prior error for details."

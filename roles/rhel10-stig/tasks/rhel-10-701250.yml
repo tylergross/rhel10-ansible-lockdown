@@ -1,0 +1,151 @@
+---
+# =============================================================================
+# STIG ID  : RHEL-10-701250
+# Rule ID  : SV-281327r1167131_rule
+# Severity : medium
+# CCI      : CCI-000213
+# Title    : RHEL 10 must require authentication to access emergency mode.
+#
+# Description:
+#   To mitigate the risk of unauthorized access to sensitive information by
+#   entities that have been issued certificates by DOD-approved PKIs, all DOD
+#   systems (e.g., web servers and web portals) must be properly configured
+#   to incorporate access control methods that do not rely solely on the
+#   possession of a certificate for access. Successful authentication must
+#   not automatically give an entity access to an asset or security boundary.
+#   Authorization procedures and controls must be implemented to ensure each
+#   authenticated entity also has a validated and current authorization.
+#   Authorization is the process of determining whether an entity, once
+#   authenticated, is permitted to access a specific asset. Information
+#   systems use access control policies and enforcement mechanisms to
+#   implement this requirement. This requirement prevents attackers with
+#   physical access from trivially bypassing security on the machine and
+#   gaining root access. Such accesses are further prevented by configuring
+#   the bootloader password.
+#
+# Check Text:
+#   Verify RHEL 10 requires authentication for emergency mode with the
+#   following command:
+#
+#   $ sudo grep systemd-sulogin /usr/lib/systemd/system/emergency.service
+#   # ExecStart=-/usr/lib/systemd/systemd-sulogin-shell emergency
+#
+#   If the line is not returned from the default "systemd" file, use the
+#   following command to look for modifications to "emergency.service":
+#
+#   $ sudo grep systemd-sulogin
+#   /etc/systemd/system/emergency.service.d/*.conf
+#   ExecStart=-/usr/lib/systemd/systemd-sulogin-shell emergency
+#
+#   If the line is not returned from either location, this is a finding.
+#
+#   Note: The configuration setting can be in either the default location or
+#   the drop-in file but not in both locations.
+#
+# Fix Text:
+#   Configure RHEL 10 to require authentication for emergency mode.
+#
+#   Create a directory for supplementary configuration files:
+#
+#   $ sudo mkdir /etc/systemd/system/emergency.service.d/
+#
+#   Copy the original "emergency.service" file to the new directory with:
+#
+#   $ sudo cp /usr/lib/systemd/system/emergency.service
+#   /etc/systemd/system/emergency.service.d/emergency.service.conf
+#
+#   Open the new file:
+#
+#   $ sudo vi /etc/systemd/system/emergency.service.d/emergency.service.conf
+#
+#   Add or modify the following line in the new file:
+#
+#   ExecStart=-/usr/lib/systemd/systemd-sulogin-shell emergency
+#
+#   Comment out or remove the ExecStart and ExecStartPre lines in
+#   "/usr/lib/systemd/system/emergency.service" as they can only exist in one
+#   location.
+#
+#   Apply changes to unit files without rebooting the system:
+#
+#   $ sudo systemctl daemon-reload
+# =============================================================================
+
+- name: "RHEL-10-701250 | RHEL 10 must require authentication to access emergency mode."
+  when: rhel_10_701250 | bool
+  tags:
+    - RHEL-10-701250
+    - medium
+    - CCI-000213
+  block:
+    - name: "RHEL-10-701250 | Check default emergency.service for sulogin configuration"
+      ansible.builtin.command:
+        cmd: grep -s systemd-sulogin /usr/lib/systemd/system/emergency.service
+      register: rhel_10_701250_default_check
+      changed_when: false
+      failed_when: false
+
+    - name: "RHEL-10-701250 | Check drop-in directory for sulogin configuration"
+      ansible.builtin.command:
+        cmd: grep -rs systemd-sulogin /etc/systemd/system/emergency.service.d/ 2>/dev/null || true
+      register: rhel_10_701250_dropin_check
+      changed_when: false
+      failed_when: false
+
+    - name: "RHEL-10-701250 | Create emergency.service drop-in directory"
+      ansible.builtin.file:
+        path: /etc/systemd/system/emergency.service.d
+        state: directory
+        owner: root
+        group: root
+        mode: '0755'
+      when:
+        - rhel_10_701250_default_check.stdout | trim == ''
+        - rhel_10_701250_dropin_check.stdout | trim == ''
+
+    - name: "RHEL-10-701250 | Write sulogin drop-in for emergency.service"
+      ansible.builtin.copy:
+        dest: /etc/systemd/system/emergency.service.d/10-stig-sulogin.conf
+        content: |
+          [Service]
+          ExecStart=
+          ExecStart=-/usr/lib/systemd/systemd-sulogin-shell emergency
+        owner: root
+        group: root
+        mode: '0644'
+      when:
+        - rhel_10_701250_default_check.stdout | trim == ''
+        - rhel_10_701250_dropin_check.stdout | trim == ''
+      register: rhel_10_701250_dropin_written
+
+    - name: "RHEL-10-701250 | Reload systemd daemon after drop-in change"
+      ansible.builtin.systemd:
+        daemon_reload: true
+      when: rhel_10_701250_dropin_written is changed
+
+    - name: "RHEL-10-701250 | Re-check default emergency.service for sulogin"
+      ansible.builtin.command:
+        cmd: grep -s systemd-sulogin /usr/lib/systemd/system/emergency.service
+      register: rhel_10_701250_default_verify
+      changed_when: false
+      failed_when: false
+
+    - name: "RHEL-10-701250 | Re-check drop-in for sulogin configuration"
+      ansible.builtin.command:
+        cmd: grep -rs systemd-sulogin /etc/systemd/system/emergency.service.d/ 2>/dev/null || true
+      register: rhel_10_701250_dropin_verify
+      changed_when: false
+      failed_when: false
+
+    - name: "RHEL-10-701250 | Assert sulogin is configured for emergency mode"
+      ansible.builtin.assert:
+        that: >
+          (rhel_10_701250_default_verify.stdout | trim != '') or
+          (rhel_10_701250_dropin_verify.stdout | trim != '')
+        fail_msg: "result=FAIL stig_id=RHEL-10-701250 detail=systemd-sulogin-shell is not configured for emergency mode in default or drop-in location."
+        success_msg: "result=PASS stig_id=RHEL-10-701250 detail=systemd-sulogin-shell is correctly configured for emergency mode authentication."
+
+  rescue:
+    - name: "RHEL-10-701250 | RESCUE - record failure and continue"
+      ansible.builtin.debug:
+        msg: "result=ERROR stig_id=RHEL-10-701250 detail=Task failed unexpectedly — see prior error for details."

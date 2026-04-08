@@ -1,0 +1,76 @@
+---
+# =============================================================================
+# STIG ID  : RHEL-10-400225
+# Rule ID  : SV-281062r1165541_rule
+# Severity : medium
+# CCI      : CCI-001314
+# Title    : RHEL 10 must enforce mode "0640" or less permissive for the "/var/log/messages" file.
+#
+# Description:
+#   Only authorized personnel should be aware of errors and the details of
+#   the errors. Error messages are an indicator of an organization's
+#   operational state or can identify the RHEL 10 system or platform.
+#   Additionally, personally identifiable information (PII) and operational
+#   information must not be revealed through error messages to unauthorized
+#   personnel or their designated representatives. The structure and content
+#   of error messages must be carefully considered by the organization and
+#   development team. The extent to which the information system is able to
+#   identify and handle error conditions is guided by organizational policy
+#   and operational requirements.
+#
+# Check Text:
+#   Verify RHEL 10 is configured so that the "/var/log/messages" file has a
+#   mode of "0640" or less permissive with the following command:
+#
+#   $ stat -c '%a %n' /var/log/messages
+#   600 /var/log/messages
+#
+#   If "/var/log/messages" does not have a mode of "0640" or less permissive,
+#   this is a finding.
+#
+# Fix Text:
+#   Configure RHEL 10 so that the "/var/log/messages" file has a mode of
+#   "0640" by running the following command:
+#
+#   $ sudo chmod 0640 /var/log/messages
+# =============================================================================
+
+- name: "RHEL-10-400225 | RHEL 10 must enforce mode 0640 or less permissive for the /var/log/messages file."
+  when: rhel_10_400225 | bool
+  tags:
+    - RHEL-10-400225
+    - medium
+    - CCI-001314
+  block:
+    - name: "RHEL-10-400225 | Check mode of /var/log/messages"
+      ansible.builtin.stat:
+        path: /var/log/messages
+      register: rhel_10_400225_stat
+      changed_when: false
+
+    - name: "RHEL-10-400225 | Set mode of /var/log/messages to 0640"
+      ansible.builtin.file:
+        path: /var/log/messages
+        mode: '0640'
+      when: >
+        rhel_10_400225_stat.stat.exists and
+        (rhel_10_400225_stat.stat.mode | int(base=8)) > (0o640)
+
+    - name: "RHEL-10-400225 | Re-check mode of /var/log/messages"
+      ansible.builtin.stat:
+        path: /var/log/messages
+      register: rhel_10_400225_verify
+      changed_when: false
+
+    - name: "RHEL-10-400225 | Assert /var/log/messages has mode 0640 or less permissive"
+      ansible.builtin.assert:
+        that:
+          - rhel_10_400225_verify.stat.exists
+          - (rhel_10_400225_verify.stat.mode | int(base=8)) <= (0o640)
+        fail_msg: "result=FAIL stig_id=RHEL-10-400225 detail=/var/log/messages mode is {{ rhel_10_400225_verify.stat.mode }} which is more permissive than 0640."
+        success_msg: "result=PASS stig_id=RHEL-10-400225 detail=/var/log/messages has mode 0640 or less permissive ({{ rhel_10_400225_verify.stat.mode }})."
+
+  rescue:
+    - name: "RHEL-10-400225 | RESCUE - record failure and continue"
+      ansible.builtin.debug:
+        msg: "result=ERROR stig_id=RHEL-10-400225 detail=Task failed unexpectedly — see prior error for details."
