@@ -51,12 +51,20 @@
     - CCI-002385
   block:
     - name: "RHEL-10-800180 | Set sysctl net.ipv4.icmp_ignore_bogus_error_responses = 1"
-      ansible.posix.sysctl:
-        name: net.ipv4.icmp_ignore_bogus_error_responses
-        value: '1'
-        state: present
-        reload: true
-        sysctl_file: /etc/sysctl.d/rhel10-stig.conf
+      ansible.builtin.lineinfile:
+        path: /etc/sysctl.d/rhel10-stig.conf
+        regexp: '^#?\s*net\.ipv4\.icmp_ignore_bogus_error_responses\s*='
+        line: 'net.ipv4.icmp_ignore_bogus_error_responses = 1'
+        create: true
+        mode: '0644'
+        owner: root
+        group: root
+
+    - name: "RHEL-10-800180 | Apply sysctl settings from conf file"
+      ansible.builtin.command:
+        cmd: sysctl -p /etc/sysctl.d/rhel10-stig.conf
+      changed_when: false
+      failed_when: false
 
     - name: "RHEL-10-800180 | Verify net.ipv4.icmp_ignore_bogus_error_responses"
       ansible.builtin.command:

@@ -49,9 +49,12 @@
     - low
     - CCI-000054
   block:
-    - name: "RHEL-10-600475 | Check maxlogins in /etc/security/limits.conf and limits.d/"
+    - name: "RHEL-10-600475 | Check maxlogins compliance in limits.conf and limits.d/"
       ansible.builtin.shell:
-        cmd: grep -rsh "maxlogins" /etc/security/limits.conf /etc/security/limits.d/*.conf 2>/dev/null | grep -v '^#'
+        cmd: >
+          grep -rsh "maxlogins" /etc/security/limits.conf /etc/security/limits.d/*.conf 2>/dev/null |
+          grep -v '^#' |
+          awk '/maxlogins/{for(i=1;i<=NF;i++) if($i=="maxlogins"){v=$(i+1)+0; exit (v>=1 && v<=10 ? 0 : 1)}} END{exit 1}'
       register: rhel_10_600475_check
       changed_when: false
       failed_when: false
@@ -66,23 +69,21 @@
         mode: '0644'
         owner: root
         group: root
-      when: >
-        rhel_10_600475_check.rc != 0 or
-        rhel_10_600475_check.stdout_lines | length == 0 or
-        (rhel_10_600475_check.stdout | regex_search('maxlogins\s+(\d+)', '\1') | first | default('999') | int) > 10
+      when: rhel_10_600475_check.rc != 0
 
-    - name: "RHEL-10-600475 | Re-check maxlogins"
+    - name: "RHEL-10-600475 | Re-check maxlogins compliance"
       ansible.builtin.shell:
-        cmd: grep -rsh "maxlogins" /etc/security/limits.conf /etc/security/limits.d/*.conf 2>/dev/null | grep -v '^#'
+        cmd: >
+          grep -rsh "maxlogins" /etc/security/limits.conf /etc/security/limits.d/*.conf 2>/dev/null |
+          grep -v '^#' |
+          awk '/maxlogins/{for(i=1;i<=NF;i++) if($i=="maxlogins"){v=$(i+1)+0; exit (v>=1 && v<=10 ? 0 : 1)}} END{exit 1}'
       register: rhel_10_600475_verify
       changed_when: false
       failed_when: false
 
     - name: "RHEL-10-600475 | Assert maxlogins is set to 10 or less"
       ansible.builtin.assert:
-        that:
-          - rhel_10_600475_verify.stdout_lines | length > 0
-          - (rhel_10_600475_verify.stdout | regex_search('maxlogins\s+(\d+)', '\1') | first | int) <= 10
+        that: rhel_10_600475_verify.rc == 0
         fail_msg: "result=FAIL stig_id=RHEL-10-600475 detail=maxlogins is not configured to 10 or less in limits.conf or limits.d/ (current={{ rhel_10_600475_verify.stdout | trim }})."
         success_msg: "result=PASS stig_id=RHEL-10-600475 detail=maxlogins is set to 10 or less ({{ rhel_10_600475_verify.stdout | trim }})."
   rescue:

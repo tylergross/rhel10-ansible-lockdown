@@ -43,8 +43,9 @@
     - CCI-002238
   block:
     - name: "RHEL-10-600420 | Check fail_interval in /etc/security/faillock.conf"
-      ansible.builtin.command:
-        cmd: grep "fail_interval" /etc/security/faillock.conf
+      ansible.builtin.shell:
+        cmd: >-
+          awk -F= '/^\s*fail_interval\s*=/{gsub(/ /,\"\",$2); v=$2+0; exit (v>=1 && v<=900 ? 0 : 1)} END{exit 1}' /etc/security/faillock.conf
       register: rhel_10_600420_check
       changed_when: false
       failed_when: false
@@ -55,10 +56,7 @@
         dest: "/etc/security/faillock.conf.bak.{{ ansible_date_time.epoch }}"
         remote_src: true
         mode: preserve
-      when: >
-        rhel_10_600420_check.rc != 0 or
-        (rhel_10_600420_check.stdout | regex_search('fail_interval\s*=\s*(\d+)', '\1') | first | int) == 0 or
-        (rhel_10_600420_check.stdout | regex_search('fail_interval\s*=\s*(\d+)', '\1') | first | int) > 900
+      when: rhel_10_600420_check.rc != 0
 
     - name: "RHEL-10-600420 | Set fail_interval = 900 in /etc/security/faillock.conf"
       ansible.builtin.lineinfile:
@@ -66,24 +64,19 @@
         regexp: '^#?\s*fail_interval\s*='
         line: 'fail_interval = 900'
         state: present
-      when: >
-        rhel_10_600420_check.rc != 0 or
-        (rhel_10_600420_check.stdout | regex_search('fail_interval\s*=\s*(\d+)', '\1') | first | int) == 0 or
-        (rhel_10_600420_check.stdout | regex_search('fail_interval\s*=\s*(\d+)', '\1') | first | int) > 900
+      when: rhel_10_600420_check.rc != 0
 
     - name: "RHEL-10-600420 | Re-check fail_interval"
-      ansible.builtin.command:
-        cmd: grep "fail_interval" /etc/security/faillock.conf
+      ansible.builtin.shell:
+        cmd: >-
+          awk -F= '/^\s*fail_interval\s*=/{gsub(/ /,\"\",$2); v=$2+0; exit (v>=1 && v<=900 ? 0 : 1)} END{exit 1}' /etc/security/faillock.conf
       register: rhel_10_600420_verify
       changed_when: false
       failed_when: false
 
     - name: "RHEL-10-600420 | Assert fail_interval is 900 or less (but not 0)"
       ansible.builtin.assert:
-        that:
-          - rhel_10_600420_verify.rc == 0
-          - (rhel_10_600420_verify.stdout | regex_search('fail_interval\s*=\s*(\d+)', '\1') | first | int) > 0
-          - (rhel_10_600420_verify.stdout | regex_search('fail_interval\s*=\s*(\d+)', '\1') | first | int) <= 900
+        that: rhel_10_600420_verify.rc == 0
         fail_msg: "result=FAIL stig_id=RHEL-10-600420 detail=fail_interval is not set to 900 or less in /etc/security/faillock.conf (current={{ rhel_10_600420_verify.stdout | trim }})."
         success_msg: "result=PASS stig_id=RHEL-10-600420 detail=fail_interval is set to 900 or less in /etc/security/faillock.conf ({{ rhel_10_600420_verify.stdout | trim }})."
   rescue:

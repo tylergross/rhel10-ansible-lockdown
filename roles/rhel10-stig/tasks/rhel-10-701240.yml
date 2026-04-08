@@ -67,7 +67,8 @@
 
     - name: "RHEL-10-701240 | Test each private key for passphrase protection"
       ansible.builtin.command:
-        cmd: "ssh-keygen -y -P '' -f {{ item.path }}"
+        cmd: >-
+          "ssh-keygen -y -P '' -f {{ item.path }}"
       loop: "{{ rhel_10_701240_key_files.files | default([]) }}"
       loop_control:
         label: "{{ item.path }}"

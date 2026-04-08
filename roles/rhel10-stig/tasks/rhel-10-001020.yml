@@ -131,7 +131,8 @@
 
     - name: "RHEL-10-001020 | Query installed Red Hat GPG keys from rpm keyring"
       ansible.builtin.shell:
-        cmd: "rpm -q --queryformat '%{SUMMARY}\n' gpg-pubkey | grep -i 'red hat'"
+        cmd: >-
+          "rpm -q --queryformat '%{SUMMARY}\n' gpg-pubkey | grep -i 'red hat'"
       register: rhel_10_001020_installed_keys
       changed_when: false
       failed_when: false

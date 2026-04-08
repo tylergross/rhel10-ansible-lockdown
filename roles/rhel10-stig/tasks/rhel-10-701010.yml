@@ -73,7 +73,8 @@
 
     - name: "RHEL-10-701010 | Check /etc/default/grub for init_on_free=1"
       ansible.builtin.command:
-        cmd: grep -E 'init_on_free=1' /etc/default/grub
+        cmd: >-
+          grep -E 'init_on_free=1' /etc/default/grub
       register: rhel_10_701010_grub_check
       changed_when: false
       failed_when: false
@@ -103,7 +104,8 @@
 
     - name: "RHEL-10-701010 | Re-check /etc/default/grub for init_on_free=1"
       ansible.builtin.command:
-        cmd: grep -E 'init_on_free=1' /etc/default/grub
+        cmd: >-
+          grep -E 'init_on_free=1' /etc/default/grub
       register: rhel_10_701010_verify
       changed_when: false
       failed_when: false

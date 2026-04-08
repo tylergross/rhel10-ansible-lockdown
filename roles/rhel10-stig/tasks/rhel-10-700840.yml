@@ -63,7 +63,8 @@
 
     - name: "RHEL-10-700840 | Check disable-user-list in dconf keyfile"
       ansible.builtin.command:
-        cmd: grep -r 'disable-user-list' /etc/dconf/db/local.d/
+        cmd: >-
+          grep -r 'disable-user-list' /etc/dconf/db/local.d/
       register: rhel_10_700840_check
       changed_when: false
       failed_when: false
@@ -99,7 +100,8 @@
 
     - name: "RHEL-10-700840 | Re-check disable-user-list in dconf"
       ansible.builtin.command:
-        cmd: grep -r 'disable-user-list' /etc/dconf/db/local.d/
+        cmd: >-
+          grep -r 'disable-user-list' /etc/dconf/db/local.d/
       register: rhel_10_700840_verify
       changed_when: false
       failed_when: false

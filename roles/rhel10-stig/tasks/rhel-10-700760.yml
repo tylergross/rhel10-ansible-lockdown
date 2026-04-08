@@ -68,7 +68,8 @@
 
     - name: "RHEL-10-700760 | Check session idle-delay lock in dconf locks file"
       ansible.builtin.command:
-        cmd: grep -r '/org/gnome/desktop/session/idle-delay' /etc/dconf/db/local.d/locks/
+        cmd: >-
+          grep -r '/org/gnome/desktop/session/idle-delay' /etc/dconf/db/local.d/locks/
       register: rhel_10_700760_check
       changed_when: false
       failed_when: false
@@ -92,7 +93,8 @@
 
     - name: "RHEL-10-700760 | Re-check session idle-delay lock in dconf"
       ansible.builtin.command:
-        cmd: grep -r '/org/gnome/desktop/session/idle-delay' /etc/dconf/db/local.d/locks/
+        cmd: >-
+          grep -r '/org/gnome/desktop/session/idle-delay' /etc/dconf/db/local.d/locks/
       register: rhel_10_700760_verify
       changed_when: false
       failed_when: false

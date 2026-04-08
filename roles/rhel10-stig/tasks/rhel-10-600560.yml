@@ -44,7 +44,8 @@
   block:
     - name: "RHEL-10-600560 | Check for NOPASSWD in sudoers files"
       ansible.builtin.shell:
-        cmd: grep -ir nopasswd /etc/sudoers /etc/sudoers.d/ | grep -v '#'
+        cmd: >-
+          grep -ir nopasswd /etc/sudoers /etc/sudoers.d/ | grep -v '#'
       register: rhel_10_600560_check
       changed_when: false
       failed_when: false

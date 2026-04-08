@@ -42,7 +42,8 @@
   block:
     - name: "RHEL-10-400340 | Find SSH private host key files more permissive than 0600"
       ansible.builtin.command:
-        cmd: find /etc/ssh -maxdepth 1 -name '*_key' -perm /177 -type f
+        cmd: >-
+          find /etc/ssh -maxdepth 1 -name '*_key' -perm /177 -type f
       register: rhel_10_400340_check
       changed_when: false
       failed_when: false
@@ -56,7 +57,8 @@
 
     - name: "RHEL-10-400340 | Re-check SSH private host key files more permissive than 0600"
       ansible.builtin.command:
-        cmd: find /etc/ssh -maxdepth 1 -name '*_key' -perm /177 -type f
+        cmd: >-
+          find /etc/ssh -maxdepth 1 -name '*_key' -perm /177 -type f
       register: rhel_10_400340_verify
       changed_when: false
       failed_when: false

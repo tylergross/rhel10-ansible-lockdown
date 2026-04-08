@@ -1,7 +1,30 @@
 ---
 # rhel10-stig | handlers
-# Add handlers here as tasks are implemented.
-# Common handlers to add:
-#   - Restart services (sshd, auditd, etc.)
-#   - Reload systemd daemon
-#   - Reboot notification
+
+- name: restart auditd
+  ansible.builtin.service:
+    name: auditd
+    state: restarted
+  become: true
+
+- name: restart sshd
+  ansible.builtin.service:
+    name: sshd
+    state: restarted
+  become: true
+
+- name: run dconf update
+  ansible.builtin.command: dconf update
+  become: true
+  changed_when: false
+
+- name: reload NetworkManager
+  ansible.builtin.service:
+    name: NetworkManager
+    state: reloaded
+  become: true
+
+- name: reload firewalld
+  ansible.builtin.command: firewall-cmd --reload
+  become: true
+  changed_when: false

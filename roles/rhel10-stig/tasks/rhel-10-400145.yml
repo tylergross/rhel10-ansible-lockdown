@@ -79,7 +79,8 @@
 
     - name: "RHEL-10-400145 | Restore SELinux context on incorrectly labeled device files"
       ansible.builtin.command:
-        cmd: restorecon -v "{{ item.split(' ')[0] }}"
+        cmd: >-
+          restorecon -v "{{ item.split(' ')[0] }}"
       loop: "{{ rhel_10_400145_check.stdout_lines }}"
       when: rhel_10_400145_check.stdout_lines | length > 0
       changed_when: true

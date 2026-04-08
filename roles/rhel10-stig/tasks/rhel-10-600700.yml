@@ -43,23 +43,12 @@
     - CCI-004062
   block:
     - name: "RHEL-10-600700 | Check rounds setting in /etc/pam.d/system-auth"
-      ansible.builtin.command:
-        cmd: grep -E 'rounds=[0-9]+' /etc/pam.d/system-auth
+      ansible.builtin.shell:
+        cmd: >-
+          grep -oP 'rounds=\K[0-9]+' /etc/pam.d/system-auth | awk '{exit ($1+0>=100000 ? 0 : 1)}'
       register: rhel_10_600700_check
       changed_when: false
       failed_when: false
-
-    - name: "RHEL-10-600700 | Parse current rounds value"
-      ansible.builtin.set_fact:
-        rhel_10_600700_rounds_ok: >-
-          {{ rhel_10_600700_check.rc == 0 and
-             (rhel_10_600700_check.stdout | regex_search('rounds=([0-9]+)', '\\1') | first | int) >= 100000 }}
-      when: rhel_10_600700_check.rc == 0
-
-    - name: "RHEL-10-600700 | Set rounds_ok false when not configured"
-      ansible.builtin.set_fact:
-        rhel_10_600700_rounds_ok: false
-      when: rhel_10_600700_check.rc != 0
 
     - name: "RHEL-10-600700 | Backup /etc/pam.d/system-auth"
       ansible.builtin.copy:
@@ -67,36 +56,33 @@
         dest: "/etc/pam.d/system-auth.bak.{{ ansible_date_time.epoch }}"
         remote_src: true
         mode: preserve
-      when: not rhel_10_600700_rounds_ok
+      when: rhel_10_600700_check.rc != 0
 
     - name: "RHEL-10-600700 | Set rounds=100000 on pam_unix.so line in /etc/pam.d/system-auth"
       ansible.builtin.replace:
         path: /etc/pam.d/system-auth
         regexp: '^(password\s+sufficient\s+pam_unix\.so(?!.*rounds=).*)$'
         replace: '\1 rounds=100000'
-      when: not rhel_10_600700_rounds_ok
+      when: rhel_10_600700_check.rc != 0
 
     - name: "RHEL-10-600700 | Update existing rounds to 100000 if below threshold"
       ansible.builtin.replace:
         path: /etc/pam.d/system-auth
         regexp: '(password\s+sufficient\s+pam_unix\.so.*)\brounds=\d+\b'
         replace: '\1rounds=100000'
-      when: >
-        not rhel_10_600700_rounds_ok and
-        rhel_10_600700_check.rc == 0
+      when: rhel_10_600700_check.rc != 0
 
     - name: "RHEL-10-600700 | Re-check rounds in /etc/pam.d/system-auth"
-      ansible.builtin.command:
-        cmd: grep -E 'rounds=[0-9]+' /etc/pam.d/system-auth
+      ansible.builtin.shell:
+        cmd: >-
+          grep -oP 'rounds=\K[0-9]+' /etc/pam.d/system-auth | awk '{exit ($1+0>=100000 ? 0 : 1)}'
       register: rhel_10_600700_verify
       changed_when: false
       failed_when: false
 
     - name: "RHEL-10-600700 | Assert rounds >= 100000 in system-auth"
       ansible.builtin.assert:
-        that:
-          - rhel_10_600700_verify.rc == 0
-          - (rhel_10_600700_verify.stdout | regex_search('rounds=([0-9]+)', '\\1') | first | int) >= 100000
+        that: rhel_10_600700_verify.rc == 0
         fail_msg: "result=FAIL stig_id=RHEL-10-600700 detail=rounds is not set to at least 100000 in /etc/pam.d/system-auth."
         success_msg: "result=PASS stig_id=RHEL-10-600700 detail=rounds=100000 is configured in /etc/pam.d/system-auth."
 

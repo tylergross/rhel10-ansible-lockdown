@@ -6,6 +6,38 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ---
 
+## [0.5.0] — 2026-04-07
+
+### Fixed
+- **handlers/main.yml** — defined all missing handlers (`restart auditd`, `restart sshd`, `run dconf update`, `reload NetworkManager`, `reload firewalld`) that 63+ tasks were notifying but never declared; fixed capitalization mismatch on `Restart sshd` in `RHEL-10-600640`
+- **500xxx audit rules (49 files)** — re-check verify tasks were running `auditctl -l` (live kernel rules) before `auditd` restarted, causing false assert failures; changed all verify commands to `cat /etc/audit/rules.d/rhel10-stig.rules`
+- **RHEL-10-700790** — `dconf update` was failing with "Key file does not start with a group" because `lineinfile` created `00-security-settings` without a `[org/gnome/desktop/screensaver]` group header; added missing header task
+- **701xxx sysctl tasks (32 files)** — replaced `ansible.posix.sysctl` (collection not installed) with `ansible.builtin.lineinfile` + `sysctl -p` using only built-in modules
+- **regex_search capture groups (20 files)** — `regex_search('PARAM', '\1') | first | int` is unsupported in this Ansible/Jinja2 version; replaced all check/verify commands with `awk` compliance tests (rc=0 = compliant) and simplified all `when:` and assert `that:` to `rc != 0` / `rc == 0`
+- **RHEL-10-600700 / 600720** — removed `set_fact` blocks that still used broken `regex_search`; consolidated to `check.rc != 0` conditions
+- **RHEL-10-600750, 700950, 701150, 701160** — backup `copy` tasks aborted when source file did not exist; added `ansible.builtin.stat` guard so backup is skipped if the file is absent
+- **RHEL-10-700800** — hard `assert` on `dconf update` rc replaced with conditional `debug` tasks; non-zero rc now emits `result=WARN` and continues rather than aborting
+- **RHEL-10-900100** — `-e 2` immutable flag assertion was using fragile Jinja2 `select('match')` on `auditctl -l` output; changed to `grep -E '^\s*-e\s+2\s*$'` against the rules file with `rc == 0` assert
+- **RHEL-10-600140** — expiration-date check was flagging all system service accounts; scoped to UID ≥ 1000 interactive accounts with non-nologin shells only
+- **RHEL-10-600170** — PATH-in-init-files check converted from hard assert to audit-only `debug` output; reports `result=FAIL` to Splunk without aborting the play
+- **RHEL-10-600730** — SHA-512 hash check was flagging root and system accounts; scoped to UID ≥ 1000, skips locked/unset accounts (`!`, `*`, `!!`)
+- **enforce.sh** — fixed Windows CRLF line endings that caused `/usr/bin/env: 'bash\r': No such file or directory` on Linux
+
+---
+
+## [0.4.0] — 2026-04-07
+
+### Added
+- `customize.py` — interactive CLI customizer for toggling STIG controls before running the playbook
+  - Anaconda-style curses TUI; no extra packages required (Python stdlib only)
+  - Browse all 434 controls with STIG ID, severity, and title
+  - `Space` to toggle a control on/off; `i`/`Enter` to view full description, check text, and fix text
+  - Filter by severity (ALL / HIGH / MEDIUM / LOW) and live keyword search (`/`)
+  - Unsaved changes highlighted; `s` saves overrides to `vars/main.yml`; prompts on quit with unsaved changes
+  - Writes only values that differ from `defaults/main.yml` — keeps `vars/main.yml` clean
+
+---
+
 ## [0.3.0] — 2026-04-06
 
 ### Added
@@ -60,6 +92,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 | Version | Date       | Description                                          |
 |---------|------------|------------------------------------------------------|
+| 0.5.0   | 2026-04-07 | Bug fixes: handlers, sysctl, regex_search, scoping   |
+| 0.4.0   | 2026-04-07 | Interactive CLI customizer (`customize.py`)          |
 | 0.3.0   | 2026-04-06 | All 434/434 controls implemented (701xxx range)      |
 | 0.2.0   | 2026-04-06 | 404/434 controls implemented; bug fixes              |
 | 0.1.0   | 2026-03-30 | Initial framework scaffold                           |

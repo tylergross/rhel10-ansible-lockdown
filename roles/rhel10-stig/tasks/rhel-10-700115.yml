@@ -52,7 +52,8 @@
 
     - name: "RHEL-10-700115 | Check for NFS mounts with sec=sys or missing krb5"
       ansible.builtin.command:
-        cmd: grep -iP '\snfs' /etc/fstab
+        cmd: >-
+          grep -iP '\snfs' /etc/fstab
       register: rhel_10_700115_raw
       changed_when: false
       failed_when: false
@@ -60,7 +61,8 @@
 
     - name: "RHEL-10-700115 | Check for NFS mounts missing valid sec= option"
       ansible.builtin.command:
-        cmd: grep -iP '\snfs\S*\s+\S+\s+\S*(?:(?!sec=krb5)|sec=sys)' /etc/fstab
+        cmd: >-
+          grep -iP '\snfs\S*\s+\S+\s+\S*(?:(?!sec=krb5)|sec=sys)' /etc/fstab
       register: rhel_10_700115_missing
       changed_when: false
       failed_when: false

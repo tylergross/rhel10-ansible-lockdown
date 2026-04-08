@@ -39,6 +39,7 @@ rhel10-lockdown/
 │           └── main.yml       # Local overrides (takes precedence over defaults)
 ├── site.yml                   # Main playbook entry point
 ├── enforce.sh                 # Convenience wrapper for running the playbook
+├── customize.py               # Interactive CLI for toggling STIG controls
 ├── README.md                  # This file
 └── CHANGELOG.md               # Version history
 ```
@@ -98,9 +99,32 @@ all:
 
 ---
 
-## Disabling Individual Controls
+## Customizing Controls
 
-All controls are **enabled by default**. To skip a specific control, override its variable in `roles/rhel10-stig/vars/main.yml`:
+### Interactive CLI (recommended)
+
+`customize.py` provides a full-screen terminal UI for reviewing and toggling controls before running the playbook. It requires no extra packages — only the Python 3 standard library included with RHEL 10.
+
+```bash
+python3 customize.py
+```
+
+| Key | Action |
+|-----|--------|
+| `↑` / `↓` | Navigate the list |
+| `PgUp` / `PgDn` | Page through controls |
+| `Space` | Toggle control on / off |
+| `i` or `Enter` | View full description, check text, and fix text |
+| `f` | Cycle severity filter: ALL → HIGH → MEDIUM → LOW |
+| `/` | Search by STIG ID or title keyword |
+| `s` | Save overrides to `vars/main.yml` |
+| `q` | Quit (prompts if there are unsaved changes) |
+
+Saves only values that differ from the defaults, keeping `vars/main.yml` minimal.
+
+### Manual Override
+
+All controls are **enabled by default**. To skip a specific control, add its variable to `roles/rhel10-stig/vars/main.yml`:
 
 ```yaml
 # roles/rhel10-stig/vars/main.yml

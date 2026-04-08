@@ -55,14 +55,16 @@
   block:
     - name: "RHEL-10-700860 | Check bluetooth install rule in modprobe"
       ansible.builtin.command:
-        cmd: grep -rs 'install bluetooth /bin/false' /etc/modprobe.conf /etc/modprobe.d/
+        cmd: >-
+          grep -rs 'install bluetooth /bin/false' /etc/modprobe.conf /etc/modprobe.d/
       register: rhel_10_700860_install_check
       changed_when: false
       failed_when: false
 
     - name: "RHEL-10-700860 | Check bluetooth blacklist rule in modprobe"
       ansible.builtin.command:
-        cmd: grep -rs 'blacklist bluetooth' /etc/modprobe.conf /etc/modprobe.d/
+        cmd: >-
+          grep -rs 'blacklist bluetooth' /etc/modprobe.conf /etc/modprobe.d/
       register: rhel_10_700860_blacklist_check
       changed_when: false
       failed_when: false
@@ -91,7 +93,8 @@
 
     - name: "RHEL-10-700860 | Re-check bluetooth configuration in modprobe"
       ansible.builtin.command:
-        cmd: grep -rs 'bluetooth' /etc/modprobe.conf /etc/modprobe.d/
+        cmd: >-
+          grep -rs 'bluetooth' /etc/modprobe.conf /etc/modprobe.d/
       register: rhel_10_700860_verify
       changed_when: false
       failed_when: false

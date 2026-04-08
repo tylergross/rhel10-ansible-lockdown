@@ -58,7 +58,8 @@
   block:
     - name: "RHEL-10-500210 | Check action_mail_acct in /etc/audit/auditd.conf"
       ansible.builtin.command:
-        cmd: grep -E '^\s*action_mail_acct\s*=\s*root' /etc/audit/auditd.conf
+        cmd: >-
+          grep -E '^\s*action_mail_acct\s*=\s*root' /etc/audit/auditd.conf
       register: rhel_10_500210_check
       changed_when: false
       failed_when: false
@@ -82,7 +83,8 @@
 
     - name: "RHEL-10-500210 | Re-check action_mail_acct in /etc/audit/auditd.conf"
       ansible.builtin.command:
-        cmd: grep -E '^\s*action_mail_acct\s*=\s*root' /etc/audit/auditd.conf
+        cmd: >-
+          grep -E '^\s*action_mail_acct\s*=\s*root' /etc/audit/auditd.conf
       register: rhel_10_500210_verify
       changed_when: false
       failed_when: false

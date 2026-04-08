@@ -55,7 +55,8 @@
 
     - name: "RHEL-10-300080 | Check /etc/named.conf for crypto-policies include"
       ansible.builtin.command:
-        cmd: grep -F 'include "/etc/crypto-policies/back-ends/bind.config";' /etc/named.conf
+        cmd: >-
+          grep -F 'include "/etc/crypto-policies/back-ends/bind.config";' /etc/named.conf
       register: rhel_10_300080_check
       changed_when: false
       failed_when: false
@@ -82,7 +83,8 @@
 
     - name: "RHEL-10-300080 | Re-check /etc/named.conf after remediation"
       ansible.builtin.command:
-        cmd: grep -F 'include "/etc/crypto-policies/back-ends/bind.config";' /etc/named.conf
+        cmd: >-
+          grep -F 'include "/etc/crypto-policies/back-ends/bind.config";' /etc/named.conf
       register: rhel_10_300080_verify
       changed_when: false
       failed_when: false

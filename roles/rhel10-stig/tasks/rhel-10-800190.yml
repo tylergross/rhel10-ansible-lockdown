@@ -52,12 +52,20 @@
     - CCI-002385
   block:
     - name: "RHEL-10-800190 | Set sysctl net.ipv4.conf.all.send_redirects = 0"
-      ansible.posix.sysctl:
-        name: net.ipv4.conf.all.send_redirects
-        value: '0'
-        state: present
-        reload: true
-        sysctl_file: /etc/sysctl.d/rhel10-stig.conf
+      ansible.builtin.lineinfile:
+        path: /etc/sysctl.d/rhel10-stig.conf
+        regexp: '^#?\s*net\.ipv4\.conf\.all\.send_redirects\s*='
+        line: 'net.ipv4.conf.all.send_redirects = 0'
+        create: true
+        mode: '0644'
+        owner: root
+        group: root
+
+    - name: "RHEL-10-800190 | Apply sysctl settings from conf file"
+      ansible.builtin.command:
+        cmd: sysctl -p /etc/sysctl.d/rhel10-stig.conf
+      changed_when: false
+      failed_when: false
 
     - name: "RHEL-10-800190 | Verify net.ipv4.conf.all.send_redirects"
       ansible.builtin.command:

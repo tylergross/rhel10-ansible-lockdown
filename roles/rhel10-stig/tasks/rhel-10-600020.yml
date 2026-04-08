@@ -54,7 +54,8 @@
   block:
     - name: "RHEL-10-600020 | Find system accounts with interactive login shells"
       ansible.builtin.command:
-        cmd: awk -F':' '($3<1000 && $3!=0 && $7 !~ /nologin/ && $7 !~ /false/ && $7 != "") {print $1}' /etc/passwd
+        cmd: >-
+          awk -F':' '($3<1000 && $3!=0 && $7 !~ /nologin/ && $7 !~ /false/ && $7 != "") {print $1}' /etc/passwd
       register: rhel_10_600020_check
       changed_when: false
       failed_when: false
@@ -68,7 +69,8 @@
 
     - name: "RHEL-10-600020 | Re-check system accounts with interactive login shells"
       ansible.builtin.command:
-        cmd: awk -F':' '($3<1000 && $3!=0 && $7 !~ /nologin/ && $7 !~ /false/ && $7 != "") {print $1}' /etc/passwd
+        cmd: >-
+          awk -F':' '($3<1000 && $3!=0 && $7 !~ /nologin/ && $7 !~ /false/ && $7 != "") {print $1}' /etc/passwd
       register: rhel_10_600020_verify
       changed_when: false
       failed_when: false

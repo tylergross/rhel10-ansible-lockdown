@@ -67,7 +67,8 @@
 
     - name: "RHEL-10-700770 | Check lock-delay in dconf keyfile"
       ansible.builtin.command:
-        cmd: grep -r 'lock-delay' /etc/dconf/db/local.d/
+        cmd: >-
+          grep -r 'lock-delay' /etc/dconf/db/local.d/
       register: rhel_10_700770_check
       changed_when: false
       failed_when: false
@@ -103,7 +104,8 @@
 
     - name: "RHEL-10-700770 | Re-check lock-delay in dconf"
       ansible.builtin.command:
-        cmd: grep -r 'lock-delay' /etc/dconf/db/local.d/
+        cmd: >-
+          grep -r 'lock-delay' /etc/dconf/db/local.d/
       register: rhel_10_700770_verify
       changed_when: false
       failed_when: false

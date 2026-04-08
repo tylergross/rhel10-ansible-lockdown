@@ -50,7 +50,8 @@
   block:
     - name: "RHEL-10-500105 | Check admin_space_left in /etc/audit/auditd.conf"
       ansible.builtin.command:
-        cmd: grep -E '^\s*admin_space_left\s*=\s*5%' /etc/audit/auditd.conf
+        cmd: >-
+          grep -E '^\s*admin_space_left\s*=\s*5%' /etc/audit/auditd.conf
       register: rhel_10_500105_check
       changed_when: false
       failed_when: false
@@ -74,7 +75,8 @@
 
     - name: "RHEL-10-500105 | Re-check admin_space_left in /etc/audit/auditd.conf"
       ansible.builtin.command:
-        cmd: grep -E '^\s*admin_space_left\s*=\s*5%' /etc/audit/auditd.conf
+        cmd: >-
+          grep -E '^\s*admin_space_left\s*=\s*5%' /etc/audit/auditd.conf
       register: rhel_10_500105_verify
       changed_when: false
       failed_when: false

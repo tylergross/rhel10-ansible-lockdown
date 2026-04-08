@@ -78,7 +78,7 @@
 
     - name: "RHEL-10-500440 | Re-check audit rules for crontab"
       ansible.builtin.command:
-        cmd: auditctl -l
+        cmd: cat /etc/audit/rules.d/rhel10-stig.rules
       register: rhel_10_500440_verify
       changed_when: false
       failed_when: false

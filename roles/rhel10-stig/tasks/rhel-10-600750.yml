@@ -46,10 +46,16 @@
   block:
     - name: "RHEL-10-600750 | Check crypt_style in /etc/libuser.conf"
       ansible.builtin.command:
-        cmd: grep -iE '^\s*crypt_style\s*=\s*sha512' /etc/libuser.conf
+        cmd: >-
+          grep -iE '^\s*crypt_style\s*=\s*sha512' /etc/libuser.conf
       register: rhel_10_600750_check
       changed_when: false
       failed_when: false
+
+    - name: "RHEL-10-600750 | Stat target file before backup"
+      ansible.builtin.stat:
+        path: /etc/libuser.conf
+      register: rhel_10_600750_stat
 
     - name: "RHEL-10-600750 | Backup /etc/libuser.conf"
       ansible.builtin.copy:
@@ -57,7 +63,7 @@
         dest: "/etc/libuser.conf.bak.{{ ansible_date_time.epoch }}"
         remote_src: true
         mode: preserve
-      when: rhel_10_600750_check.rc != 0
+      when: rhel_10_600750_check.rc != 0 and rhel_10_600750_stat.stat.exists
 
     - name: "RHEL-10-600750 | Set crypt_style = sha512 in [defaults] section of /etc/libuser.conf"
       ansible.builtin.lineinfile:
@@ -70,7 +76,8 @@
 
     - name: "RHEL-10-600750 | Re-check crypt_style in /etc/libuser.conf"
       ansible.builtin.command:
-        cmd: grep -iE '^\s*crypt_style\s*=\s*sha512' /etc/libuser.conf
+        cmd: >-
+          grep -iE '^\s*crypt_style\s*=\s*sha512' /etc/libuser.conf
       register: rhel_10_600750_verify
       changed_when: false
       failed_when: false

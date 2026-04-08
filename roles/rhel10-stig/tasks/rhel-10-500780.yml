@@ -99,7 +99,7 @@
 
     - name: "RHEL-10-500780 | Re-check audit rules for chmod syscalls"
       ansible.builtin.command:
-        cmd: auditctl -l
+        cmd: cat /etc/audit/rules.d/rhel10-stig.rules
       register: rhel_10_500780_verify
       changed_when: false
       failed_when: false

@@ -41,7 +41,8 @@
   block:
     - name: "RHEL-10-600520 | Check for ALL ALL=(ALL) ALL entries in sudoers"
       ansible.builtin.shell:
-        cmd: grep -riw ALL /etc/sudoers /etc/sudoers.d/ | grep -v '#' | grep -E '^ALL\s+ALL=\(ALL(|:ALL)\)\s+ALL'
+        cmd: >-
+          grep -riw ALL /etc/sudoers /etc/sudoers.d/ | grep -v '#' | grep -E '^ALL\s+ALL=\(ALL(|:ALL)\)\s+ALL'
       register: rhel_10_600520_check
       changed_when: false
       failed_when: false

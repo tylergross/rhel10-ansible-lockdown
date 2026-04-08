@@ -44,7 +44,7 @@
 #   Defaults !runaspw
 # =============================================================================
 
-- name: "RHEL-10-600550 | RHEL 10 must use the invoking user's password for privilege escalation when using "sudo"."
+- name: "RHEL-10-600550 | RHEL 10 must use the invoking user's password for privilege escalation when using sudo."
   when: rhel_10_600550 | bool
   tags:
     - RHEL-10-600550
@@ -53,14 +53,16 @@
   block:
     - name: "RHEL-10-600550 | Check for !targetpw !rootpw !runaspw in /etc/sudoers"
       ansible.builtin.command:
-        cmd: grep -irE '(!rootpw|!targetpw|!runaspw)' /etc/sudoers /etc/sudoers.d/
+        cmd: >-
+          grep -irE '(!rootpw|!targetpw|!runaspw)' /etc/sudoers /etc/sudoers.d/
       register: rhel_10_600550_check
       changed_when: false
       failed_when: false
 
     - name: "RHEL-10-600550 | Check that all three defaults are in /etc/sudoers only"
       ansible.builtin.command:
-        cmd: grep -iE '(!rootpw|!targetpw|!runaspw)' /etc/sudoers
+        cmd: >-
+          grep -iE '(!rootpw|!targetpw|!runaspw)' /etc/sudoers
       register: rhel_10_600550_main
       changed_when: false
       failed_when: false
@@ -105,7 +107,8 @@
 
     - name: "RHEL-10-600550 | Re-check for !targetpw !rootpw !runaspw in /etc/sudoers"
       ansible.builtin.command:
-        cmd: grep -iE '(!rootpw|!targetpw|!runaspw)' /etc/sudoers
+        cmd: >-
+          grep -iE '(!rootpw|!targetpw|!runaspw)' /etc/sudoers
       register: rhel_10_600550_verify
       changed_when: false
       failed_when: false

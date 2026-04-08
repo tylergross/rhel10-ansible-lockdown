@@ -49,7 +49,8 @@
   block:
     - name: "RHEL-10-500205 | Check space_left_action in /etc/audit/auditd.conf"
       ansible.builtin.command:
-        cmd: grep -E '^\s*space_left_action\s*=\s*email' /etc/audit/auditd.conf
+        cmd: >-
+          grep -E '^\s*space_left_action\s*=\s*email' /etc/audit/auditd.conf
       register: rhel_10_500205_check
       changed_when: false
       failed_when: false
@@ -73,7 +74,8 @@
 
     - name: "RHEL-10-500205 | Re-check space_left_action in /etc/audit/auditd.conf"
       ansible.builtin.command:
-        cmd: grep -E '^\s*space_left_action\s*=\s*email' /etc/audit/auditd.conf
+        cmd: >-
+          grep -E '^\s*space_left_action\s*=\s*email' /etc/audit/auditd.conf
       register: rhel_10_500205_verify
       changed_when: false
       failed_when: false

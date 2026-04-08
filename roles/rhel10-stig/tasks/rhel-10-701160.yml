@@ -57,13 +57,18 @@
       changed_when: false
       failed_when: false
 
+    - name: "RHEL-10-701160 | Stat target file before backup"
+      ansible.builtin.stat:
+        path: /etc/systemd/coredump.conf
+      register: rhel_10_701160_stat
+
     - name: "RHEL-10-701160 | Backup coredump.conf before modification"
       ansible.builtin.copy:
         src: /etc/systemd/coredump.conf
         dest: "/etc/systemd/coredump.conf.bak.{{ ansible_date_time.epoch }}"
         remote_src: true
         mode: preserve
-      when: "'Storage=none' not in (rhel_10_701160_check.stdout | default(''))"
+      when: "'Storage=none' not in (rhel_10_701160_check.stdout | default('')) and rhel_10_701160_stat.stat.exists"
 
     - name: "RHEL-10-701160 | Set Storage=none in coredump.conf"
       ansible.builtin.lineinfile:

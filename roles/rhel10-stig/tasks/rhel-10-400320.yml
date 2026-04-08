@@ -47,7 +47,8 @@
   block:
     - name: "RHEL-10-400320 | Check umask setting in /etc/csh.cshrc"
       ansible.builtin.command:
-        cmd: grep -E '^\s*umask\s+077\b' /etc/csh.cshrc
+        cmd: >-
+          grep -E '^\s*umask\s+077\b' /etc/csh.cshrc
       register: rhel_10_400320_check
       changed_when: false
       failed_when: false
@@ -70,7 +71,8 @@
 
     - name: "RHEL-10-400320 | Re-check umask setting in /etc/csh.cshrc"
       ansible.builtin.command:
-        cmd: grep -E '^\s*umask\s+077\b' /etc/csh.cshrc
+        cmd: >-
+          grep -E '^\s*umask\s+077\b' /etc/csh.cshrc
       register: rhel_10_400320_verify
       changed_when: false
       failed_when: false

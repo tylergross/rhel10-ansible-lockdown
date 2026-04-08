@@ -48,7 +48,8 @@
   block:
     - name: "RHEL-10-600710 | Check pam_unix.so sha512 in /etc/pam.d/system-auth"
       ansible.builtin.command:
-        cmd: grep -E '^password.*pam_unix\.so.*sha512' /etc/pam.d/system-auth
+        cmd: >-
+          grep -E '^password.*pam_unix\.so.*sha512' /etc/pam.d/system-auth
       register: rhel_10_600710_check
       changed_when: false
       failed_when: false
@@ -70,7 +71,8 @@
 
     - name: "RHEL-10-600710 | Re-check pam_unix.so sha512 in /etc/pam.d/system-auth"
       ansible.builtin.command:
-        cmd: grep -E '^password.*pam_unix\.so.*sha512' /etc/pam.d/system-auth
+        cmd: >-
+          grep -E '^password.*pam_unix\.so.*sha512' /etc/pam.d/system-auth
       register: rhel_10_600710_verify
       changed_when: false
       failed_when: false

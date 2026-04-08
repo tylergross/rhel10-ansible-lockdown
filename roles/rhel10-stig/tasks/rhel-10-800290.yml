@@ -53,7 +53,8 @@
   block:
     - name: "RHEL-10-800290 | Check FirewallBackend in /etc/firewalld/firewalld.conf"
       ansible.builtin.command:
-        cmd: grep -i '^FirewallBackend' /etc/firewalld/firewalld.conf
+        cmd: >-
+          grep -i '^FirewallBackend' /etc/firewalld/firewalld.conf
       register: rhel_10_800290_check
       changed_when: false
       failed_when: false
@@ -77,7 +78,8 @@
 
     - name: "RHEL-10-800290 | Re-check FirewallBackend setting"
       ansible.builtin.command:
-        cmd: grep -i '^FirewallBackend' /etc/firewalld/firewalld.conf
+        cmd: >-
+          grep -i '^FirewallBackend' /etc/firewalld/firewalld.conf
       register: rhel_10_800290_verify
       changed_when: false
       failed_when: false

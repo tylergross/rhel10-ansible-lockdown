@@ -54,12 +54,20 @@
     - CCI-002165
   block:
     - name: "RHEL-10-701080 | Set sysctl fs.protected_symlinks = 1"
-      ansible.posix.sysctl:
-        name: fs.protected_symlinks
-        value: '1'
-        state: present
-        reload: true
-        sysctl_file: /etc/sysctl.d/rhel10-stig.conf
+      ansible.builtin.lineinfile:
+        path: /etc/sysctl.d/rhel10-stig.conf
+        regexp: '^#?\s*fs\.protected_symlinks\s*='
+        line: 'fs.protected_symlinks = 1'
+        create: true
+        mode: '0644'
+        owner: root
+        group: root
+
+    - name: "RHEL-10-701080 | Apply sysctl settings from conf file"
+      ansible.builtin.command:
+        cmd: sysctl -p /etc/sysctl.d/rhel10-stig.conf
+      changed_when: false
+      failed_when: false
 
     - name: "RHEL-10-701080 | Verify fs.protected_symlinks"
       ansible.builtin.command:

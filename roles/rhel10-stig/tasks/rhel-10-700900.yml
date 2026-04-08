@@ -54,7 +54,8 @@
   block:
     - name: "RHEL-10-700900 | Check CPU NX flag is present in /proc/cpuinfo"
       ansible.builtin.command:
-        cmd: grep -E '^flags' /proc/cpuinfo
+        cmd: >-
+          grep -E '^flags' /proc/cpuinfo
       register: rhel_10_700900_cpuflags
       changed_when: false
       failed_when: false

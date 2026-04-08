@@ -67,7 +67,8 @@
   block:
     - name: "RHEL-10-800060 | Check existing nameserver entries in /etc/resolv.conf"
       ansible.builtin.command:
-        cmd: grep -c '^nameserver' /etc/resolv.conf
+        cmd: >-
+          grep -c '^nameserver' /etc/resolv.conf
       register: rhel_10_800060_count
       changed_when: false
       failed_when: false
@@ -90,7 +91,8 @@
 
     - name: "RHEL-10-800060 | Re-check nameserver count in /etc/resolv.conf"
       ansible.builtin.command:
-        cmd: grep -c '^nameserver' /etc/resolv.conf
+        cmd: >-
+          grep -c '^nameserver' /etc/resolv.conf
       register: rhel_10_800060_verify
       changed_when: false
       failed_when: false

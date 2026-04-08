@@ -40,8 +40,9 @@
     - CCI-002238
   block:
     - name: "RHEL-10-600200 | Check FAIL_DELAY in /etc/login.defs"
-      ansible.builtin.command:
-        cmd: grep -i "^FAIL_DELAY" /etc/login.defs
+      ansible.builtin.shell:
+        cmd: >-
+          awk '/^FAIL_DELAY/{v=$2+0; exit (v>=4 ? 0 : 1)} END{exit 1}' /etc/login.defs
       register: rhel_10_600200_check
       changed_when: false
       failed_when: false
@@ -52,9 +53,7 @@
         dest: "/etc/login.defs.bak.{{ ansible_date_time.epoch }}"
         remote_src: true
         mode: preserve
-      when: >
-        rhel_10_600200_check.rc != 0 or
-        (rhel_10_600200_check.stdout | regex_search('FAIL_DELAY\s+(\d+)', '\1') | first | int) < 4
+      when: rhel_10_600200_check.rc != 0
 
     - name: "RHEL-10-600200 | Set FAIL_DELAY to 4 in /etc/login.defs"
       ansible.builtin.lineinfile:
@@ -62,22 +61,19 @@
         regexp: '^#?\s*FAIL_DELAY'
         line: 'FAIL_DELAY      4'
         state: present
-      when: >
-        rhel_10_600200_check.rc != 0 or
-        (rhel_10_600200_check.stdout | regex_search('FAIL_DELAY\s+(\d+)', '\1') | first | int) < 4
+      when: rhel_10_600200_check.rc != 0
 
     - name: "RHEL-10-600200 | Re-check FAIL_DELAY"
-      ansible.builtin.command:
-        cmd: grep -i "^FAIL_DELAY" /etc/login.defs
+      ansible.builtin.shell:
+        cmd: >-
+          awk '/^FAIL_DELAY/{v=$2+0; exit (v>=4 ? 0 : 1)} END{exit 1}' /etc/login.defs
       register: rhel_10_600200_verify
       changed_when: false
       failed_when: false
 
     - name: "RHEL-10-600200 | Assert FAIL_DELAY is 4 or greater"
       ansible.builtin.assert:
-        that:
-          - rhel_10_600200_verify.rc == 0
-          - (rhel_10_600200_verify.stdout | regex_search('FAIL_DELAY\s+(\d+)', '\1') | first | int) >= 4
+        that: rhel_10_600200_verify.rc == 0
         fail_msg: "result=FAIL stig_id=RHEL-10-600200 detail=FAIL_DELAY is not set to 4 or greater in /etc/login.defs (current={{ rhel_10_600200_verify.stdout | trim }})."
         success_msg: "result=PASS stig_id=RHEL-10-600200 detail=FAIL_DELAY is set to 4 or greater in /etc/login.defs ({{ rhel_10_600200_verify.stdout | trim }})."
   rescue:

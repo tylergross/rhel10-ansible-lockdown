@@ -60,7 +60,8 @@
 
     - name: "RHEL-10-500005 | Check /etc/default/grub for audit=1"
       ansible.builtin.command:
-        cmd: grep -E 'audit=1' /etc/default/grub
+        cmd: >-
+          grep -E 'audit=1' /etc/default/grub
       register: rhel_10_500005_grub_check
       changed_when: false
       failed_when: false
@@ -88,7 +89,8 @@
 
     - name: "RHEL-10-500005 | Re-check /etc/default/grub for audit=1"
       ansible.builtin.command:
-        cmd: grep -E 'audit=1' /etc/default/grub
+        cmd: >-
+          grep -E 'audit=1' /etc/default/grub
       register: rhel_10_500005_verify
       changed_when: false
       failed_when: false

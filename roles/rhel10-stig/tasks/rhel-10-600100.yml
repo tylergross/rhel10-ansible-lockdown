@@ -42,8 +42,9 @@
     - CCI-004066
   block:
     - name: "RHEL-10-600100 | Check PASS_MAX_DAYS in /etc/login.defs"
-      ansible.builtin.command:
-        cmd: grep -i "^PASS_MAX_DAYS" /etc/login.defs
+      ansible.builtin.shell:
+        cmd: >-
+          awk '/^PASS_MAX_DAYS/{v=$2+0; exit (v>=1 && v<=60 ? 0 : 1)} END{exit 1}' /etc/login.defs
       register: rhel_10_600100_check
       changed_when: false
       failed_when: false
@@ -54,9 +55,7 @@
         dest: "/etc/login.defs.bak.{{ ansible_date_time.epoch }}"
         remote_src: true
         mode: preserve
-      when: >
-        rhel_10_600100_check.rc != 0 or
-        (rhel_10_600100_check.stdout | regex_search('PASS_MAX_DAYS\s+(\d+)', '\1') | first | int) > 60
+      when: rhel_10_600100_check.rc != 0
 
     - name: "RHEL-10-600100 | Set PASS_MAX_DAYS to 60 in /etc/login.defs"
       ansible.builtin.lineinfile:
@@ -64,23 +63,19 @@
         regexp: '^#?\s*PASS_MAX_DAYS'
         line: 'PASS_MAX_DAYS   60'
         state: present
-      when: >
-        rhel_10_600100_check.rc != 0 or
-        (rhel_10_600100_check.stdout | regex_search('PASS_MAX_DAYS\s+(\d+)', '\1') | first | int) > 60
+      when: rhel_10_600100_check.rc != 0
 
     - name: "RHEL-10-600100 | Re-check PASS_MAX_DAYS"
-      ansible.builtin.command:
-        cmd: grep -i "^PASS_MAX_DAYS" /etc/login.defs
+      ansible.builtin.shell:
+        cmd: >-
+          awk '/^PASS_MAX_DAYS/{v=$2+0; exit (v>=1 && v<=60 ? 0 : 1)} END{exit 1}' /etc/login.defs
       register: rhel_10_600100_verify
       changed_when: false
       failed_when: false
 
     - name: "RHEL-10-600100 | Assert PASS_MAX_DAYS is 60 or less"
       ansible.builtin.assert:
-        that:
-          - rhel_10_600100_verify.rc == 0
-          - (rhel_10_600100_verify.stdout | regex_search('PASS_MAX_DAYS\s+(\d+)', '\1') | first | int) <= 60
-          - (rhel_10_600100_verify.stdout | regex_search('PASS_MAX_DAYS\s+(\d+)', '\1') | first | int) > 0
+        that: rhel_10_600100_verify.rc == 0
         fail_msg: "result=FAIL stig_id=RHEL-10-600100 detail=PASS_MAX_DAYS is not set to 60 or less in /etc/login.defs (current={{ rhel_10_600100_verify.stdout | trim }})."
         success_msg: "result=PASS stig_id=RHEL-10-600100 detail=PASS_MAX_DAYS is set correctly in /etc/login.defs ({{ rhel_10_600100_verify.stdout | trim }})."
   rescue:

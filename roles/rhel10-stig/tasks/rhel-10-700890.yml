@@ -65,7 +65,8 @@
 
     - name: "RHEL-10-700890 | Check autorun-never setting in dconf keyfile"
       ansible.builtin.command:
-        cmd: grep -r 'autorun-never' /etc/dconf/db/local.d/
+        cmd: >-
+          grep -r 'autorun-never' /etc/dconf/db/local.d/
       register: rhel_10_700890_check
       changed_when: false
       failed_when: false
@@ -101,7 +102,8 @@
 
     - name: "RHEL-10-700890 | Re-check autorun-never in dconf"
       ansible.builtin.command:
-        cmd: grep -r 'autorun-never' /etc/dconf/db/local.d/
+        cmd: >-
+          grep -r 'autorun-never' /etc/dconf/db/local.d/
       register: rhel_10_700890_verify
       changed_when: false
       failed_when: false

@@ -53,7 +53,8 @@
   block:
     - name: "RHEL-10-500110 | Check admin_space_left_action in /etc/audit/auditd.conf"
       ansible.builtin.command:
-        cmd: grep -E '^\s*admin_space_left_action\s*=\s*single' /etc/audit/auditd.conf
+        cmd: >-
+          grep -E '^\s*admin_space_left_action\s*=\s*single' /etc/audit/auditd.conf
       register: rhel_10_500110_check
       changed_when: false
       failed_when: false
@@ -77,7 +78,8 @@
 
     - name: "RHEL-10-500110 | Re-check admin_space_left_action in /etc/audit/auditd.conf"
       ansible.builtin.command:
-        cmd: grep -E '^\s*admin_space_left_action\s*=\s*single' /etc/audit/auditd.conf
+        cmd: >-
+          grep -E '^\s*admin_space_left_action\s*=\s*single' /etc/audit/auditd.conf
       register: rhel_10_500110_verify
       changed_when: false
       failed_when: false

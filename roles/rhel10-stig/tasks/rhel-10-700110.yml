@@ -52,7 +52,8 @@
 
     - name: "RHEL-10-700110 | Check for NFS mounts missing nosuid"
       ansible.builtin.command:
-        cmd: grep -iP '\snfs\S*\s+\S+\s+(?!.*\bnosuid\b)' /etc/fstab
+        cmd: >-
+          grep -iP '\snfs\S*\s+\S+\s+(?!.*\bnosuid\b)' /etc/fstab
       register: rhel_10_700110_missing
       changed_when: false
       failed_when: false

@@ -48,7 +48,8 @@
   block:
     - name: "RHEL-10-500045 | Check name_format in /etc/audit/auditd.conf"
       ansible.builtin.command:
-        cmd: grep -E '^\s*name_format\s*=\s*(hostname|fqd|numeric)' /etc/audit/auditd.conf
+        cmd: >-
+          grep -E '^\s*name_format\s*=\s*(hostname|fqd|numeric)' /etc/audit/auditd.conf
       register: rhel_10_500045_check
       changed_when: false
       failed_when: false
@@ -72,7 +73,8 @@
 
     - name: "RHEL-10-500045 | Re-check name_format in /etc/audit/auditd.conf"
       ansible.builtin.command:
-        cmd: grep -E '^\s*name_format\s*=\s*(hostname|fqd|numeric)' /etc/audit/auditd.conf
+        cmd: >-
+          grep -E '^\s*name_format\s*=\s*(hostname|fqd|numeric)' /etc/audit/auditd.conf
       register: rhel_10_500045_verify
       changed_when: false
       failed_when: false

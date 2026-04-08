@@ -45,14 +45,16 @@
   block:
     - name: "RHEL-10-700850 | Check usb-storage install rule in modprobe"
       ansible.builtin.command:
-        cmd: grep -rs 'install usb-storage /bin/false' /etc/modprobe.conf /etc/modprobe.d/
+        cmd: >-
+          grep -rs 'install usb-storage /bin/false' /etc/modprobe.conf /etc/modprobe.d/
       register: rhel_10_700850_install_check
       changed_when: false
       failed_when: false
 
     - name: "RHEL-10-700850 | Check usb-storage blacklist rule in modprobe"
       ansible.builtin.command:
-        cmd: grep -rs 'blacklist usb-storage' /etc/modprobe.conf /etc/modprobe.d/
+        cmd: >-
+          grep -rs 'blacklist usb-storage' /etc/modprobe.conf /etc/modprobe.d/
       register: rhel_10_700850_blacklist_check
       changed_when: false
       failed_when: false
@@ -81,7 +83,8 @@
 
     - name: "RHEL-10-700850 | Re-check usb-storage configuration in modprobe"
       ansible.builtin.command:
-        cmd: grep -rs 'usb-storage' /etc/modprobe.conf /etc/modprobe.d/
+        cmd: >-
+          grep -rs 'usb-storage' /etc/modprobe.conf /etc/modprobe.d/
       register: rhel_10_700850_verify
       changed_when: false
       failed_when: false

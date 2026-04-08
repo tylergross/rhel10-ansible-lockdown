@@ -55,7 +55,8 @@
 
     - name: "RHEL-10-701000 | Check /etc/default/grub for page_poison=1"
       ansible.builtin.command:
-        cmd: grep -E 'page_poison=1' /etc/default/grub
+        cmd: >-
+          grep -E 'page_poison=1' /etc/default/grub
       register: rhel_10_701000_grub_check
       changed_when: false
       failed_when: false
@@ -85,7 +86,8 @@
 
     - name: "RHEL-10-701000 | Re-check /etc/default/grub for page_poison=1"
       ansible.builtin.command:
-        cmd: grep -E 'page_poison=1' /etc/default/grub
+        cmd: >-
+          grep -E 'page_poison=1' /etc/default/grub
       register: rhel_10_701000_verify
       changed_when: false
       failed_when: false

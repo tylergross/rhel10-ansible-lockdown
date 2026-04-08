@@ -43,7 +43,8 @@
   block:
     - name: "RHEL-10-500015 | Check write_logs in /etc/audit/auditd.conf"
       ansible.builtin.command:
-        cmd: grep -E '^\s*write_logs\s*=\s*yes' /etc/audit/auditd.conf
+        cmd: >-
+          grep -E '^\s*write_logs\s*=\s*yes' /etc/audit/auditd.conf
       register: rhel_10_500015_check
       changed_when: false
       failed_when: false
@@ -67,7 +68,8 @@
 
     - name: "RHEL-10-500015 | Re-check write_logs in /etc/audit/auditd.conf"
       ansible.builtin.command:
-        cmd: grep -E '^\s*write_logs\s*=\s*yes' /etc/audit/auditd.conf
+        cmd: >-
+          grep -E '^\s*write_logs\s*=\s*yes' /etc/audit/auditd.conf
       register: rhel_10_500015_verify
       changed_when: false
       failed_when: false

@@ -46,8 +46,9 @@
     - CCI-004066
   block:
     - name: "RHEL-10-600290 | Check maxrepeat in /etc/security/pwquality.conf"
-      ansible.builtin.command:
-        cmd: grep -s "^maxrepeat" /etc/security/pwquality.conf
+      ansible.builtin.shell:
+        cmd: >-
+          awk -F= '/^maxrepeat/{gsub(/ /,\"\",$2); v=$2+0; exit (v>=1 && v<=3 ? 0 : 1)} END{exit 1}' /etc/security/pwquality.conf
       register: rhel_10_600290_check
       changed_when: false
       failed_when: false
@@ -58,10 +59,7 @@
         dest: "/etc/security/pwquality.conf.bak.{{ ansible_date_time.epoch }}"
         remote_src: true
         mode: preserve
-      when: >
-        rhel_10_600290_check.rc != 0 or
-        (rhel_10_600290_check.stdout | regex_search('maxrepeat\s*=\s*(\d+)', '\1') | first | int) > 3 or
-        (rhel_10_600290_check.stdout | regex_search('maxrepeat\s*=\s*(\d+)', '\1') | first | int) == 0
+      when: rhel_10_600290_check.rc != 0
 
     - name: "RHEL-10-600290 | Set maxrepeat = 3 in /etc/security/pwquality.conf"
       ansible.builtin.lineinfile:
@@ -69,24 +67,19 @@
         regexp: '^#?\s*maxrepeat\s*='
         line: 'maxrepeat = 3'
         state: present
-      when: >
-        rhel_10_600290_check.rc != 0 or
-        (rhel_10_600290_check.stdout | regex_search('maxrepeat\s*=\s*(\d+)', '\1') | first | int) > 3 or
-        (rhel_10_600290_check.stdout | regex_search('maxrepeat\s*=\s*(\d+)', '\1') | first | int) == 0
+      when: rhel_10_600290_check.rc != 0
 
     - name: "RHEL-10-600290 | Re-check maxrepeat"
-      ansible.builtin.command:
-        cmd: grep -s "^maxrepeat" /etc/security/pwquality.conf
+      ansible.builtin.shell:
+        cmd: >-
+          awk -F= '/^maxrepeat/{gsub(/ /,\"\",$2); v=$2+0; exit (v>=1 && v<=3 ? 0 : 1)} END{exit 1}' /etc/security/pwquality.conf
       register: rhel_10_600290_verify
       changed_when: false
       failed_when: false
 
     - name: "RHEL-10-600290 | Assert maxrepeat is 3 or less (but not 0)"
       ansible.builtin.assert:
-        that:
-          - rhel_10_600290_verify.rc == 0
-          - (rhel_10_600290_verify.stdout | regex_search('maxrepeat\s*=\s*(\d+)', '\1') | first | int) > 0
-          - (rhel_10_600290_verify.stdout | regex_search('maxrepeat\s*=\s*(\d+)', '\1') | first | int) <= 3
+        that: rhel_10_600290_verify.rc == 0
         fail_msg: "result=FAIL stig_id=RHEL-10-600290 detail=maxrepeat is not set to 3 or less in /etc/security/pwquality.conf (current={{ rhel_10_600290_verify.stdout | trim }})."
         success_msg: "result=PASS stig_id=RHEL-10-600290 detail=maxrepeat is set correctly in /etc/security/pwquality.conf ({{ rhel_10_600290_verify.stdout | trim }})."
   rescue:

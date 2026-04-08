@@ -68,7 +68,8 @@
 
     - name: "RHEL-10-700780 | Check screensaver lock-delay lock in dconf locks file"
       ansible.builtin.command:
-        cmd: grep -r '/org/gnome/desktop/screensaver/lock-delay' /etc/dconf/db/local.d/locks/
+        cmd: >-
+          grep -r '/org/gnome/desktop/screensaver/lock-delay' /etc/dconf/db/local.d/locks/
       register: rhel_10_700780_check
       changed_when: false
       failed_when: false
@@ -92,7 +93,8 @@
 
     - name: "RHEL-10-700780 | Re-check screensaver lock-delay lock in dconf"
       ansible.builtin.command:
-        cmd: grep -r '/org/gnome/desktop/screensaver/lock-delay' /etc/dconf/db/local.d/locks/
+        cmd: >-
+          grep -r '/org/gnome/desktop/screensaver/lock-delay' /etc/dconf/db/local.d/locks/
       register: rhel_10_700780_verify
       changed_when: false
       failed_when: false

@@ -46,7 +46,8 @@
   block:
     - name: "RHEL-10-600740 | Check ENCRYPT_METHOD in /etc/login.defs"
       ansible.builtin.command:
-        cmd: grep -iE '^ENCRYPT_METHOD\s+SHA512' /etc/login.defs
+        cmd: >-
+          grep -iE '^ENCRYPT_METHOD\s+SHA512' /etc/login.defs
       register: rhel_10_600740_check
       changed_when: false
       failed_when: false
@@ -69,7 +70,8 @@
 
     - name: "RHEL-10-600740 | Re-check ENCRYPT_METHOD in /etc/login.defs"
       ansible.builtin.command:
-        cmd: grep -iE '^ENCRYPT_METHOD\s+SHA512' /etc/login.defs
+        cmd: >-
+          grep -iE '^ENCRYPT_METHOD\s+SHA512' /etc/login.defs
       register: rhel_10_600740_verify
       changed_when: false
       failed_when: false

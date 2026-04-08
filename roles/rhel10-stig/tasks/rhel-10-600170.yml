@@ -62,12 +62,15 @@
       changed_when: false
       failed_when: false
 
-    - name: "RHEL-10-600170 | Assert no init files contain non-home PATH references"
-      ansible.builtin.assert:
-        that:
-          - rhel_10_600170_check.stdout_lines | length == 0
-        fail_msg: "result=FAIL stig_id=RHEL-10-600170 detail=Local interactive user init files contain PATH statements referencing non-home directories ({{ rhel_10_600170_check.stdout | trim }}). Edit files to remove references outside home directories or document with ISSO."
-        success_msg: "result=PASS stig_id=RHEL-10-600170 detail=No local interactive user init files contain executable search path statements referencing directories outside home directories."
+    - name: "RHEL-10-600170 | Report PASS - no init files contain non-home PATH references"
+      ansible.builtin.debug:
+        msg: "result=PASS stig_id=RHEL-10-600170 detail=No local interactive user init files contain executable search path statements referencing directories outside home directories."
+      when: rhel_10_600170_check.stdout_lines | length == 0
+
+    - name: "RHEL-10-600170 | Report FAIL - init files contain non-home PATH references"
+      ansible.builtin.debug:
+        msg: "result=FAIL stig_id=RHEL-10-600170 detail=Local interactive user init files contain PATH statements referencing non-home directories ({{ rhel_10_600170_check.stdout | trim }}). Edit files to remove references outside home directories or document with ISSO."
+      when: rhel_10_600170_check.stdout_lines | length > 0
   rescue:
     - name: "RHEL-10-600170 | RESCUE - record failure and continue"
       ansible.builtin.debug:

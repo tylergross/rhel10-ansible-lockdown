@@ -48,7 +48,8 @@
   block:
     - name: "RHEL-10-400330 | Check umask setting in /etc/profile"
       ansible.builtin.command:
-        cmd: grep -E '^\s*umask\s+077\b' /etc/profile
+        cmd: >-
+          grep -E '^\s*umask\s+077\b' /etc/profile
       register: rhel_10_400330_check
       changed_when: false
       failed_when: false
@@ -71,7 +72,8 @@
 
     - name: "RHEL-10-400330 | Re-check umask setting in /etc/profile"
       ansible.builtin.command:
-        cmd: grep -E '^\s*umask\s+077\b' /etc/profile
+        cmd: >-
+          grep -E '^\s*umask\s+077\b' /etc/profile
       register: rhel_10_400330_verify
       changed_when: false
       failed_when: false

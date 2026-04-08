@@ -54,6 +54,11 @@
       changed_when: false
       failed_when: false
 
+    - name: "RHEL-10-700950 | Stat target file before backup"
+      ansible.builtin.stat:
+        path: /etc/systemd/system.conf
+      register: rhel_10_700950_stat
+
     - name: "RHEL-10-700950 | Backup /etc/systemd/system.conf before modification"
       ansible.builtin.copy:
         src: /etc/systemd/system.conf
@@ -62,7 +67,7 @@
         mode: '0644'
         owner: root
         group: root
-      when: "'CtrlAltDelBurstAction=none' not in rhel_10_700950_check.stdout"
+      when: "'CtrlAltDelBurstAction=none' not in rhel_10_700950_check.stdout and rhel_10_700950_stat.stat.exists"
 
     - name: "RHEL-10-700950 | Set CtrlAltDelBurstAction to none in /etc/systemd/system.conf"
       ansible.builtin.lineinfile:

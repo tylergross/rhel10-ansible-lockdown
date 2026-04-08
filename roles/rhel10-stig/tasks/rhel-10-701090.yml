@@ -51,12 +51,20 @@
     - CCI-000381
   block:
     - name: "RHEL-10-701090 | Set sysctl kernel.core_pattern = |/bin/false"
-      ansible.posix.sysctl:
-        name: kernel.core_pattern
-        value: '|/bin/false'
-        state: present
-        reload: true
-        sysctl_file: /etc/sysctl.d/rhel10-stig.conf
+      ansible.builtin.lineinfile:
+        path: /etc/sysctl.d/rhel10-stig.conf
+        regexp: '^#?\s*kernel\.core_pattern\s*='
+        line: 'kernel.core_pattern = |/bin/false'
+        create: true
+        mode: '0644'
+        owner: root
+        group: root
+
+    - name: "RHEL-10-701090 | Apply sysctl settings from conf file"
+      ansible.builtin.command:
+        cmd: sysctl -p /etc/sysctl.d/rhel10-stig.conf
+      changed_when: false
+      failed_when: false
 
     - name: "RHEL-10-701090 | Verify kernel.core_pattern"
       ansible.builtin.command:

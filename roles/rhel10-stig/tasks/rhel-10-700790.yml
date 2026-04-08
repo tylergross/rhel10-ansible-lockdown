@@ -74,10 +74,22 @@
 
     - name: "RHEL-10-700790 | Check picture-uri setting in dconf keyfile"
       ansible.builtin.command:
-        cmd: grep -r 'picture-uri' /etc/dconf/db/local.d/
+        cmd: >-
+          grep -r 'picture-uri' /etc/dconf/db/local.d/
       register: rhel_10_700790_check
       changed_when: false
       failed_when: false
+
+    - name: "RHEL-10-700790 | Ensure screensaver section header is present in dconf keyfile"
+      ansible.builtin.lineinfile:
+        path: /etc/dconf/db/local.d/00-security-settings
+        line: '[org/gnome/desktop/screensaver]'
+        state: present
+        create: true
+        mode: '0644'
+        owner: root
+        group: root
+      when: rhel_10_700790_check.rc != 0
 
     - name: "RHEL-10-700790 | Set picture-uri to empty string in dconf keyfile"
       ansible.builtin.lineinfile:
@@ -93,7 +105,8 @@
 
     - name: "RHEL-10-700790 | Check picture-uri lock in dconf locks file"
       ansible.builtin.command:
-        cmd: grep -r '/org/gnome/desktop/screensaver/picture-uri' /etc/dconf/db/local.d/locks/
+        cmd: >-
+          grep -r '/org/gnome/desktop/screensaver/picture-uri' /etc/dconf/db/local.d/locks/
       register: rhel_10_700790_lock_check
       changed_when: false
       failed_when: false
@@ -117,7 +130,8 @@
 
     - name: "RHEL-10-700790 | Re-check picture-uri in dconf"
       ansible.builtin.command:
-        cmd: grep -r 'picture-uri' /etc/dconf/db/local.d/
+        cmd: >-
+          grep -r 'picture-uri' /etc/dconf/db/local.d/
       register: rhel_10_700790_verify
       changed_when: false
       failed_when: false

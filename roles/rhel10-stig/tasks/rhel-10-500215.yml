@@ -49,7 +49,8 @@
   block:
     - name: "RHEL-10-500215 | Check LogLevel VERBOSE in sshd config"
       ansible.builtin.command:
-        cmd: grep -iE '^\s*LogLevel\s+VERBOSE' /etc/ssh/sshd_config /etc/ssh/sshd_config.d/
+        cmd: >-
+          grep -iE '^\s*LogLevel\s+VERBOSE' /etc/ssh/sshd_config /etc/ssh/sshd_config.d/
       register: rhel_10_500215_check
       changed_when: false
       failed_when: false
@@ -78,7 +79,8 @@
 
     - name: "RHEL-10-500215 | Re-check LogLevel VERBOSE in sshd config"
       ansible.builtin.shell:
-        cmd: grep -iE '^\s*LogLevel\s+VERBOSE' /etc/ssh/sshd_config /etc/ssh/sshd_config.d/* 2>/dev/null
+        cmd: >-
+          grep -iE '^\s*LogLevel\s+VERBOSE' /etc/ssh/sshd_config /etc/ssh/sshd_config.d/* 2>/dev/null
       register: rhel_10_500215_verify
       changed_when: false
       failed_when: false

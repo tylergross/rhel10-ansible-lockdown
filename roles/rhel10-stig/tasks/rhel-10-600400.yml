@@ -44,7 +44,8 @@
   block:
     - name: "RHEL-10-600400 | Check for accounts with UID 0 other than root"
       ansible.builtin.command:
-        cmd: awk -F':' '$3 == 0 && $1 != "root" {print $1}' /etc/passwd
+        cmd: >-
+          awk -F':' '$3 == 0 && $1 != "root" {print $1}' /etc/passwd
       register: rhel_10_600400_check
       changed_when: false
       failed_when: false

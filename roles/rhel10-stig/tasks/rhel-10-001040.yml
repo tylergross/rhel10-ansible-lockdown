@@ -48,7 +48,8 @@
   block:
     - name: "RHEL-10-001040 | Check localpkg_gpgcheck setting in dnf.conf"
       ansible.builtin.command:
-        cmd: grep -Pw 'localpkg_gpgcheck\s*=\s*\d' /etc/dnf/dnf.conf
+        cmd: >-
+          grep -Pw 'localpkg_gpgcheck\s*=\s*\d' /etc/dnf/dnf.conf
       register: rhel_10_001040_gpgcheck
       changed_when: false
       failed_when: false
@@ -74,7 +75,8 @@
 
     - name: "RHEL-10-001040 | Re-check localpkg_gpgcheck setting after remediation"
       ansible.builtin.command:
-        cmd: grep -Pw 'localpkg_gpgcheck\s*=\s*\d' /etc/dnf/dnf.conf
+        cmd: >-
+          grep -Pw 'localpkg_gpgcheck\s*=\s*\d' /etc/dnf/dnf.conf
       register: rhel_10_001040_gpgcheck_final
       changed_when: false
       failed_when: false

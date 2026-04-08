@@ -39,7 +39,7 @@
 #   Defaults timestamp_timeout=0
 # =============================================================================
 
-- name: "RHEL-10-600540 | RHEL 10 must require reauthentication when using the "sudo" command."
+- name: "RHEL-10-600540 | RHEL 10 must require reauthentication when using the sudo command."
   when: rhel_10_600540 | bool
   tags:
     - RHEL-10-600540
@@ -48,14 +48,16 @@
   block:
     - name: "RHEL-10-600540 | Check timestamp_timeout in sudoers"
       ansible.builtin.command:
-        cmd: grep -ir 'timestamp_timeout' /etc/sudoers /etc/sudoers.d/
+        cmd: >-
+          grep -ir 'timestamp_timeout' /etc/sudoers /etc/sudoers.d/
       register: rhel_10_600540_check
       changed_when: false
       failed_when: false
 
     - name: "RHEL-10-600540 | Check that timestamp_timeout=0 is in /etc/sudoers only"
       ansible.builtin.command:
-        cmd: grep -i 'timestamp_timeout' /etc/sudoers
+        cmd: >-
+          grep -i 'timestamp_timeout' /etc/sudoers
       register: rhel_10_600540_main
       changed_when: false
       failed_when: false
@@ -83,7 +85,8 @@
 
     - name: "RHEL-10-600540 | Re-check timestamp_timeout in /etc/sudoers"
       ansible.builtin.command:
-        cmd: grep -i 'timestamp_timeout' /etc/sudoers
+        cmd: >-
+          grep -i 'timestamp_timeout' /etc/sudoers
       register: rhel_10_600540_verify
       changed_when: false
       failed_when: false

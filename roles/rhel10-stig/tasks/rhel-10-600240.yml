@@ -47,8 +47,9 @@
     - CCI-004066
   block:
     - name: "RHEL-10-600240 | Check lcredit in /etc/security/pwquality.conf"
-      ansible.builtin.command:
-        cmd: grep -s "^lcredit" /etc/security/pwquality.conf
+      ansible.builtin.shell:
+        cmd: >-
+          awk -F= '/^lcredit/{gsub(/ /,\"\",$2); exit ($2+0<0 ? 0 : 1)} END{exit 1}' /etc/security/pwquality.conf
       register: rhel_10_600240_check
       changed_when: false
       failed_when: false
@@ -59,9 +60,7 @@
         dest: "/etc/security/pwquality.conf.bak.{{ ansible_date_time.epoch }}"
         remote_src: true
         mode: preserve
-      when: >
-        rhel_10_600240_check.rc != 0 or
-        (rhel_10_600240_check.stdout | regex_search('lcredit\s*=\s*(-?\d+)', '\1') | first | int) >= 0
+      when: rhel_10_600240_check.rc != 0
 
     - name: "RHEL-10-600240 | Set lcredit = -1 in /etc/security/pwquality.conf"
       ansible.builtin.lineinfile:
@@ -69,22 +68,19 @@
         regexp: '^#?\s*lcredit\s*='
         line: 'lcredit = -1'
         state: present
-      when: >
-        rhel_10_600240_check.rc != 0 or
-        (rhel_10_600240_check.stdout | regex_search('lcredit\s*=\s*(-?\d+)', '\1') | first | int) >= 0
+      when: rhel_10_600240_check.rc != 0
 
     - name: "RHEL-10-600240 | Re-check lcredit"
-      ansible.builtin.command:
-        cmd: grep -s "^lcredit" /etc/security/pwquality.conf
+      ansible.builtin.shell:
+        cmd: >-
+          awk -F= '/^lcredit/{gsub(/ /,\"\",$2); exit ($2+0<0 ? 0 : 1)} END{exit 1}' /etc/security/pwquality.conf
       register: rhel_10_600240_verify
       changed_when: false
       failed_when: false
 
     - name: "RHEL-10-600240 | Assert lcredit is a negative number"
       ansible.builtin.assert:
-        that:
-          - rhel_10_600240_verify.rc == 0
-          - (rhel_10_600240_verify.stdout | regex_search('lcredit\s*=\s*(-?\d+)', '\1') | first | int) < 0
+        that: rhel_10_600240_verify.rc == 0
         fail_msg: "result=FAIL stig_id=RHEL-10-600240 detail=lcredit is not set to a negative value in /etc/security/pwquality.conf (current={{ rhel_10_600240_verify.stdout | trim }})."
         success_msg: "result=PASS stig_id=RHEL-10-600240 detail=lcredit is set to a negative value in /etc/security/pwquality.conf ({{ rhel_10_600240_verify.stdout | trim }})."
   rescue:

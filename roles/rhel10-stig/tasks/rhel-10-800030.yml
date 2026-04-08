@@ -50,12 +50,20 @@
     - CCI-001082
   block:
     - name: "RHEL-10-800030 | Set sysctl kernel.unprivileged_bpf_disabled = 1"
-      ansible.posix.sysctl:
-        name: kernel.unprivileged_bpf_disabled
-        value: '1'
-        state: present
-        reload: true
-        sysctl_file: /etc/sysctl.d/rhel10-stig.conf
+      ansible.builtin.lineinfile:
+        path: /etc/sysctl.d/rhel10-stig.conf
+        regexp: '^#?\s*kernel\.unprivileged_bpf_disabled\s*='
+        line: 'kernel.unprivileged_bpf_disabled = 1'
+        create: true
+        mode: '0644'
+        owner: root
+        group: root
+
+    - name: "RHEL-10-800030 | Apply sysctl settings from conf file"
+      ansible.builtin.command:
+        cmd: sysctl -p /etc/sysctl.d/rhel10-stig.conf
+      changed_when: false
+      failed_when: false
 
     - name: "RHEL-10-800030 | Verify kernel.unprivileged_bpf_disabled"
       ansible.builtin.command:

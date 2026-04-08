@@ -98,7 +98,8 @@
   block:
     - name: "RHEL-10-000510 | Count LUKS-encrypted block devices"
       ansible.builtin.shell:
-        cmd: "lsblk -l -o FSTYPE 2>/dev/null | grep -c 'crypto_LUKS'"
+        cmd: >-
+          "lsblk -l -o FSTYPE 2>/dev/null | grep -c 'crypto_LUKS'"
       register: rhel_10_000510_luks_count
       changed_when: false
       # grep exits 1 when no matches; that is a valid (non-error) result here

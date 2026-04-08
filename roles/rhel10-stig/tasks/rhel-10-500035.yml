@@ -43,7 +43,8 @@
   block:
     - name: "RHEL-10-500035 | Check -f 2 in /etc/audit/rules.d/audit.rules"
       ansible.builtin.command:
-        cmd: grep -E '^\s*-f\s+2' /etc/audit/rules.d/audit.rules
+        cmd: >-
+          grep -E '^\s*-f\s+2' /etc/audit/rules.d/audit.rules
       register: rhel_10_500035_check
       changed_when: false
       failed_when: false
@@ -62,7 +63,8 @@
 
     - name: "RHEL-10-500035 | Re-check -f 2 in /etc/audit/rules.d/audit.rules"
       ansible.builtin.command:
-        cmd: grep -E '^\s*-f\s+2' /etc/audit/rules.d/audit.rules
+        cmd: >-
+          grep -E '^\s*-f\s+2' /etc/audit/rules.d/audit.rules
       register: rhel_10_500035_verify
       changed_when: false
       failed_when: false

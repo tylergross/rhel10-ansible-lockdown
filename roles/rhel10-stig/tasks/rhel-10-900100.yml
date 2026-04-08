@@ -51,7 +51,8 @@
   block:
     - name: "RHEL-10-900100 | Check for -e 2 immutable flag in audit rules"
       ansible.builtin.command:
-        cmd: grep -E '^\s*[^#]' /etc/audit/audit.rules
+        cmd: >-
+          grep -E '^\s*[^#]' /etc/audit/audit.rules
       register: rhel_10_900100_rules
       changed_when: false
       failed_when: false
@@ -70,14 +71,15 @@
 
     - name: "RHEL-10-900100 | Re-check for -e 2 immutable flag"
       ansible.builtin.command:
-        cmd: grep -E '^\s*[^#]' /etc/audit/audit.rules
+        cmd: >-
+          grep -E '^\s*-e\s+2\s*$' /etc/audit/rules.d/rhel10-stig.rules
       register: rhel_10_900100_verify
       changed_when: false
       failed_when: false
 
     - name: "RHEL-10-900100 | Assert -e 2 immutable flag is present in audit rules"
       ansible.builtin.assert:
-        that: rhel_10_900100_verify.stdout_lines | select('match', '^\\s*-e 2\\s*$') | list | length > 0
+        that: rhel_10_900100_verify.rc == 0
         fail_msg: "result=FAIL stig_id=RHEL-10-900100 detail=Audit rules do not contain the -e 2 immutable flag."
         success_msg: "result=PASS stig_id=RHEL-10-900100 detail=Audit rules contain the -e 2 immutable flag."
 

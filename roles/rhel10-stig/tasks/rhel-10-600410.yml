@@ -40,8 +40,9 @@
     - CCI-002238
   block:
     - name: "RHEL-10-600410 | Check deny setting in /etc/security/faillock.conf"
-      ansible.builtin.command:
-        cmd: grep -w "deny" /etc/security/faillock.conf
+      ansible.builtin.shell:
+        cmd: >-
+          awk -F= '/^\s*deny\s*=/{gsub(/ /,\"\",$2); v=$2+0; exit (v>=1 && v<=3 ? 0 : 1)} END{exit 1}' /etc/security/faillock.conf
       register: rhel_10_600410_check
       changed_when: false
       failed_when: false
@@ -52,10 +53,7 @@
         dest: "/etc/security/faillock.conf.bak.{{ ansible_date_time.epoch }}"
         remote_src: true
         mode: preserve
-      when: >
-        rhel_10_600410_check.rc != 0 or
-        (rhel_10_600410_check.stdout | regex_search('deny\s*=\s*(\d+)', '\1') | first | int) == 0 or
-        (rhel_10_600410_check.stdout | regex_search('deny\s*=\s*(\d+)', '\1') | first | int) > 3
+      when: rhel_10_600410_check.rc != 0
 
     - name: "RHEL-10-600410 | Set deny = 3 in /etc/security/faillock.conf"
       ansible.builtin.lineinfile:
@@ -63,24 +61,19 @@
         regexp: '^#?\s*deny\s*='
         line: 'deny = 3'
         state: present
-      when: >
-        rhel_10_600410_check.rc != 0 or
-        (rhel_10_600410_check.stdout | regex_search('deny\s*=\s*(\d+)', '\1') | first | int) == 0 or
-        (rhel_10_600410_check.stdout | regex_search('deny\s*=\s*(\d+)', '\1') | first | int) > 3
+      when: rhel_10_600410_check.rc != 0
 
     - name: "RHEL-10-600410 | Re-check deny setting"
-      ansible.builtin.command:
-        cmd: grep -w "deny" /etc/security/faillock.conf
+      ansible.builtin.shell:
+        cmd: >-
+          awk -F= '/^\s*deny\s*=/{gsub(/ /,\"\",$2); v=$2+0; exit (v>=1 && v<=3 ? 0 : 1)} END{exit 1}' /etc/security/faillock.conf
       register: rhel_10_600410_verify
       changed_when: false
       failed_when: false
 
     - name: "RHEL-10-600410 | Assert deny is set to 3 or less (but not 0)"
       ansible.builtin.assert:
-        that:
-          - rhel_10_600410_verify.rc == 0
-          - (rhel_10_600410_verify.stdout | regex_search('deny\s*=\s*(\d+)', '\1') | first | int) > 0
-          - (rhel_10_600410_verify.stdout | regex_search('deny\s*=\s*(\d+)', '\1') | first | int) <= 3
+        that: rhel_10_600410_verify.rc == 0
         fail_msg: "result=FAIL stig_id=RHEL-10-600410 detail=deny is not set to 3 or less in /etc/security/faillock.conf (current={{ rhel_10_600410_verify.stdout | trim }})."
         success_msg: "result=PASS stig_id=RHEL-10-600410 detail=deny is set to 3 or less in /etc/security/faillock.conf ({{ rhel_10_600410_verify.stdout | trim }})."
   rescue:

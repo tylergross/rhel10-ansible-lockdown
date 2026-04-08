@@ -77,15 +77,16 @@
       notify: restart auditd
 
     - name: "RHEL-10-500340 | Re-check audit rules for setfacl"
-      ansible.builtin.command:
-        cmd: auditctl -l
+      ansible.builtin.shell:
+        cmd: >-
+          grep -r '/usr/bin/setfacl' /etc/audit/rules.d/
       register: rhel_10_500340_verify
       changed_when: false
       failed_when: false
 
     - name: "RHEL-10-500340 | Assert setfacl audit rule is configured"
       ansible.builtin.assert:
-        that: "'/usr/bin/setfacl' in rhel_10_500340_verify.stdout"
+        that: rhel_10_500340_verify.rc == 0
         fail_msg: "result=FAIL stig_id=RHEL-10-500340 detail=Audit rule for /usr/bin/setfacl is not configured."
         success_msg: "result=PASS stig_id=RHEL-10-500340 detail=Audit rule for /usr/bin/setfacl is configured."
 

@@ -43,7 +43,7 @@
 #   group.
 # =============================================================================
 
-- name: "RHEL-10-600500 | RHEL 10 must restrict the use of the "su" command."
+- name: "RHEL-10-600500 | RHEL 10 must restrict the use of the su command."
   when: rhel_10_600500 | bool
   tags:
     - RHEL-10-600500
@@ -52,7 +52,8 @@
   block:
     - name: "RHEL-10-600500 | Check pam_wheel.so in /etc/pam.d/su"
       ansible.builtin.command:
-        cmd: grep -E '^auth\s+required\s+pam_wheel\.so\s+use_uid' /etc/pam.d/su
+        cmd: >-
+          grep -E '^auth\s+required\s+pam_wheel\.so\s+use_uid' /etc/pam.d/su
       register: rhel_10_600500_check
       changed_when: false
       failed_when: false
@@ -75,7 +76,8 @@
 
     - name: "RHEL-10-600500 | Re-check pam_wheel.so in /etc/pam.d/su"
       ansible.builtin.command:
-        cmd: grep -E '^auth\s+required\s+pam_wheel\.so\s+use_uid' /etc/pam.d/su
+        cmd: >-
+          grep -E '^auth\s+required\s+pam_wheel\.so\s+use_uid' /etc/pam.d/su
       register: rhel_10_600500_verify
       changed_when: false
       failed_when: false

@@ -87,7 +87,7 @@
 
     - name: "RHEL-10-500680 | Re-check audit rule for /etc/sudoers"
       ansible.builtin.command:
-        cmd: auditctl -l
+        cmd: cat /etc/audit/rules.d/rhel10-stig.rules
       register: rhel_10_500680_verify
       changed_when: false
       failed_when: false

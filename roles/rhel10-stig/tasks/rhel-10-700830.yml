@@ -68,7 +68,8 @@
 
     - name: "RHEL-10-700830 | Check media-keys logout value in dconf keyfile"
       ansible.builtin.command:
-        cmd: grep -r 'logout' /etc/dconf/db/local.d/
+        cmd: >-
+          grep -r 'logout' /etc/dconf/db/local.d/
       register: rhel_10_700830_check
       changed_when: false
       failed_when: false
@@ -104,7 +105,8 @@
 
     - name: "RHEL-10-700830 | Re-check media-keys logout in dconf"
       ansible.builtin.command:
-        cmd: grep -r 'logout' /etc/dconf/db/local.d/
+        cmd: >-
+          grep -r 'logout' /etc/dconf/db/local.d/
       register: rhel_10_700830_verify
       changed_when: false
       failed_when: false

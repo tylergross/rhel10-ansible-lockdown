@@ -48,8 +48,9 @@
     - CCI-004066
   block:
     - name: "RHEL-10-600485 | Check retry in /etc/security/pwquality.conf"
-      ansible.builtin.command:
-        cmd: grep -s "^retry" /etc/security/pwquality.conf
+      ansible.builtin.shell:
+        cmd: >-
+          awk -F= '/^retry/{gsub(/ /,\"\",$2); v=$2+0; exit (v>=1 && v<=3 ? 0 : 1)} END{exit 1}' /etc/security/pwquality.conf
       register: rhel_10_600485_check
       changed_when: false
       failed_when: false
@@ -60,10 +61,7 @@
         dest: "/etc/security/pwquality.conf.bak.{{ ansible_date_time.epoch }}"
         remote_src: true
         mode: preserve
-      when: >
-        rhel_10_600485_check.rc != 0 or
-        (rhel_10_600485_check.stdout | regex_search('retry\s*=\s*(\d+)', '\1') | first | int) == 0 or
-        (rhel_10_600485_check.stdout | regex_search('retry\s*=\s*(\d+)', '\1') | first | int) > 3
+      when: rhel_10_600485_check.rc != 0
 
     - name: "RHEL-10-600485 | Set retry = 3 in /etc/security/pwquality.conf"
       ansible.builtin.lineinfile:
@@ -71,24 +69,19 @@
         regexp: '^#?\s*retry\s*='
         line: 'retry = 3'
         state: present
-      when: >
-        rhel_10_600485_check.rc != 0 or
-        (rhel_10_600485_check.stdout | regex_search('retry\s*=\s*(\d+)', '\1') | first | int) == 0 or
-        (rhel_10_600485_check.stdout | regex_search('retry\s*=\s*(\d+)', '\1') | first | int) > 3
+      when: rhel_10_600485_check.rc != 0
 
     - name: "RHEL-10-600485 | Re-check retry"
-      ansible.builtin.command:
-        cmd: grep -s "^retry" /etc/security/pwquality.conf
+      ansible.builtin.shell:
+        cmd: >-
+          awk -F= '/^retry/{gsub(/ /,\"\",$2); v=$2+0; exit (v>=1 && v<=3 ? 0 : 1)} END{exit 1}' /etc/security/pwquality.conf
       register: rhel_10_600485_verify
       changed_when: false
       failed_when: false
 
     - name: "RHEL-10-600485 | Assert retry is between 1 and 3"
       ansible.builtin.assert:
-        that:
-          - rhel_10_600485_verify.rc == 0
-          - (rhel_10_600485_verify.stdout | regex_search('retry\s*=\s*(\d+)', '\1') | first | int) > 0
-          - (rhel_10_600485_verify.stdout | regex_search('retry\s*=\s*(\d+)', '\1') | first | int) <= 3
+        that: rhel_10_600485_verify.rc == 0
         fail_msg: "result=FAIL stig_id=RHEL-10-600485 detail=retry is not set to a value between 1 and 3 in /etc/security/pwquality.conf (current={{ rhel_10_600485_verify.stdout | trim }})."
         success_msg: "result=PASS stig_id=RHEL-10-600485 detail=retry is set to 3 or fewer in /etc/security/pwquality.conf ({{ rhel_10_600485_verify.stdout | trim }})."
   rescue:

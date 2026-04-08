@@ -70,7 +70,8 @@
 
     - name: "RHEL-10-700710 | Check autorun-never lock in dconf locks file"
       ansible.builtin.command:
-        cmd: grep -r 'autorun-never' /etc/dconf/db/local.d/locks/
+        cmd: >-
+          grep -r 'autorun-never' /etc/dconf/db/local.d/locks/
       register: rhel_10_700710_check
       changed_when: false
       failed_when: false
@@ -94,7 +95,8 @@
 
     - name: "RHEL-10-700710 | Re-check autorun-never lock in dconf"
       ansible.builtin.command:
-        cmd: grep -r 'autorun-never' /etc/dconf/db/local.d/locks/
+        cmd: >-
+          grep -r 'autorun-never' /etc/dconf/db/local.d/locks/
       register: rhel_10_700710_verify
       changed_when: false
       failed_when: false

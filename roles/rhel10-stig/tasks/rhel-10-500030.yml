@@ -53,7 +53,8 @@
   block:
     - name: "RHEL-10-500030 | Check current audit_backlog_limit in /proc/cmdline"
       ansible.builtin.command:
-        cmd: grep -oP 'audit_backlog_limit=\K[0-9]+' /proc/cmdline
+        cmd: >-
+          grep -oP 'audit_backlog_limit=\K[0-9]+' /proc/cmdline
       register: rhel_10_500030_check
       changed_when: false
       failed_when: false

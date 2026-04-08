@@ -78,7 +78,8 @@
 
     - name: "RHEL-10-700700 | Check automount-open lock in dconf locks file"
       ansible.builtin.command:
-        cmd: grep -r 'automount-open' /etc/dconf/db/local.d/locks/
+        cmd: >-
+          grep -r 'automount-open' /etc/dconf/db/local.d/locks/
       register: rhel_10_700700_check
       changed_when: false
       failed_when: false
@@ -102,7 +103,8 @@
 
     - name: "RHEL-10-700700 | Re-check automount-open lock in dconf"
       ansible.builtin.command:
-        cmd: grep -r 'automount-open' /etc/dconf/db/local.d/locks/
+        cmd: >-
+          grep -r 'automount-open' /etc/dconf/db/local.d/locks/
       register: rhel_10_700700_verify
       changed_when: false
       failed_when: false
