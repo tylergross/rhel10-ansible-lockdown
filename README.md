@@ -147,6 +147,13 @@ ansible-playbook -i inventory/hosts.yml site.yml --skip-tags low
 
 ---
 
+## Author
+
+**Tyler Gross**
+[TGTechAcademy.com](https://TGTechAcademy.com)
+
+---
+
 ## Reference
 
 - [DISA STIG Library](https://public.cyber.mil/stigs/)

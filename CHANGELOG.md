@@ -6,36 +6,6 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ---
 
-## [0.5.0] — 2026-04-07
-
-### Added
-- `benchmark/generate_rhel10_benchmark.py` — enhanced with real OVAL automated checks replacing `ind:unknown_test` stubs:
-  - Pattern-based check-text categorization (15 categories) covering 294/434 rules (67%) with automated OVAL
-  - `sysctl` (32) → `ind:textfilecontent54_test` on `/proc/sys/` paths
-  - `grep` (89) + `pam` (13) + `sssd` (3) + `sshd_config` (18) → `ind:textfilecontent54_test` on target config files
-  - `stat_owner` (17) + `stat_group` (17) → `unix:file_test` with `user_id`/`group_id` = 0
-  - `stat_mode` (12) → `unix:file_test` with octal permission bit checks
-  - `rpm_absent` (33) + `rpm_present` (2) → `linux:rpminfo_test` with `check_existence` flags
-  - `systemctl_masked` (5) + `systemctl_enabled` (2) → `unix:file_test` on unit symlink paths
-  - `cmdline` (6) + `proc_sys_cat` (1) → `ind:textfilecontent54_test` on `/proc/cmdline`
-  - `modprobe` (5) + `audit` (38) → `ind:textfilecontent54_test` on glob paths
-  - Remaining 140 rules use `ind:unknown_test` (manual review required)
-- `benchmark/U_RHEL_10_V1R1_STIG_SCAP_1-3_Benchmark.xml` — regenerated (2.6 MB) with automated OVAL checks; XML validated well-formed
-
----
-
-## [0.4.0] — 2026-04-07
-
-### Added
-- `benchmark/generate_rhel10_benchmark.py` — Python script that parses all 434 Ansible task file headers and generates a SCAP 1.3 data stream XML benchmark
-- `benchmark/U_RHEL_10_V1R1_STIG_SCAP_1-3_Benchmark.xml` — generated SCAP 1.3 benchmark (2.5 MB) mirroring the RHEL 9 V2R8 structure:
-  - XCCDF benchmark with all 434 rules, including title, description, check text, fix text, CCI ident, and fix references
-  - 11 profiles (MAC-1/2/3 × Classified/Public/Sensitive + Disable_Slow_Rules + CAT_I_Only)
-  - OVAL stubs using `ind:unknown_test` — all rules correctly report "not evaluated", suitable for STIG Viewer manual tracking
-  - CPE dictionary and platform OVAL for `cpe:/o:redhat:enterprise_linux:10`
-
----
-
 ## [0.3.0] — 2026-04-06
 
 ### Added
@@ -90,8 +60,6 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 | Version | Date       | Description                                          |
 |---------|------------|------------------------------------------------------|
-| 0.5.0   | 2026-04-07 | Real OVAL automated checks (294/434, 67% coverage)   |
-| 0.4.0   | 2026-04-07 | SCAP 1.3 benchmark generated from task files         |
 | 0.3.0   | 2026-04-06 | All 434/434 controls implemented (701xxx range)      |
 | 0.2.0   | 2026-04-06 | 404/434 controls implemented; bug fixes              |
 | 0.1.0   | 2026-03-30 | Initial framework scaffold                           |
